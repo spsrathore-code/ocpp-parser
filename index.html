@@ -738,6 +738,7 @@
             let allAlerts = [];
             let allDowntimes = [];
             let processedFiles = [];
+            let allTransactions = [];
 
             logFileInput.addEventListener('change', () => {
                 if (logFileInput.files.length > 0) {
@@ -862,6 +863,7 @@
                 
                 // Process transactions from combined messages
                 const transactions = processTransactions(messageGroups);
+                allTransactions = transactions; // expose to DOMContentLoaded scope for Timeline (FR-212)
                 
                 // Add fileName to transaction objects (from their related messages)
                 transactions.forEach(tx => {
@@ -3834,7 +3836,12 @@
                     tbody.querySelectorAll('.view-timeline-btn').forEach(button => {
                         button.addEventListener('click', () => {
                             const txId = parseInt(button.dataset.txid);
-                            createSessionTimelineModal(txId);
+                            try {
+                                createSessionTimelineModal(txId);
+                            } catch(e) {
+                                console.error('[Timeline] Error:', e);
+                                alert('[Timeline] Error: ' + e.message);
+                            }
                         });
                     });
                 }
@@ -6002,7 +6009,7 @@
             // ── Session Timeline & Telemetry (FR-207–234) ────────────────────────────────
 
             function getTimelineDataForTx(txId) {
-                const tx = (transactions || []).find(t => String(t.id) === String(txId));
+                const tx = (allTransactions || []).find(t => String(t.id) === String(txId));
                 if (!tx || !tx.startTime) return null;
 
                 const txStart  = new Date(tx.startTime).getTime();
