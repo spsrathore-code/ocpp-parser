@@ -6067,11 +6067,11 @@
                     || tx.startMsg?.responsePayload?.idTagInfo?.status;
                 if (authStatus) {
                     const at = authMsg ? new Date(authMsg.timestamp).getTime() : txStart - 3000;
-                    addM(at, `🔑 ${authStatus}`, authStatus === 'Accepted' ? '#22d3ee' : '#ef4444');
+                    addM(at, `🔑 Authorization · ${authStatus}`, authStatus === 'Accepted' ? '#22d3ee' : '#ef4444');
                 }
 
                 // 4. StartTransaction
-                addM(txStart, '▶ Start', '#22c55e');
+                addM(txStart, '▶ StartTransaction', '#22c55e');
 
                 // 5. Charging status after start
                 const chargeSN = onConn.find(m =>
@@ -6171,13 +6171,34 @@
                     ? Math.max(0, pct(txStop) - pct(txStart)).toFixed(2)
                     : (100 - pct(txStart)).toFixed(2);
 
-                const dotsHtml = markers.map(m =>
-                    `<div title="${m.label} · ${_tlTime(m.t, false)}"
-                          style="position:absolute;left:${pctS(m.t)}%;top:50%;
+                // Numbered tick circles on the bar.
+                // When events happen within seconds on a multi-minute window, their natural
+                // % positions collapse to the same pixel. Enforce a minimum visual gap so
+                // each step number is readable; tooltip always shows the actual time.
+                const MIN_TICK_GAP = 6; // % minimum centre-to-centre distance on the bar
+                const vPos = markers.map(m => pct(m.t)); // start from actual positions
+                // Forward pass — push right if too close
+                for (let i = 1; i < vPos.length; i++) {
+                    if (vPos[i] - vPos[i - 1] < MIN_TICK_GAP)
+                        vPos[i] = vPos[i - 1] + MIN_TICK_GAP;
+                }
+                // If the last tick was pushed past 96%, shift the whole cluster back
+                const overflow = (vPos[vPos.length - 1] || 0) - 96;
+                if (overflow > 0) {
+                    for (let i = vPos.length - 1; i >= 0; i--) {
+                        vPos[i] = Math.max(pct(markers[i].t), vPos[i] - overflow);
+                    }
+                }
+
+                const dotsHtml = markers.map((m, i) =>
+                    `<div title="${i + 1}. ${m.label} · ${_tlTime(m.t, false)}"
+                          style="position:absolute;left:${vPos[i].toFixed(2)}%;top:50%;
                                  transform:translate(-50%,-50%);
-                                 width:13px;height:13px;border-radius:50%;
+                                 width:20px;height:20px;border-radius:50%;
                                  background:${m.color};border:2px solid #111827;
-                                 z-index:2;box-shadow:0 0 7px ${m.color}99;cursor:default;"></div>`
+                                 z-index:2;box-shadow:0 0 7px ${m.color}99;cursor:default;
+                                 display:flex;align-items:center;justify-content:center;
+                                 font-size:9px;font-weight:700;color:#0d1117;">${i + 1}</div>`
                 ).join('');
 
                 html += `<div style="padding:10px 24px 6px;">
