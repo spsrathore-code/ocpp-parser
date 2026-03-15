@@ -6138,7 +6138,9 @@
             function _renderSessionTab(container, data) {
                 const { tx, winStart, winEnd, txStart, txStop, markers } = data;
                 const span = winEnd - winStart || 1;
-                const pct  = t => Math.max(0, Math.min(100, (t - winStart) / span * 100)).toFixed(2);
+                // pct → number; pctS → "%.2f" string for CSS
+                const pct  = t => Math.max(0, Math.min(100, (t - winStart) / span * 100));
+                const pctS = t => pct(t).toFixed(2);
 
                 const anomalies = [];
                 if (markers.find(m => m.label.includes('E-Stop')))   anomalies.push(['Emergency Stop', '#f97316']);
@@ -6161,25 +6163,66 @@
                     </div>
                 </div>`;
 
-                // Build marker HTML — alternate above/below to reduce label overlap
+                // ── Proximity-aware marker layout ──────────────────────────────────────────
+                // Markers closer than CLUSTER_GAP% apart are "clustered"; each successive
+                // marker in the cluster gets a taller stem (STEM_BASE + depth * STEM_STEP)
+                // and flips above/below so labels never collide regardless of how close
+                // adjacent lifecycle events are in time.
+                const STEM_BASE    = 34;   // px — baseline stem height for isolated markers
+                const STEM_STEP    = 24;   // px — added per cluster depth level
+                const CLUSTER_GAP  = 8;    // % — markers within this range are considered clustered
+
                 let mHtml = '';
                 markers.forEach((m, i) => {
                     const l = pct(m.t);
-                    const above = i % 2 === 0;
-                    mHtml += `<div style="position:absolute;left:${l}%;top:50%;transform:translate(-50%,-50%);z-index:2;">
-                        <div style="position:absolute;left:50%;width:1px;background:${m.color};${above ? 'bottom:6px;height:28px;' : 'top:6px;height:28px;'}transform:translateX(-50%);"></div>
-                        <div style="width:10px;height:10px;border-radius:50%;background:${m.color};border:2px solid #111827;position:relative;z-index:3;"></div>
-                        <div style="position:absolute;left:50%;transform:translateX(-50%);${above ? 'bottom:36px;' : 'top:36px;'}white-space:nowrap;font-size:10px;color:${m.color};font-weight:500;background:#111827;padding:1px 5px;border-radius:3px;border:1px solid ${m.color}44;">${m.label}</div>
+
+                    // Count consecutive preceding markers that fall within CLUSTER_GAP
+                    let depth = 0;
+                    for (let j = i - 1; j >= 0; j--) {
+                        if (Math.abs(l - pct(markers[j].t)) < CLUSTER_GAP) depth++;
+                        else break;
+                    }
+
+                    const above   = depth % 2 === 0;
+                    const stemH   = STEM_BASE + depth * STEM_STEP;
+                    const stemCss = above
+                        ? `bottom:7px;height:${stemH}px;`
+                        : `top:7px;height:${stemH}px;`;
+                    const labelY  = above ? `bottom:${stemH + 10}px;` : `top:${stemH + 10}px;`;
+
+                    // Clamp label horizontally so it never overflows the track edges
+                    const labelX  = l < 12
+                        ? `left:0;transform:none;`
+                        : l > 88
+                            ? `right:0;left:auto;transform:none;`
+                            : `left:50%;transform:translateX(-50%);`;
+
+                    // Timestamp sits on the opposite side of the track from the event label
+                    const timeY   = above ? `top:10px;` : `bottom:10px;`;
+                    const timeX   = l < 12
+                        ? `left:0;transform:none;`
+                        : l > 88
+                            ? `right:0;left:auto;transform:none;`
+                            : `left:50%;transform:translateX(-50%);`;
+
+                    mHtml += `<div style="position:absolute;left:${l.toFixed(2)}%;top:50%;transform:translate(-50%,-50%);z-index:${4 + depth};">
+                        <div style="position:absolute;left:50%;width:1px;background:${m.color};${stemCss}transform:translateX(-50%);"></div>
+                        <div style="width:12px;height:12px;border-radius:50%;background:${m.color};border:2px solid #111827;position:relative;z-index:${5 + depth};box-shadow:0 0 6px ${m.color}88;"></div>
+                        <div style="position:absolute;${labelY}${labelX}white-space:nowrap;font-size:11px;color:${m.color};font-weight:500;background:#111827;padding:2px 8px;border-radius:4px;border:1px solid ${m.color}55;min-width:64px;text-align:center;">${m.label}</div>
+                        <div style="position:absolute;${timeY}${timeX}white-space:nowrap;font-size:9px;color:#6b7280;">${_tlTime(m.t, true)}</div>
                     </div>`;
                 });
 
-                const txW = txStop ? Math.max(0, pct(txStop) - pct(txStart)) : (100 - pct(txStart));
-                html += `<div style="padding:56px 24px 48px;">
-                    <div style="position:relative;height:8px;background:#374151;border-radius:4px;">
-                        <div style="position:absolute;left:${pct(txStart)}%;width:${txW}%;height:100%;background:#22c55e33;border-radius:4px;border-left:2px solid #22c55e;border-right:2px solid #ef4444;"></div>
+                const txW = txStop
+                    ? Math.max(0, pct(txStop) - pct(txStart)).toFixed(2)
+                    : (100 - pct(txStart)).toFixed(2);
+
+                html += `<div style="padding:88px 24px 80px;">
+                    <div style="position:relative;height:14px;background:#374151;border-radius:7px;overflow:visible;">
+                        <div style="position:absolute;left:${pctS(txStart)}%;width:${txW}%;height:100%;background:#22c55e33;border-radius:7px;border-left:2px solid #22c55e;border-right:2px solid #ef4444;"></div>
                         ${mHtml}
                     </div>
-                    <div style="display:flex;justify-content:space-between;margin-top:12px;">
+                    <div style="display:flex;justify-content:space-between;margin-top:10px;">
                         <span style="color:#4b5563;font-size:10px;">${_tlTime(winStart, false)}</span>
                         <span style="color:#4b5563;font-size:10px;">${_tlTime(winEnd, false)}</span>
                     </div>
