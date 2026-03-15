@@ -6047,7 +6047,8 @@
 
                 // ── Event markers ──
                 const markers = [];
-                const addM = (t, label, color) => markers.push({ t, label, color });
+                // tip = rich hover text shown in the segment tooltip on the timeline bar
+                const addM = (t, label, color, tip = '') => markers.push({ t, label, color, tip });
 
                 // 1. Available before session
                 const avBefore = onConn
@@ -6067,11 +6068,13 @@
                     || tx.startMsg?.responsePayload?.idTagInfo?.status;
                 if (authStatus) {
                     const at = authMsg ? new Date(authMsg.timestamp).getTime() : txStart - 3000;
-                    addM(at, `🔑 Authorization · ${authStatus}`, authStatus === 'Accepted' ? '#22d3ee' : '#ef4444');
+                    addM(at, `🔑 Authorization · ${authStatus}`, authStatus === 'Accepted' ? '#22d3ee' : '#ef4444',
+                        `ID Tag: ${tx.idTag || '—'} | Status: ${authStatus}`);
                 }
 
                 // 4. StartTransaction
-                addM(txStart, '▶ StartTransaction', '#22c55e');
+                addM(txStart, '▶ StartTransaction', '#22c55e',
+                    `Connector: ${tx.connectorId} | ID Tag: ${tx.idTag || '—'}\nMeter Start: ${tx.meterStart != null ? tx.meterStart + ' Wh' : '—'}`);
 
                 // 5. Charging status after start
                 const chargeSN = onConn.find(m =>
@@ -6096,7 +6099,8 @@
 
                     // 8. StopTransaction
                     const stopLabel = '■ Stop' + (tx.stopReason && tx.stopReason !== 'N/A' ? ' · ' + tx.stopReason : '');
-                    addM(txStop, stopLabel, '#ef4444');
+                    addM(txStop, stopLabel, '#ef4444',
+                        `Reason: ${tx.stopReason || '—'} | Energy: ${tx.totalEnergy != null ? tx.totalEnergy.toFixed(2) + ' kWh' : '—'}\nMeter Stop: ${tx.meterStop != null ? tx.meterStop + ' Wh' : '—'}`);
 
                     // 9. Finishing after stop
                     const fin = onConn.find(m =>
@@ -6163,77 +6167,110 @@
                     </div>
                 </div>`;
 
-                // ── Timeline bar — dots only, no floating labels ────────────────────────
-                // Labels on the bar cause unavoidable overlap when OCPP events cluster
-                // within seconds of each other (Auth → Start → Charging all at t+0s).
-                // Dots on the bar give the proportional view; stage chips below give the detail.
-                const txW    = txStop
-                    ? Math.max(0, pct(txStop) - pct(txStart)).toFixed(2)
-                    : (100 - pct(txStart)).toFixed(2);
+                // ── Segmented timeline bar (Improvement #3 + #1 + #4 + #5) ───────────────
+                // Uses CSS flex so each segment's visual width = actual time proportion.
+                // Event blocks are fixed 26px wide (min visible width for short stages).
+                // Gap connectors are state-colored (idle/preparing/charging/stopping…).
+                // Icon extracted from label is shown in each event block.
+                // Hovering an event block shows a rich OCPP tooltip.
 
-                // Numbered tick circles on the bar.
-                // When events happen within seconds on a multi-minute window, their natural
-                // % positions collapse to the same pixel. Enforce a minimum visual gap so
-                // each step number is readable; tooltip always shows the actual time.
-                const MIN_TICK_GAP = 6; // % minimum centre-to-centre distance on the bar
-                const vPos = markers.map(m => pct(m.t)); // start from actual positions
-                // Forward pass — push right if too close
-                for (let i = 1; i < vPos.length; i++) {
-                    if (vPos[i] - vPos[i - 1] < MIN_TICK_GAP)
-                        vPos[i] = vPos[i - 1] + MIN_TICK_GAP;
-                }
-                // If the last tick was pushed past 96%, shift the whole cluster back
-                const overflow = (vPos[vPos.length - 1] || 0) - 96;
-                if (overflow > 0) {
-                    for (let i = vPos.length - 1; i >= 0; i--) {
-                        vPos[i] = Math.max(pct(markers[i].t), vPos[i] - overflow);
+                // Color of the gap AFTER each marker — reflects the state just entered
+                const stateColorAfter = label => {
+                    if (label.includes('Charging'))        return '#22c55e55';
+                    if (label.includes('StartTrans'))      return '#22c55e2a';
+                    if (label.includes('Authorization'))   return '#22d3ee1a';
+                    if (label.includes('Preparing'))       return '#60a5fa1a';
+                    if (label.includes('E-Stop'))          return '#f973162a';
+                    if (label.includes('Stop'))            return '#ef44441a';
+                    if (label.includes('Finishing'))       return '#2dd4bf1a';
+                    if (label.includes('Reboot'))          return '#a855f71a';
+                    return '#37415133'; // idle / Available
+                };
+
+                // Extract leading icon from label (first non-space characters before first space)
+                const extractIcon = lbl => lbl.split(' ')[0];
+
+                // flex ratio helper — proportional to duration within the window
+                const flexRatio = (from, to) => (Math.max(0, to - from) / span * 1000).toFixed(1);
+
+                let barSegs = '';
+                let prevT = winStart;
+
+                markers.forEach((m, i) => {
+                    // Gap connector segment before this event
+                    const gapDur = m.t - prevT;
+                    if (gapDur > 0) {
+                        const gapColor = i === 0 ? '#37415133' : stateColorAfter(markers[i - 1].label);
+                        barSegs += `<div style="flex:${flexRatio(prevT, m.t)};min-width:2px;
+                                                background:${gapColor};height:100%;"></div>`;
                     }
+                    // Event icon block — fixed 26px, full tooltip on hover
+                    const tipText = m.tip
+                        ? `${i + 1}. ${m.label}\n${_tlTime(m.t, false)}\n${m.tip}`
+                        : `${i + 1}. ${m.label}\n${_tlTime(m.t, false)}`;
+                    barSegs += `<div title="${tipText}"
+                                     style="flex:0 0 26px;height:100%;
+                                            background:${m.color};
+                                            display:flex;align-items:center;justify-content:center;
+                                            font-size:13px;cursor:default;
+                                            border-left:1px solid #0d111788;
+                                            border-right:1px solid #0d111788;
+                                            box-shadow:0 0 8px ${m.color}66;
+                                            position:relative;z-index:1;">${extractIcon(m.label)}</div>`;
+                    prevT = m.t;
+                });
+
+                // Final gap after last event
+                if (prevT < winEnd) {
+                    const lastColor = markers.length > 0 ? stateColorAfter(markers[markers.length - 1].label) : '#37415133';
+                    barSegs += `<div style="flex:${flexRatio(prevT, winEnd)};min-width:2px;
+                                            background:${lastColor};height:100%;"></div>`;
                 }
 
-                const dotsHtml = markers.map((m, i) =>
-                    `<div title="${i + 1}. ${m.label} · ${_tlTime(m.t, false)}"
-                          style="position:absolute;left:${vPos[i].toFixed(2)}%;top:50%;
-                                 transform:translate(-50%,-50%);
-                                 width:20px;height:20px;border-radius:50%;
-                                 background:${m.color};border:2px solid #111827;
-                                 z-index:2;box-shadow:0 0 7px ${m.color}99;cursor:default;
-                                 display:flex;align-items:center;justify-content:center;
-                                 font-size:9px;font-weight:700;color:#0d1117;">${i + 1}</div>`
-                ).join('');
-
-                html += `<div style="padding:10px 24px 6px;">
-                    <div style="position:relative;height:14px;background:#374151;border-radius:7px;overflow:visible;">
-                        <div style="position:absolute;left:${pctS(txStart)}%;width:${txW}%;height:100%;
-                                    background:#22c55e22;border-radius:7px;
-                                    border-left:2px solid #22c55e;border-right:2px solid #ef4444;"></div>
-                        ${dotsHtml}
+                html += `<div style="padding:10px 24px 8px;">
+                    <div style="display:flex;height:28px;background:#374151;
+                                border-radius:8px;overflow:hidden;">
+                        ${barSegs}
                     </div>
-                    <div style="display:flex;justify-content:space-between;margin-top:7px;">
+                    <div style="display:flex;justify-content:space-between;margin-top:6px;">
                         <span style="color:#4b5563;font-size:10px;">${_tlTime(winStart, false)}</span>
                         <span style="color:#4b5563;font-size:10px;">${_tlTime(winEnd, false)}</span>
                     </div>
                 </div>`;
 
-                // ── Stage chips — ordered lifecycle events, one chip per event ──────────
-                // Flex-wrap: up to 4 chips per row; each chip shows step number, name, time.
-                // No overlap possible. Works for any number of clustered events.
-                const chipsHtml = markers.map((m, i) => `
-                    <div style="display:flex;flex-direction:column;gap:4px;
-                                background:#1f2937;border:1px solid #374151;
-                                border-left:3px solid ${m.color};
-                                border-radius:6px;padding:9px 12px;
-                                min-width:148px;flex:1 1 148px;max-width:220px;">
+                // ── Stage chips with duration-to-next (Improvement #2) ────────────────────
+                // Each chip: step number, event label, timestamp.
+                // Non-last chips also show "⏱ +Xs to next event" so engineers immediately
+                // see authorization delays, handshake gaps, and actual charging duration.
+                const fmtGap = ms => {
+                    if (ms <= 0) return null;
+                    if (ms < 60000)   return `+${Math.round(ms / 1000)}s`;
+                    if (ms < 3600000) return `+${(ms / 60000).toFixed(1)} min`;
+                    return `+${(ms / 3600000).toFixed(1)}h`;
+                };
+
+                const chipsHtml = markers.map((m, i) => {
+                    const nextGap = i < markers.length - 1 ? fmtGap(markers[i + 1].t - m.t) : null;
+                    return `<div style="display:flex;flex-direction:column;gap:4px;
+                                        background:#1f2937;border:1px solid #374151;
+                                        border-left:3px solid ${m.color};
+                                        border-radius:6px;padding:9px 12px;
+                                        min-width:152px;flex:1 1 152px;max-width:220px;">
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="color:#4b5563;font-size:10px;font-weight:600;
                                          background:#111827;border-radius:3px;
                                          padding:1px 5px;">${i + 1}</span>
                             <span style="color:${m.color};font-size:12px;font-weight:600;
-                                         white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.label}</span>
+                                         white-space:nowrap;overflow:hidden;
+                                         text-overflow:ellipsis;">${m.label}</span>
                         </div>
-                        <div style="color:#6b7280;font-size:10px;font-family:monospace;padding-left:2px;">
+                        <div style="color:#6b7280;font-size:10px;font-family:monospace;">
                             ${_tlTime(m.t, false)}
                         </div>
-                    </div>`).join('');
+                        ${nextGap ? `<div style="color:#4b5563;font-size:10px;margin-top:2px;">
+                            ⏱ ${nextGap} to next</div>` : ''}
+                    </div>`;
+                }).join('');
 
                 html += `<div style="margin-top:16px;">
                     <div style="color:#4b5563;font-size:10px;text-transform:uppercase;
