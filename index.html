@@ -3807,6 +3807,7 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm">${statusBadge}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 <button class="view-chart-btn bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-xs" data-txid="${tx.id}">View Chart</button>
+                                <button class="view-timeline-btn bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-3 rounded text-xs ml-1" data-txid="${tx.id}">📊 Timeline</button>
                             </td>
                         `;
                         tbody.appendChild(tr);
@@ -3826,6 +3827,14 @@
                                     renderTransactionChart(transactionData, 'transaction-chart-canvas');
                                 });
                             }
+                        });
+                    });
+
+                    // Session Timeline button listeners (FR-212)
+                    tbody.querySelectorAll('.view-timeline-btn').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const txId = parseInt(button.dataset.txid);
+                            createSessionTimelineModal(txId);
                         });
                     });
                 }
@@ -5989,6 +5998,445 @@
                 await refreshRepoPanelList();
                 await updateStorageInfo();
             }
+
+            // ── Session Timeline & Telemetry (FR-207–234) ────────────────────────────────
+
+            function getTimelineDataForTx(txId) {
+                const tx = (transactions || []).find(t => String(t.id) === String(txId));
+                if (!tx || !tx.startTime) return null;
+
+                const txStart  = new Date(tx.startTime).getTime();
+                const txStop   = tx.stopTime ? new Date(tx.stopTime).getTime() : null;
+                const winStart = txStart - 10 * 60 * 1000;
+                const winEnd   = (txStop || txStart) + 10 * 60 * 1000;
+
+                // ── MeterValues breakdown from tx.meterValues ──
+                const mv = { soc: [], energy: [], power: [], tempInlet: [], tempOutlet: [], tempBody: [] };
+                (tx.meterValues || []).forEach(msg => {
+                    (msg.message?.[3]?.meterValue || []).forEach(entry => {
+                        const ts = new Date(entry.timestamp || msg.timestamp).getTime();
+                        (entry.sampledValue || []).forEach(sv => {
+                            const v = parseFloat(sv.value);
+                            if (isNaN(v)) return;
+                            const p = { t: ts, v, ctx: sv.context || '', unit: sv.unit || '' };
+                            const m = sv.measurand || '', loc = (sv.location || '').toLowerCase();
+                            if (m === 'SoC') mv.soc.push(p);
+                            else if (m.startsWith('Energy.Active.Import.Register')) mv.energy.push(p);
+                            else if (m.startsWith('Power.Active.Import')) mv.power.push(p);
+                            else if (m === 'Temperature' && loc === 'inlet')  mv.tempInlet.push(p);
+                            else if (m === 'Temperature' && loc === 'outlet') mv.tempOutlet.push(p);
+                            else if (m === 'Temperature' && loc === 'body')   mv.tempBody.push(p);
+                        });
+                    });
+                });
+
+                // ── StatusNotifications in window (from allMessages directly) ──
+                const statusInWin = (allMessages || []).filter(m => {
+                    if (m.message?.[2] !== 'StatusNotification' || m.direction !== 'sent') return false;
+                    const t = new Date(m.timestamp).getTime();
+                    return t >= winStart && t <= winEnd;
+                });
+                const onConn = statusInWin.filter(m => m.message?.[3]?.connectorId == tx.connectorId);
+
+                // ── Event markers ──
+                const markers = [];
+                const addM = (t, label, color) => markers.push({ t, label, color });
+
+                // 1. Available before session
+                const avBefore = onConn
+                    .filter(m => m.message[3].status === 'Available' && new Date(m.timestamp).getTime() < txStart)
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                if (avBefore) addM(new Date(avBefore.timestamp).getTime(), '● Available', '#9ca3af');
+
+                // 2. Preparing
+                const prep = onConn.find(m => m.message[3].status === 'Preparing' && new Date(m.timestamp).getTime() < txStart);
+                if (prep) addM(new Date(prep.timestamp).getTime(), '⬡ Preparing', '#60a5fa');
+
+                // 3. Authorization — scan allMessages for Authorize near txStart, fallback to StartTransaction response
+                const authMsg = (allMessages || []).find(m =>
+                    m.message?.[2] === 'Authorize' && m.direction === 'sent' &&
+                    Math.abs(new Date(m.timestamp).getTime() - txStart) < 5 * 60 * 1000);
+                const authStatus = authMsg?.responsePayload?.idTagInfo?.status
+                    || tx.startMsg?.responsePayload?.idTagInfo?.status;
+                if (authStatus) {
+                    const at = authMsg ? new Date(authMsg.timestamp).getTime() : txStart - 3000;
+                    addM(at, `🔑 ${authStatus}`, authStatus === 'Accepted' ? '#22d3ee' : '#ef4444');
+                }
+
+                // 4. StartTransaction
+                addM(txStart, '▶ Start', '#22c55e');
+
+                // 5. Charging status after start
+                const chargeSN = onConn.find(m =>
+                    m.message[3].status === 'Charging' && new Date(m.timestamp).getTime() >= txStart);
+                if (chargeSN) addM(new Date(chargeSN.timestamp).getTime(), '⚡ Charging', '#4ade80');
+
+                if (txStop) {
+                    // 6. Emergency Stop during session
+                    const eStop = statusInWin.find(m => {
+                        const p = m.message?.[3]; const t = new Date(m.timestamp).getTime();
+                        return p?.vendorErrorCode === '17' && t >= txStart && t <= txStop;
+                    });
+                    if (eStop) addM(new Date(eStop.timestamp).getTime(), '⚡ E-Stop', '#f97316');
+
+                    // 7. Reboot during session
+                    const reboot = (allMessages || []).find(m => {
+                        if (m.message?.[2] !== 'BootNotification' || m.direction !== 'sent') return false;
+                        const t = new Date(m.timestamp).getTime();
+                        return t >= txStart && t <= txStop;
+                    });
+                    if (reboot) addM(new Date(reboot.timestamp).getTime(), '↺ Reboot', '#a855f7');
+
+                    // 8. StopTransaction
+                    const stopLabel = '■ Stop' + (tx.stopReason && tx.stopReason !== 'N/A' ? ' · ' + tx.stopReason : '');
+                    addM(txStop, stopLabel, '#ef4444');
+
+                    // 9. Finishing after stop
+                    const fin = onConn.find(m =>
+                        m.message[3].status === 'Finishing' && new Date(m.timestamp).getTime() > txStop);
+                    if (fin) addM(new Date(fin.timestamp).getTime(), '🏁 Finishing', '#2dd4bf');
+
+                    // 10. Available after stop
+                    const avAfter = onConn.find(m =>
+                        m.message[3].status === 'Available' && new Date(m.timestamp).getTime() > txStop);
+                    if (avAfter) addM(new Date(avAfter.timestamp).getTime(), '● Available', '#9ca3af');
+                }
+
+                markers.sort((a, b) => a.t - b.t);
+
+                // ── Swimlanes ──
+                const connIds = [...new Set(statusInWin.map(m => m.message?.[3]?.connectorId))]
+                    .filter(c => c != null).sort((a, b) => a - b);
+                const swimlanes = connIds.map(cid => ({
+                    connectorId: cid,
+                    events: statusInWin
+                        .filter(m => m.message?.[3]?.connectorId == cid)
+                        .map(m => ({ t: new Date(m.timestamp).getTime(), status: m.message[3].status, info: m.message[3].info || '' }))
+                        .sort((a, b) => a.t - b.t)
+                }));
+
+                return { tx, winStart, winEnd, txStart, txStop, markers, mv, swimlanes };
+            }
+
+            // Format timestamp → "HH:MM:SS IST" (full) or just "HH:MM" (short for chart ticks)
+            function _tlTime(ts, short) {
+                try {
+                    const s = convertToIST(new Date(ts).toISOString()); // "DD/MM/YYYY HH:MM:SS IST"
+                    const parts = s.split(' '); // ["DD/MM/YYYY", "HH:MM:SS", "IST"]
+                    if (short) return (parts[1] || '').substring(0, 5);
+                    return parts[1] + ' IST';
+                } catch (e) { return new Date(ts).toISOString().substring(11, 19); }
+            }
+
+            function _renderSessionTab(container, data) {
+                const { tx, winStart, winEnd, txStart, txStop, markers } = data;
+                const span = winEnd - winStart || 1;
+                const pct  = t => Math.max(0, Math.min(100, (t - winStart) / span * 100)).toFixed(2);
+
+                const anomalies = [];
+                if (markers.find(m => m.label.includes('E-Stop')))   anomalies.push(['Emergency Stop', '#f97316']);
+                if (markers.find(m => m.label.includes('Reboot')))   anomalies.push(['Mid-Session Reboot', '#a855f7']);
+                if (tx.totalEnergy != null && tx.totalEnergy * 1000 < 500 && txStop) anomalies.push(['Zero Energy', '#eab308']);
+
+                const badgesHtml = anomalies.map(([t, c]) =>
+                    `<span style="background:${c};color:#fff;font-size:11px;padding:3px 10px;border-radius:10px;">${t}</span>`).join('');
+
+                let html = `<div style="background:#1f2937;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;">
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">TX ID</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.id}</div></div>
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">Connector</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.connectorId}</div></div>
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">ID Tag</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.idTag || '—'}</div></div>
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">Duration</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.duration != null ? tx.duration.toFixed(1) + ' min' : '—'}</div></div>
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">Energy</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.totalEnergy != null ? tx.totalEnergy.toFixed(2) + ' kWh' : '—'}</div></div>
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">SoC</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.socBegin != null ? tx.socBegin + '%' : '—'} → ${tx.socEnd != null ? tx.socEnd + '%' : '—'}</div></div>
+                        <div><div style="color:#6b7280;font-size:10px;text-transform:uppercase;letter-spacing:.05em;">Stop Reason</div><div style="color:#e5e7eb;font-weight:600;font-size:14px;">${tx.stopReason || '—'}</div></div>
+                        ${badgesHtml}
+                    </div>
+                </div>`;
+
+                // Build marker HTML — alternate above/below to reduce label overlap
+                let mHtml = '';
+                markers.forEach((m, i) => {
+                    const l = pct(m.t);
+                    const above = i % 2 === 0;
+                    mHtml += `<div style="position:absolute;left:${l}%;top:50%;transform:translate(-50%,-50%);z-index:2;">
+                        <div style="position:absolute;left:50%;width:1px;background:${m.color};${above ? 'bottom:6px;height:28px;' : 'top:6px;height:28px;'}transform:translateX(-50%);"></div>
+                        <div style="width:10px;height:10px;border-radius:50%;background:${m.color};border:2px solid #111827;position:relative;z-index:3;"></div>
+                        <div style="position:absolute;left:50%;transform:translateX(-50%);${above ? 'bottom:36px;' : 'top:36px;'}white-space:nowrap;font-size:10px;color:${m.color};font-weight:500;background:#111827;padding:1px 5px;border-radius:3px;border:1px solid ${m.color}44;">${m.label}</div>
+                    </div>`;
+                });
+
+                const txW = txStop ? Math.max(0, pct(txStop) - pct(txStart)) : (100 - pct(txStart));
+                html += `<div style="padding:56px 24px 48px;">
+                    <div style="position:relative;height:8px;background:#374151;border-radius:4px;">
+                        <div style="position:absolute;left:${pct(txStart)}%;width:${txW}%;height:100%;background:#22c55e33;border-radius:4px;border-left:2px solid #22c55e;border-right:2px solid #ef4444;"></div>
+                        ${mHtml}
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:12px;">
+                        <span style="color:#4b5563;font-size:10px;">${_tlTime(winStart, false)}</span>
+                        <span style="color:#4b5563;font-size:10px;">${_tlTime(winEnd, false)}</span>
+                    </div>
+                </div>`;
+
+                container.innerHTML = html;
+            }
+
+            function _renderEnergyTab(container, data, pushChart) {
+                const { tx, mv } = data;
+
+                // SoC dataset — use periodic samples; fallback to begin/end anchors
+                let socPts = mv.soc.map(p => ({ x: p.t, y: p.v, ctx: p.ctx }));
+                if (socPts.length === 0 && tx.socBegin != null) {
+                    socPts = [{ x: new Date(tx.startTime).getTime(), y: tx.socBegin, ctx: 'Transaction.Begin' }];
+                    if (tx.socEnd != null && tx.stopTime)
+                        socPts.push({ x: new Date(tx.stopTime).getTime(), y: tx.socEnd, ctx: 'Transaction.End' });
+                }
+
+                // Energy dataset — normalize to kWh
+                const energyPts = mv.energy.map(p => ({
+                    x: p.t,
+                    y: p.unit === 'kWh' ? p.v : (p.unit === 'Wh' || p.v > 5000 ? p.v / 1000 : p.v)
+                }));
+
+                if (socPts.length === 0 && energyPts.length === 0) {
+                    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:320px;color:#6b7280;font-size:14px;">No MeterValues data available for this transaction.</div>`;
+                    return;
+                }
+
+                const wrap = document.createElement('div');
+                wrap.style.cssText = 'position:relative;height:380px;';
+                const canvas = document.createElement('canvas');
+                wrap.appendChild(canvas);
+                container.appendChild(wrap);
+
+                const datasets = [];
+                if (socPts.length > 0) datasets.push({
+                    label: 'SoC (%)', data: socPts.map(p => ({ x: p.x, y: p.y })),
+                    borderColor: '#22c55e', backgroundColor: '#22c55e18', yAxisID: 'ySoC',
+                    fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 7,
+                    pointBackgroundColor: socPts.map(p =>
+                        p.ctx && p.ctx.includes('Begin') ? '#86efac' : p.ctx && p.ctx.includes('End') ? '#16a34a' : '#22c55e')
+                });
+                if (energyPts.length > 0) datasets.push({
+                    label: 'Energy (kWh)', data: energyPts,
+                    borderColor: '#34d399', backgroundColor: 'transparent', yAxisID: 'yEnergy',
+                    fill: false, tension: 0.3, pointRadius: 3, borderDash: [5, 3]
+                });
+
+                const chart = new Chart(canvas, {
+                    type: 'line', data: { datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { labels: { color: '#9ca3af', font: { size: 12 } } },
+                            tooltip: {
+                                backgroundColor: '#1f2937', titleColor: '#e5e7eb', bodyColor: '#d1d5db',
+                                borderColor: '#374151', borderWidth: 1,
+                                callbacks: { title: i => _tlTime(i[0].parsed.x, false), label: i => `${i.dataset.label}: ${i.parsed.y.toFixed(2)}` }
+                            }
+                        },
+                        scales: {
+                            x: { type: 'linear', ticks: { color: '#6b7280', maxTicksLimit: 8, callback: v => _tlTime(v, true) }, grid: { color: '#1f2937' } },
+                            ySoC:    { type: 'linear', position: 'left',  min: 0, max: 100, ticks: { color: '#22c55e', callback: v => v + '%' }, grid: { color: '#374151' }, title: { display: true, text: 'SoC (%)',      color: '#22c55e', font: { size: 11 } } },
+                            yEnergy: { type: 'linear', position: 'right', ticks: { color: '#34d399', callback: v => v.toFixed(1) + ' kWh' }, grid: { display: false }, title: { display: true, text: 'Energy (kWh)', color: '#34d399', font: { size: 11 } } }
+                        }
+                    }
+                });
+                pushChart(chart);
+            }
+
+            function _renderStatusTab(container, data) {
+                const { winStart, winEnd, swimlanes, markers } = data;
+                const span = winEnd - winStart || 1;
+                const pct  = t => Math.max(0, Math.min(100, (t - winStart) / span * 100)).toFixed(2);
+
+                const statusColors = {
+                    Available: '#374151', Preparing: '#2563eb', Charging: '#16a34a',
+                    SuspendedEV: '#d97706', SuspendedEVSE: '#b45309', Finishing: '#0d9488',
+                    Faulted: '#dc2626', Unavailable: '#4b5563'
+                };
+
+                if (swimlanes.length === 0) {
+                    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#6b7280;">No StatusNotification data in this window.</div>`;
+                    return;
+                }
+
+                const mLines = markers.map(m =>
+                    `<div style="position:absolute;left:${pct(m.t)}%;top:0;bottom:0;width:1px;background:${m.color};opacity:0.5;z-index:1;" title="${m.label}"></div>`
+                ).join('');
+
+                let html = '<div style="padding:4px 0;">';
+                swimlanes.forEach(lane => {
+                    let blocks = '';
+                    lane.events.forEach((ev, idx) => {
+                        const nextT  = idx < lane.events.length - 1 ? lane.events[idx + 1].t : winEnd;
+                        const left   = pct(ev.t);
+                        const width  = Math.max(0.3, pct(nextT) - pct(ev.t)).toFixed(2);
+                        const bg     = statusColors[ev.status] || '#374151';
+                        const tip    = `${ev.status}${ev.info ? ' · ' + ev.info : ''}\n${_tlTime(ev.t, false)}`;
+                        blocks += `<div title="${tip}" style="position:absolute;left:${left}%;width:${width}%;height:100%;background:${bg};border-right:1px solid #111827;box-sizing:border-box;overflow:hidden;">
+                            <span style="font-size:9px;color:#fff;padding:0 4px;line-height:28px;white-space:nowrap;display:inline-block;opacity:0.9;">${parseFloat(width) > 8 ? ev.status : ''}</span>
+                        </div>`;
+                    });
+                    html += `<div style="display:flex;align-items:center;margin-bottom:8px;">
+                        <div style="width:86px;flex-shrink:0;color:#9ca3af;font-size:11px;padding-right:10px;text-align:right;">C${lane.connectorId}</div>
+                        <div style="flex:1;position:relative;height:28px;background:#1f2937;border-radius:4px;overflow:hidden;">${mLines}${blocks}</div>
+                    </div>`;
+                });
+
+                html += `<div style="display:flex;justify-content:space-between;margin-left:86px;margin-top:6px;">
+                    <span style="color:#4b5563;font-size:10px;">${_tlTime(winStart, false)}</span>
+                    <span style="color:#4b5563;font-size:10px;">${_tlTime(winEnd, false)}</span>
+                </div>`;
+
+                html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;margin-left:86px;">';
+                Object.entries(statusColors).forEach(([s, c]) => {
+                    html += `<div style="display:flex;align-items:center;gap:4px;"><div style="width:12px;height:12px;border-radius:2px;background:${c};"></div><span style="color:#9ca3af;font-size:11px;">${s}</span></div>`;
+                });
+                html += '</div></div>';
+                container.innerHTML = html;
+            }
+
+            function _renderTelemetryTab(container, data, pushChart) {
+                const { mv } = data;
+                const hasPower = mv.power.length > 0;
+                const hasTemp  = mv.tempInlet.length > 0 || mv.tempOutlet.length > 0 || mv.tempBody.length > 0;
+
+                if (!hasPower && !hasTemp) {
+                    container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:300px;color:#6b7280;font-size:14px;">Insufficient telemetry data for this transaction.</div>`;
+                    return;
+                }
+
+                const chartOpts = (yLabel, yColor) => ({
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                        tooltip: { backgroundColor: '#1f2937', titleColor: '#e5e7eb', bodyColor: '#d1d5db', borderColor: '#374151', borderWidth: 1, callbacks: { title: i => _tlTime(i[0].parsed.x, false) } }
+                    },
+                    scales: {
+                        x: { type: 'linear', ticks: { color: '#6b7280', maxTicksLimit: 6, callback: v => _tlTime(v, true) }, grid: { color: '#1f2937' } },
+                        y: { ticks: { color: yColor, callback: v => v + ' ' + yLabel }, grid: { color: '#374151' }, title: { display: true, text: yLabel, color: yColor, font: { size: 10 } } }
+                    }
+                });
+
+                const addLabel = (text) => {
+                    const d = document.createElement('div');
+                    d.style.cssText = 'color:#9ca3af;font-size:11px;margin-bottom:4px;font-weight:500;';
+                    d.textContent = text; container.appendChild(d);
+                };
+                const addCanvas = (h) => {
+                    const w = document.createElement('div');
+                    w.style.cssText = `position:relative;height:${h}px;margin-bottom:4px;`;
+                    const c = document.createElement('canvas'); w.appendChild(c); container.appendChild(w);
+                    return c;
+                };
+
+                if (hasPower) {
+                    addLabel('Power (kW)');
+                    const c = addCanvas(175);
+                    pushChart(new Chart(c, {
+                        type: 'line',
+                        data: { datasets: [{ label: 'Power (kW)', data: mv.power.map(p => ({ x: p.t, y: p.v })), borderColor: '#22c55e', backgroundColor: '#22c55e18', fill: true, tension: 0.3, pointRadius: 3 }] },
+                        options: chartOpts('kW', '#22c55e')
+                    }));
+                }
+
+                if (hasPower && hasTemp) {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'height:1px;background:#374151;margin:8px 0;'; container.appendChild(div);
+                }
+
+                if (hasTemp) {
+                    const thresholds = { tempInlet: 60, tempOutlet: 65, tempBody: 60 };
+                    const colors     = { tempInlet: '#fb923c', tempOutlet: '#f87171', tempBody: '#fbbf24' };
+                    const labels     = { tempInlet: 'Inlet (°C)', tempOutlet: 'Outlet (°C)', tempBody: 'Body (°C)' };
+                    const datasets   = [];
+                    ['tempInlet', 'tempOutlet', 'tempBody'].forEach(key => {
+                        if (!mv[key].length) return;
+                        const thr = thresholds[key];
+                        datasets.push({
+                            label: labels[key],
+                            data: mv[key].map(p => ({ x: p.t, y: p.v })),
+                            borderColor: colors[key], backgroundColor: 'transparent', fill: false, tension: 0.3,
+                            pointRadius: mv[key].map(p => p.v > thr ? 6 : 3),
+                            pointBackgroundColor: mv[key].map(p => p.v > thr ? '#ef4444' : colors[key]),
+                            pointBorderColor:     mv[key].map(p => p.v > thr ? '#ef4444' : colors[key])
+                        });
+                    });
+                    addLabel('Temperature (°C)');
+                    const c2 = addCanvas(175);
+                    pushChart(new Chart(c2, { type: 'line', data: { datasets }, options: chartOpts('°C', '#fb923c') }));
+                }
+            }
+
+            function createSessionTimelineModal(txId) {
+                const data = getTimelineDataForTx(txId);
+                if (!data) { alert('No timeline data found for TX ' + txId); return; }
+                const { tx, txStart, txStop } = data;
+
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+                const modal = document.createElement('div');
+                modal.style.cssText = 'background:#111827;border-radius:12px;width:100%;max-width:1100px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid #374151;box-shadow:0 25px 60px rgba(0,0,0,0.7);';
+
+                // Header
+                const hdr = document.createElement('div');
+                hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:13px 20px;border-bottom:1px solid #374151;flex-shrink:0;';
+                hdr.innerHTML = `
+                    <div>
+                        <span style="color:#c7d2fe;font-weight:600;font-size:14px;">📊 Session Timeline</span>
+                        <span style="color:#6b7280;font-size:12px;margin-left:12px;">TX ${tx.id} · Connector ${tx.connectorId} · ${_tlTime(txStart, false)} → ${txStop ? _tlTime(txStop, false) : 'Ongoing'}</span>
+                    </div>
+                    <button id="tl-close-btn" style="color:#9ca3af;background:#1f2937;border:1px solid #374151;cursor:pointer;font-size:13px;padding:4px 12px;border-radius:6px;">✕ Close</button>`;
+
+                // Tab bar
+                const tabBar = document.createElement('div');
+                tabBar.style.cssText = 'display:flex;border-bottom:1px solid #374151;flex-shrink:0;padding:0 20px;';
+                [['session','Session'],['energy','Energy'],['status','Status'],['telemetry','Telemetry']].forEach(([key, label]) => {
+                    const btn = document.createElement('button');
+                    btn.dataset.tlTab = key;
+                    btn.textContent = label;
+                    btn.style.cssText = 'padding:10px 18px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;font-weight:500;color:#6b7280;transition:color .15s,border-color .15s;';
+                    tabBar.appendChild(btn);
+                });
+
+                // Content area
+                const content = document.createElement('div');
+                content.style.cssText = 'flex:1;overflow:auto;padding:20px;';
+
+                modal.appendChild(hdr); modal.appendChild(tabBar); modal.appendChild(content);
+                overlay.appendChild(modal);
+
+                // Chart tracker
+                let activeCharts = [];
+                const pushChart  = c  => activeCharts.push(c);
+                const killCharts = () => { activeCharts.forEach(c => { try { c.destroy(); } catch(e){} }); activeCharts = []; };
+
+                const renderTab = key => {
+                    tabBar.querySelectorAll('button[data-tl-tab]').forEach(b => {
+                        const on = b.dataset.tlTab === key;
+                        b.style.color       = on ? '#818cf8' : '#6b7280';
+                        b.style.borderBottom = on ? '2px solid #818cf8' : '2px solid transparent';
+                    });
+                    killCharts(); content.innerHTML = '';
+                    if      (key === 'session')   _renderSessionTab(content, data);
+                    else if (key === 'energy')    _renderEnergyTab(content, data, pushChart);
+                    else if (key === 'status')    _renderStatusTab(content, data);
+                    else if (key === 'telemetry') _renderTelemetryTab(content, data, pushChart);
+                };
+
+                tabBar.querySelectorAll('button[data-tl-tab]').forEach(b => b.addEventListener('click', () => renderTab(b.dataset.tlTab)));
+
+                document.body.appendChild(overlay);
+                renderTab('session');
+
+                overlay.querySelector('#tl-close-btn').addEventListener('click', () => { killCharts(); document.body.removeChild(overlay); });
+                overlay.addEventListener('click', e => { if (e.target === overlay) { killCharts(); document.body.removeChild(overlay); } });
+            }
+
+            // ── End Session Timeline & Telemetry ─────────────────────────────────────────
 
             function exportTableToExcel(tableId, filename) {
                 const table = document.getElementById(tableId);
