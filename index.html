@@ -1279,7 +1279,12 @@
                 let lastPingLineNumber = null;
                 let lastPongTime = null;
                 let lastPongLineNumber = null;
-                
+
+                // Collect all PING/PONG events for WebSocket health (Section 14) — reuses this loop, no second pass
+                window._wsPingEvents  = [];
+                window._wsPongEvents  = [];
+                window._wsServerPings = [];
+
                 // Process each log line to detect downtime start/end
                 rawLogLines.forEach((line, index) => {
                     const timestampMatch = line.match(/\[([^\]]+)\]/);
@@ -1298,7 +1303,18 @@
                         lastPongTime = timestamp;
                         lastPongLineNumber = lineNumber;
                     }
-                    
+
+                    // Collect all PING/PONG events for WebSocket health (Section 14)
+                    if (line.includes('[OCPPClient]') && line.includes('>> PING')) {
+                        window._wsPingEvents.push({ ts: timestamp, t: currentTime, lineNo: lineNumber });
+                    }
+                    if (line.includes('[OCPPClient]') && line.includes('<< PONG')) {
+                        window._wsPongEvents.push({ ts: timestamp, t: currentTime, lineNo: lineNumber });
+                    }
+                    if (line.includes('[OCPPClient]') && line.includes('<< PING')) {
+                        window._wsServerPings.push({ ts: timestamp, t: currentTime, lineNo: lineNumber });
+                    }
+
                     // Track which downtimes were started on this line (to prevent same-line end detection)
                     const downtimesStartedThisLine = new Set();
                     
@@ -2524,6 +2540,11 @@
                 // Render Protocol Compliance Report (always shown — FR-140 to FR-171)
                 parsedDataContainer.appendChild(createProtocolValidationSection(
                     runProtocolValidation(messageGroups, transactions, messages)
+                ));
+
+                // Render WebSocket Connection Health (always shown — Section 14, FR-235 to FR-266)
+                parsedDataContainer.appendChild(createWebSocketHealthSection(
+                    analyzeWebSocketHealth(window.rawLogLines || [])
                 ));
             }
 
@@ -4645,6 +4666,351 @@
 
                 headerWrapper.querySelector('#export-energy-dispense-btn').addEventListener('click', () => {
                     exportTableToExcel('energy-dispense-table', 'Energy_Dispense_Check.xlsx');
+                });
+
+                return section;
+            }
+
+            // =====================================================================
+            // WEBSOCKET CONNECTION HEALTH  (Section 14 — FR-235 to FR-266)
+            // =====================================================================
+
+            function analyzeWebSocketHealth(rawLines) {
+                // Events collected during detectDowntimes() — no second scan needed
+                const pingEvents  = window._wsPingEvents  || [];
+                const pongEvents  = window._wsPongEvents  || [];
+                const serverPings = window._wsServerPings || [];
+
+                const MISSED_TIMEOUT_MS = 10000; // 10 s per spec
+                const pingRecords = [];
+
+                // Two-pointer O(n+m) match — avoids O(n²) freeze on high-frequency ping logs
+                let pongPtr = 0;
+                for (let i = 0; i < pingEvents.length; i++) {
+                    const ping     = pingEvents[i];
+                    const prevPing = i > 0 ? pingEvents[i - 1] : null;
+                    const intervalMs  = prevPing ? (ping.t - prevPing.t) : null;
+                    const intervalSec = intervalMs !== null ? +(intervalMs / 1000).toFixed(1) : null;
+
+                    const nextPingT = (i + 1 < pingEvents.length) ? pingEvents[i + 1].t : null;
+
+                    // Advance pointer past PONGs that arrived before this PING
+                    while (pongPtr < pongEvents.length && pongEvents[pongPtr].t < ping.t) {
+                        pongPtr++;
+                    }
+
+                    // Check if the next available PONG belongs to this PING
+                    let matchedPong = null;
+                    if (pongPtr < pongEvents.length) {
+                        const candidate = pongEvents[pongPtr];
+                        if ((nextPingT === null || candidate.t <= nextPingT) &&
+                            (candidate.t - ping.t) <= MISSED_TIMEOUT_MS) {
+                            matchedPong = candidate;
+                            pongPtr++; // consume — one PONG per PING
+                        }
+                    }
+
+                    const latencyMs = matchedPong ? +(matchedPong.t - ping.t) : null;
+                    pingRecords.push({
+                        ts        : ping.ts,
+                        lineNo    : ping.lineNo,
+                        intervalSec,
+                        latencyMs,
+                        pongMissed: !matchedPong,
+                        isStall   : false
+                    });
+                }
+
+                // Adaptive average interval
+                const validIntervals = pingRecords.filter(r => r.intervalSec !== null).map(r => r.intervalSec);
+                const avgIntervalSec = validIntervals.length > 0
+                    ? +(validIntervals.reduce((a, b) => a + b, 0) / validIntervals.length).toFixed(1)
+                    : null;
+
+                // Flag stalls: interval > 2× average
+                if (avgIntervalSec !== null) {
+                    pingRecords.forEach(r => {
+                        r.isStall = r.intervalSec !== null && r.intervalSec > avgIntervalSec * 2;
+                    });
+                }
+
+                const validLatencies = pingRecords.filter(r => r.latencyMs !== null).map(r => r.latencyMs);
+                const avgLatencyMs   = validLatencies.length > 0
+                    ? +(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length).toFixed(1)
+                    : null;
+                const maxLatencyMs   = validLatencies.length > 0 ? Math.max(...validLatencies) : null;
+                const missedPongCount = pingRecords.filter(r => r.pongMissed).length;
+                const stallCount      = pingRecords.filter(r => r.isStall).length;
+
+                // Overall connection status
+                let connectionStatus = 'No Data';
+                if (pingEvents.length > 0) {
+                    const missedRate = missedPongCount / pingEvents.length;
+                    if (missedRate > 0.2 || (maxLatencyMs !== null && maxLatencyMs >= 3000)) {
+                        connectionStatus = 'Critical';
+                    } else if (stallCount > 0 || missedPongCount > 0 || (maxLatencyMs !== null && maxLatencyMs >= 1000)) {
+                        connectionStatus = 'Warning';
+                    } else {
+                        connectionStatus = 'Healthy';
+                    }
+                }
+
+                return {
+                    pingCount      : pingEvents.length,
+                    pongCount      : pongEvents.length,
+                    serverPingCount: serverPings.length,
+                    avgIntervalSec,
+                    avgLatencyMs,
+                    maxLatencyMs,
+                    missedPongCount,
+                    stallCount,
+                    connectionStatus,
+                    pingRecords,
+                    serverPings
+                };
+            }
+
+            function createWebSocketHealthSection(wsHealth) {
+                const section = document.createElement('section');
+                section.className = 'bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 border-l-4 border-l-teal-500 dark:border-l-teal-400 mb-6';
+
+                // ---- Status colour helpers ----
+                const statusBg = wsHealth.connectionStatus === 'Healthy'  ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                               : wsHealth.connectionStatus === 'Warning'  ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                               : wsHealth.connectionStatus === 'Critical' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
+
+                // ---- Header row ----
+                const headerWrapper = document.createElement('div');
+                headerWrapper.className = 'flex justify-between items-center cursor-pointer';
+
+                const titleArea = document.createElement('div');
+                titleArea.className = 'flex items-center gap-3';
+                titleArea.innerHTML = `
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                        📡 WebSocket Connection Health (${wsHealth.pingCount} PINGs)
+                    </h2>
+                    <span class="px-2 py-1 rounded text-xs font-bold ${statusBg}">${wsHealth.connectionStatus}</span>
+                    <svg id="ws-health-chevron" class="w-6 h-6 transform transition-transform text-gray-600 dark:text-gray-400"
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                `;
+
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'bg-teal-600 hover:bg-teal-700 text-white font-semibold py-1 px-3 rounded-lg text-sm';
+                exportBtn.textContent = 'Export to Excel';
+
+                headerWrapper.appendChild(titleArea);
+                headerWrapper.appendChild(exportBtn);
+                section.appendChild(headerWrapper);
+
+                // ---- Collapsible content wrapper ----
+                const content = document.createElement('div');
+                content.className = 'mt-4';
+
+                // ---- No-data state ----
+                if (wsHealth.pingCount === 0) {
+                    content.innerHTML = `
+                        <p class="text-sm text-gray-500 dark:text-gray-400 italic py-6 text-center">
+                            No WebSocket PING/PONG messages found in this log.
+                        </p>`;
+                    section.appendChild(content);
+                    headerWrapper.addEventListener('click', e => {
+                        if (exportBtn.contains(e.target)) return;
+                        content.classList.toggle('hidden');
+                        titleArea.querySelector('#ws-health-chevron').classList.toggle('rotate-180');
+                    });
+                    exportBtn.addEventListener('click', e => e.stopPropagation());
+                    return section;
+                }
+
+                // ---- Summary cards ----
+                const statusCardColor = wsHealth.connectionStatus === 'Healthy'  ? 'text-green-600 dark:text-green-400'
+                                      : wsHealth.connectionStatus === 'Warning'  ? 'text-yellow-600 dark:text-yellow-400'
+                                      : wsHealth.connectionStatus === 'Critical' ? 'text-red-600 dark:text-red-400'
+                                      : 'text-gray-500 dark:text-gray-400';
+
+                const latencyColor = wsHealth.avgLatencyMs === null          ? 'text-gray-500 dark:text-gray-400'
+                                   : wsHealth.avgLatencyMs < 200             ? 'text-green-600 dark:text-green-400'
+                                   : wsHealth.avgLatencyMs < 1000            ? 'text-yellow-600 dark:text-yellow-400'
+                                   : 'text-red-600 dark:text-red-400';
+
+                const cards = document.createElement('div');
+                cards.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6';
+                cards.innerHTML = `
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Total PINGs</div>
+                        <div class="text-2xl font-bold text-teal-600 dark:text-teal-400">${wsHealth.pingCount}</div>
+                        <div class="text-xs text-gray-400 mt-1">PONGs: ${wsHealth.pongCount}</div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Avg Interval</div>
+                        <div class="text-2xl font-bold ${wsHealth.stallCount > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-800 dark:text-gray-200'}">
+                            ${wsHealth.avgIntervalSec !== null ? wsHealth.avgIntervalSec + 's' : 'N/A'}
+                        </div>
+                        <div class="text-xs mt-1 ${wsHealth.stallCount > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-400'}">
+                            ${wsHealth.stallCount > 0 ? '⚠ ' + wsHealth.stallCount + ' stall(s)' : 'No stalls'}
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Avg Latency</div>
+                        <div class="text-2xl font-bold ${latencyColor}">
+                            ${wsHealth.avgLatencyMs !== null ? wsHealth.avgLatencyMs + 'ms' : 'N/A'}
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">
+                            ${wsHealth.maxLatencyMs !== null ? 'Max: ' + wsHealth.maxLatencyMs + 'ms' : ''}
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Missed PONGs</div>
+                        <div class="text-2xl font-bold ${wsHealth.missedPongCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}">
+                            ${wsHealth.missedPongCount}
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">
+                            ${wsHealth.serverPingCount > 0 ? 'Server PINGs: ' + wsHealth.serverPingCount : 'No server PINGs'}
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</div>
+                        <div class="text-2xl font-bold ${statusCardColor}">${wsHealth.connectionStatus}</div>
+                    </div>
+                `;
+                content.appendChild(cards);
+
+                // ---- Detail table ----
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'overflow-auto max-h-[500px]';
+
+                const table = document.createElement('table');
+                table.id = 'ws-health-table';
+                table.className = 'min-w-full divide-y divide-gray-200 dark:divide-gray-700';
+                table.innerHTML = `
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">S.No.</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">Timestamp (UTC)</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">Timestamp (IST)</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">Interval (s)</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">Latency (ms)</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">PONG</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">Stall</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10">Log Line</th>
+                        </tr>
+                    </thead>
+                `;
+
+                const tbody = document.createElement('tbody');
+                tbody.className = 'bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700';
+
+                // Cap displayed rows — summary cards always show full-dataset analysis
+                const TABLE_ROW_LIMIT = 500;
+                const totalPingRows   = wsHealth.pingRecords.length;
+                const truncated       = totalPingRows > TABLE_ROW_LIMIT;
+
+                // Prioritise anomalous rows: stalls + missed PONGs first, then chronological fill
+                let displayRows;
+                if (!truncated) {
+                    displayRows = wsHealth.pingRecords.map((r, i) => ({ ...r, origIdx: i }));
+                } else {
+                    const anomalies = wsHealth.pingRecords
+                        .map((r, i) => ({ ...r, origIdx: i }))
+                        .filter(r => r.isStall || r.pongMissed);
+                    const anomalyIdxSet = new Set(anomalies.map(r => r.origIdx));
+                    const normals = wsHealth.pingRecords
+                        .map((r, i) => ({ ...r, origIdx: i }))
+                        .filter(r => !anomalyIdxSet.has(r.origIdx));
+                    const slots  = Math.max(0, TABLE_ROW_LIMIT - anomalies.length);
+                    // Take first half and last half of normals so both ends of the log are visible
+                    const half   = Math.floor(slots / 2);
+                    const normalSample = [
+                        ...normals.slice(0, half),
+                        ...normals.slice(-Math.max(0, slots - half))
+                    ];
+                    displayRows = [...anomalies, ...normalSample]
+                        .sort((a, b) => a.origIdx - b.origIdx);
+                }
+
+                if (truncated) {
+                    const noteRow = document.createElement('tr');
+                    noteRow.innerHTML = `
+                        <td colspan="8" class="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-xs text-blue-700 dark:text-blue-300 text-center">
+                            Showing ${displayRows.length} of ${totalPingRows} entries
+                            (all ${wsHealth.missedPongCount} missed PONGs + ${wsHealth.stallCount} stalls shown).
+                            Use <strong>Export to Excel</strong> for the complete dataset.
+                        </td>`;
+                    tbody.appendChild(noteRow);
+                }
+
+                displayRows.forEach((rec, i) => {
+                    const tr = document.createElement('tr');
+                    if (rec.isStall && rec.pongMissed) {
+                        tr.className = 'bg-red-50 dark:bg-red-900/20';
+                    } else if (rec.isStall) {
+                        tr.className = 'bg-yellow-50 dark:bg-yellow-900/20';
+                    } else if (rec.pongMissed) {
+                        tr.className = 'bg-red-50 dark:bg-red-900/20';
+                    } else {
+                        tr.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
+                    }
+
+                    // Latency cell
+                    let latencyCell;
+                    if (rec.pongMissed) {
+                        latencyCell = `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300">No PONG</span>`;
+                    } else if (rec.latencyMs < 200) {
+                        latencyCell = `<span class="font-mono text-sm text-green-600 dark:text-green-400">${rec.latencyMs}</span>`;
+                    } else if (rec.latencyMs < 1000) {
+                        latencyCell = `<span class="font-mono text-sm text-yellow-600 dark:text-yellow-400">${rec.latencyMs}</span>`;
+                    } else if (rec.latencyMs < 3000) {
+                        latencyCell = `<span class="font-mono text-sm font-semibold text-orange-600 dark:text-orange-400">${rec.latencyMs}</span>`;
+                    } else {
+                        latencyCell = `<span class="font-mono text-sm font-bold text-red-600 dark:text-red-400">${rec.latencyMs}</span>`;
+                    }
+
+                    const pongBadge = rec.pongMissed
+                        ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300">✗ Missed</span>`
+                        : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">✓ Received</span>`;
+
+                    const stallBadge = rec.isStall
+                        ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300">⚠ Stall</span>`
+                        : `<span class="text-gray-400 dark:text-gray-500 text-xs">—</span>`;
+
+                    const intervalCell = rec.intervalSec !== null
+                        ? `<span class="font-mono text-sm ${rec.isStall ? 'font-bold text-yellow-700 dark:text-yellow-300' : 'text-gray-900 dark:text-gray-100'}">${rec.intervalSec}s</span>`
+                        : `<span class="text-gray-400 dark:text-gray-500 text-xs">—</span>`;
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-2 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">${i + 1}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-xs font-mono text-gray-900 dark:text-gray-100 select-all">${rec.ts}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-700 dark:text-gray-300">${convertToIST(rec.ts)}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">${intervalCell}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">${latencyCell}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">${pongBadge}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">${stallBadge}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">${rec.lineNo}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Server-initiated PINGs (<< PING) are noted in the summary card only —
+                // no table rows needed as client responds automatically with no logged latency
+
+                table.appendChild(tbody);
+                tableContainer.appendChild(table);
+                content.appendChild(tableContainer);
+                section.appendChild(content);
+
+                // ---- Toggle collapse ----
+                headerWrapper.addEventListener('click', e => {
+                    if (exportBtn.contains(e.target)) return;
+                    content.classList.toggle('hidden');
+                    titleArea.querySelector('#ws-health-chevron').classList.toggle('rotate-180');
+                });
+
+                exportBtn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    exportTableToExcel('ws-health-table', 'WebSocket_Health.xlsx');
                 });
 
                 return section;
