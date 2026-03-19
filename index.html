@@ -225,6 +225,23 @@
         window.GOOGLE_DRIVE_CLIENT_ID = '509579978707-lecergjf1t49l149pk8ff57ogb7aerft.apps.googleusercontent.com';
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Offline Replay detection threshold (FR-270): messages replayed from PouchDB offline cache
+            const OFFLINE_REPLAY_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
+
+            // FR-270: Format replay delay (ms) as human-readable e.g. "2d 3h 14m 7s"
+            function fmtReplayDelay(ms) {
+                const d = Math.floor(ms / 86400000);
+                const h = Math.floor((ms % 86400000) / 3600000);
+                const m = Math.floor((ms % 3600000) / 60000);
+                const s = Math.floor((ms % 60000) / 1000);
+                const parts = [];
+                if (d > 0) parts.push(`${d}d`);
+                if (h > 0) parts.push(`${h}h`);
+                if (m > 0) parts.push(`${m}m`);
+                if (d === 0 && h === 0 && m === 0) parts.push(`${s}s`);
+                return parts.join(' ') || '0s';
+            }
+
             // Theme and modal functionality
             const themeToggleButton = document.getElementById('theme-toggle-btn');
             const lightIcon = document.getElementById('theme-toggle-light-icon');
@@ -1738,13 +1755,22 @@
                 messageGroups.StartTransaction.forEach(startMsg => {
                     const txId = startMsg.responsePayload?.transactionId;
                     if (txId) {
+                        // FR-271/FR-274: detect offline replay by comparing log-line vs payload timestamp
+                        const _logTs = new Date(startMsg.timestamp).getTime();
+                        const _payloadTs = new Date(startMsg.message[3].timestamp).getTime();
+                        const _tsDelta = Math.abs(_logTs - _payloadTs);
+                        const _isReplay = !isNaN(_tsDelta) && _tsDelta > OFFLINE_REPLAY_THRESHOLD_MS;
                         transactionMap.set(txId, {
                             id: txId,
                             startTime: startMsg.timestamp,
                             meterStart: startMsg.message[3].meterStart,
                             connectorId: startMsg.message[3].connectorId,
                             idTag: startMsg.message[3].idTag,
-                            meterValues: []
+                            meterValues: [],
+                            isOfflineReplay: _isReplay,
+                            recordedTimestamp: startMsg.message[3].timestamp,
+                            logTimestamp: startMsg.timestamp,
+                            replayDelayMs: _isReplay ? _tsDelta : 0
                         });
                     }
                 });
@@ -2246,16 +2272,25 @@
                    parsedDataContainer.appendChild(createCollapsibleSection(
                        'Start Transactions',
                        'start-transactions-table',
-                       ['Time Stamp', 'Transaction ID', 'Connector ID', 'ID Tag', 'Meter Start', 'Response Status'],
-                       messageGroups.StartTransaction.map(msg => ({
-                           fileName: msg.fileName,
-                           'Time Stamp': msg.timestamp,
-                           'Transaction ID': msg.responsePayload?.transactionId,
-                           'Connector ID': msg.message[3].connectorId,
-                           'ID Tag': msg.message[3].idTag,
-                           'Meter Start': msg.message[3].meterStart,
-                            'Response Status': msg.responsePayload && msg.responsePayload.idTagInfo ? msg.responsePayload.idTagInfo.status : 'N/A'
-                       }))
+                       ['Time Stamp', 'Transaction ID', 'Connector ID', 'ID Tag', 'Meter Start', 'Response Status', 'Tx Type', 'Replay Delay', 'Offline Replay'],
+                       messageGroups.StartTransaction.map(msg => {
+                           const _lTs = new Date(msg.timestamp).getTime();
+                           const _pTs = new Date(msg.message[3].timestamp).getTime();
+                           const _delta = Math.abs(_lTs - _pTs);
+                           const _isR = !isNaN(_delta) && _delta > OFFLINE_REPLAY_THRESHOLD_MS;
+                           return {
+                               fileName: msg.fileName,
+                               'Time Stamp': msg.timestamp,
+                               'Transaction ID': msg.responsePayload?.transactionId,
+                               'Connector ID': msg.message[3].connectorId,
+                               'ID Tag': msg.message[3].idTag,
+                               'Meter Start': msg.message[3].meterStart,
+                               'Response Status': msg.responsePayload && msg.responsePayload.idTagInfo ? msg.responsePayload.idTagInfo.status : 'N/A',
+                               'Tx Type': _isR ? '\uD83D\uDCF4 Offline' : '\uD83D\uDCE1 Online',
+                               'Replay Delay': _isR ? fmtReplayDelay(_delta) : '\u2014',
+                               'Offline Replay': _isR ? `\u26a0 Replayed  \u00b7  Rec: ${new Date(msg.message[3].timestamp).toISOString()}  \u2192  Sent: ${new Date(msg.timestamp).toISOString()}` : '\u2014'
+                           };
+                       })
                    ));
                }
 
@@ -2263,13 +2298,13 @@
                    parsedDataContainer.appendChild(createCollapsibleSection(
                        'Stop Transactions',
                        'stop-transactions-table',
-                       ['Time Stamp', 'Transaction ID', 'Meter Stop', 'Stop Reason', 'SoC Begin (%)', 'SoC End (%)', 'Location'],
+                       ['Time Stamp', 'Transaction ID', 'Meter Stop', 'Stop Reason', 'SoC Begin (%)', 'SoC End (%)', 'Location', 'Tx Type', 'Replay Delay', 'Offline Replay'],
                         messageGroups.StopTransaction.map(msg => {
                             // Extract SoC data from transactionData
                             let socBegin = 'N/A';
                             let socEnd = 'N/A';
                             let location = 'N/A';
-                            
+
                             if (msg.message[3].transactionData && Array.isArray(msg.message[3].transactionData)) {
                                 msg.message[3].transactionData.forEach(data => {
                                     if (data.sampledValue && Array.isArray(data.sampledValue)) {
@@ -2287,7 +2322,12 @@
                                     }
                                 });
                             }
-                            
+
+                            // FR-279/FR-280: offline replay detection for StopTransaction
+                            const _sLTs = new Date(msg.timestamp).getTime();
+                            const _sPTs = new Date(msg.message[3].timestamp).getTime();
+                            const _sDelta = Math.abs(_sLTs - _sPTs);
+                            const _sIsR = !isNaN(_sDelta) && _sDelta > OFFLINE_REPLAY_THRESHOLD_MS;
                             return {
                                fileName: msg.fileName,
                                'Time Stamp': msg.timestamp,
@@ -2296,7 +2336,10 @@
                                'Stop Reason': msg.message[3].reason || 'N/A',
                                'SoC Begin (%)': socBegin,
                                'SoC End (%)': socEnd,
-                               'Location': location
+                               'Location': location,
+                               'Tx Type': _sIsR ? '\uD83D\uDCF4 Offline' : '\uD83D\uDCE1 Online',
+                               'Replay Delay': _sIsR ? fmtReplayDelay(_sDelta) : '\u2014',
+                               'Offline Replay': _sIsR ? `\u26a0 Replayed  \u00b7  Rec: ${new Date(msg.message[3].timestamp).toISOString()}  \u2192  Sent: ${new Date(msg.timestamp).toISOString()}` : '\u2014'
                             };
                         })
                    ));
@@ -3639,16 +3682,26 @@
 
                 // --- Summary cards (FR-096, FR-101) ---
                 const cardsWrapper = document.createElement('div');
-                cardsWrapper.className = 'grid grid-cols-2 sm:grid-cols-6 gap-3 mb-4';
+                cardsWrapper.className = 'grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-4';
                 const initialZeroCount = txFlags.filter(f => f.isZeroEnergy).length;
                 const initialTempCount = txFlags.filter(f => f.isTempHigh).length;
                 const initialMeterDiffCount = txFlags.filter(f => f.isMeterDiff).length;
                 const initialCurrentMismatchCount = txFlags.filter(f => f.isCurrentMismatch).length;
                 const initialNormalCount = txFlags.filter(f => !f.isZeroEnergy && !f.isTempHigh && !f.isMeterDiff && !f.isCurrentMismatch).length;
+                const initialOfflineCount = transactions.filter(tx => tx.isOfflineReplay).length;
+                const initialOnlineCount = transactions.length - initialOfflineCount;
                 cardsWrapper.innerHTML = `
                     <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center border border-blue-200 dark:border-blue-800">
                         <div class="text-2xl font-bold text-blue-700 dark:text-blue-300" id="tx-total-count">${transactions.length}</div>
                         <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">Total Transactions</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-900/20 rounded-lg p-3 text-center border border-slate-200 dark:border-slate-800">
+                        <div class="text-2xl font-bold text-slate-700 dark:text-slate-300" id="tx-offline-count">${initialOfflineCount}</div>
+                        <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">📴 Offline Transactions</div>
+                    </div>
+                    <div class="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 text-center border border-teal-200 dark:border-teal-800">
+                        <div class="text-2xl font-bold text-teal-700 dark:text-teal-300" id="tx-online-count">${initialOnlineCount}</div>
+                        <div class="text-xs text-teal-600 dark:text-teal-400 mt-1">📡 Online Transactions</div>
                     </div>
                     <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center border border-yellow-200 dark:border-yellow-800">
                         <div class="text-2xl font-bold text-yellow-700 dark:text-yellow-300" id="tx-zero-energy-count">${initialZeroCount}</div>
@@ -3680,6 +3733,8 @@
                     <span class="text-gray-600 dark:text-gray-400 font-medium">Show:</span>
                     <select id="tx-row-filter" class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                         <option value="all">All</option>
+                        <option value="offline">📴 Offline Transactions Only</option>
+                        <option value="online">📡 Online Transactions Only</option>
                         <option value="issues">All Issue Transactions</option>
                         <option value="zero-energy">Zero Energy Only</option>
                         <option value="temp-high">Temperature High Only</option>
@@ -3701,7 +3756,7 @@
                     'Start/Stop Diff (Wh)', 'Avg Power (kW)', 'Peak Power (kW)',
                     'Avg Current Outlet (A)', 'Avg Current EV (A)',
                     'Max Temp Inlet (°C)', 'Max Temp Outlet (°C)', 'Max Temp Body (°C)',
-                    'Start SoC (%)', 'End SoC (%)', 'Stop Reason', 'Status', 'Chart'];
+                    'Start SoC (%)', 'End SoC (%)', 'Stop Reason', 'Tx Type', 'Replay Delay', 'Offline Replay', 'Status', 'Chart'];
 
                 const table = document.createElement('table');
                 table.id = 'transaction-summary-table';
@@ -3767,6 +3822,13 @@
                     if (currentMismatchEl) currentMismatchEl.textContent = currentMismatchCount;
                     if (normalEl) normalEl.textContent = normalCount;
 
+                    // Update offline/online count cards
+                    const offlineEl = section.querySelector('#tx-offline-count');
+                    const onlineEl = section.querySelector('#tx-online-count');
+                    const offlineCount = transactions.filter(tx => tx.isOfflineReplay).length;
+                    if (offlineEl) offlineEl.textContent = offlineCount;
+                    if (onlineEl) onlineEl.textContent = transactions.length - offlineCount;
+
                     transactions.forEach((tx, index) => {
                         const tr = document.createElement('tr');
                         const flags = txFlags[index];
@@ -3778,6 +3840,7 @@
                         tr.dataset.isMeterDiff = flags.isMeterDiff;
                         tr.dataset.isCurrentMismatch = flags.isCurrentMismatch;
                         tr.dataset.isIssue = isIssue;
+                        tr.dataset.isOfflineReplay = !!tx.isOfflineReplay;
 
                         // Row colour priority: zero energy (yellow) > temp high (orange) > meter diff (indigo) > current mismatch (purple) > aborted (red) > normal
                         if (flags.isZeroEnergy) {
@@ -3827,6 +3890,9 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${tx.socBegin ?? 'N/A'}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${tx.socEnd ?? 'N/A'}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${tx.stopReason ?? 'N/A'}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm">${tx.isOfflineReplay ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800 dark:bg-slate-900/40 dark:text-slate-300">\uD83D\uDCF4 Offline</span>' : '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300">\uD83D\uDCE1 Online</span>'}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${tx.isOfflineReplay ? fmtReplayDelay(tx.replayDelayMs) : '<span class="text-gray-400 dark:text-gray-500">\u2014</span>'}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm">${tx.isOfflineReplay ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Recorded: ${new Date(tx.recordedTimestamp).toISOString()} / Sent to CSMS: ${new Date(tx.logTimestamp).toISOString()}">\u26a0 Replayed</span>` : '<span class="text-gray-400 dark:text-gray-500">\u2014</span>'}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">${statusBadge}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 <button class="view-chart-btn bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-xs" data-txid="${tx.id}">View Chart</button>
@@ -3917,6 +3983,10 @@
                         let show = false;
                         if (filterValue === 'all') {
                             show = true;
+                        } else if (filterValue === 'offline') {
+                            show = row.dataset.isOfflineReplay === 'true';
+                        } else if (filterValue === 'online') {
+                            show = row.dataset.isOfflineReplay === 'false';
                         } else if (filterValue === 'issues') {
                             show = row.dataset.isIssue === 'true';
                         } else if (filterValue === 'zero-energy') {
@@ -7198,7 +7268,7 @@
 
                 // Define headers inside the function to ensure they are always available.
                 const fixedHeaders = [
-                    'File Name', 'Local Time Stamp', 'UTC Time Stamp', 'Transaction ID', 'Connector ID', 'Context',
+                    'File Name', 'Local Time Stamp', 'UTC Time Stamp', 'Transaction ID', 'Connector ID', 'Context', 'Tx Type', 'Replay Delay', 'Offline Replay',
                     'Energy.Active.Import.Interval/Wh/Outlet', 'Energy.Active.Import.Register/Wh/Outlet', 'Power.Active.Import/W/Outlet',
                     'SoC/Percent/EV', 'Current.Import/A/Outlet', 'Current.Import/A/EV', 'Voltage/V/Outlet', 'Voltage/V/EV',
                     'Voltage/V/Inlet/L1', 'Voltage/V/Inlet/L2', 'Voltage/V/Inlet/L3',
@@ -7219,16 +7289,23 @@
                      const transactionId = msg.message[3].transactionId;
                      const connectorId = msg.message[3].connectorId;
                      const fileName = msg.fileName || 'N/A';
+                     // FR-287: offline replay detection for MeterValues — log-line vs payload timestamp
+                     const _mvLogTs = new Date(msg.timestamp).getTime();
                      msg.message[3].meterValue.forEach(mv => {
                          const timestamp = mv.timestamp;
                          if (!pivotedData[timestamp]) {
+                             const _mvPayTs = new Date(timestamp).getTime();
+                             const _mvIsR = !isNaN(Math.abs(_mvLogTs - _mvPayTs)) && Math.abs(_mvLogTs - _mvPayTs) > OFFLINE_REPLAY_THRESHOLD_MS;
                              pivotedData[timestamp] = {
                                  'File Name': fileName,
                                  'Local Time Stamp': new Date(timestamp).toLocaleString(),
                                  'UTC Time Stamp': timestamp,
                                  'Transaction ID': transactionId,
                                  'Connector ID': connectorId,
-                                 'Context': mv.sampledValue[0]?.context || 'N/A'
+                                 'Context': mv.sampledValue[0]?.context || 'N/A',
+                                 'Tx Type': _mvIsR ? '\uD83D\uDCF4 Offline' : '\uD83D\uDCE1 Online',
+                                 'Replay Delay': _mvIsR ? fmtReplayDelay(Math.abs(_mvLogTs - _mvPayTs)) : '\u2014',
+                                 'Offline Replay': _mvIsR ? `\u26a0 Replayed  \u00b7  Rec: ${new Date(timestamp).toISOString()}  \u2192  Sent: ${new Date(msg.timestamp).toISOString()}` : '\u2014'
                              };
                          }
 
