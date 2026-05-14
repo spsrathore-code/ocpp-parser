@@ -653,6 +653,7 @@
                         allAlerts = [];
                         allDowntimes = [];
                         processedFiles = [];
+                        internalTxMap = new Map();
                         
                         // Show progress
                         progressContainer.classList.remove('hidden');
@@ -756,6 +757,7 @@
             let allDowntimes = [];
             let processedFiles = [];
             let allTransactions = [];
+            let internalTxMap = new Map(); // maps CMS transactionId (string) → internalTransactionId
 
             logFileInput.addEventListener('change', () => {
                 if (logFileInput.files.length > 0) {
@@ -798,6 +800,7 @@
                 allAlerts = [];
                 allDowntimes = [];
                 processedFiles = [];
+                internalTxMap = new Map();
                 
                 // Clear previous results
                 parsedDataContainer.innerHTML = '';
@@ -1624,6 +1627,9 @@
                 // Regex patterns
                 const ocppRegex = /(?:>>|<<) message (?:sent|received): ((\[|{).*(\]|}))/;
                 const eventRegex = /\[([^\]]+)\] handling \[OCPP\] event ({.*})/;
+                // Internal TX ID mapping patterns
+                const runtimeStopRegex = /\[OCPPRuntime\] New State --> stop Transaction ({.*})/;
+                const storedTxRegex = /Stored transactionId (\d+) for internalTransactionId (internal_transId_\w+)/;
                 
                 console.log(`Starting to parse ${totalLines} lines from ${fileName} in chunks of ${chunkSize}`);
                 
@@ -1668,7 +1674,7 @@
                             try {
                                 const timestamp = eventMatch[1];
                                 const eventData = parseJsonSafely(eventMatch[2]);
-                                
+
                                 if (eventData.type === 'alert') {
                                     alerts.push({
                                         timestamp,
@@ -1693,6 +1699,29 @@
                                 }
                             } catch (e) {
                                 console.warn('Failed to parse event JSON:', e);
+                            }
+                        }
+
+                        // Build internalTxMap: CMS txId → internalTransactionId
+                        // Primary source: [OCPPRuntime] stop Transaction JSON (has both IDs when online)
+                        const runtimeStopMatch = line.match(runtimeStopRegex);
+                        if (runtimeStopMatch) {
+                            try {
+                                const rtData = parseJsonSafely(runtimeStopMatch[1]);
+                                if (rtData.transactionId && rtData.internalTransactionId) {
+                                    internalTxMap.set(String(rtData.transactionId), rtData.internalTransactionId);
+                                }
+                            } catch(e) {}
+                        }
+                        // Backup source: "Stored transactionId X for internalTransactionId Y"
+                        // This fires right after the StartTransaction response, so catches cases
+                        // where the runtime stop JSON is missing the transactionId (offline stops)
+                        const storedTxMatch = line.match(storedTxRegex);
+                        if (storedTxMatch) {
+                            const cmsTxId = storedTxMatch[1];
+                            const intTxId = storedTxMatch[2];
+                            if (!internalTxMap.has(cmsTxId)) {
+                                internalTxMap.set(cmsTxId, intTxId);
                             }
                         }
                     }
@@ -1770,7 +1799,8 @@
                             isOfflineReplay: _isReplay,
                             recordedTimestamp: startMsg.message[3].timestamp,
                             logTimestamp: startMsg.timestamp,
-                            replayDelayMs: _isReplay ? _tsDelta : 0
+                            replayDelayMs: _isReplay ? _tsDelta : 0,
+                            internalTransactionId: internalTxMap.get(String(txId)) || null
                         });
                     }
                 });
@@ -2254,34 +2284,26 @@
                }
 
                if (messageGroups.StatusNotification.length > 0) {
-                   parsedDataContainer.appendChild(createCollapsibleSection(
-                       'Status Notifications',
-                       'status-notifications-table',
-                       ['Time Stamp', 'Connector ID', 'Status', 'Error Code'],
-                       messageGroups.StatusNotification.map(msg => ({
-                           fileName: msg.fileName,
-                           'Time Stamp': msg.timestamp,
-                           'Connector ID': msg.message[3].connectorId,
-                           'Status': msg.message[3].status,
-                           'Error Code': msg.message[3].errorCode
-                       }))
-                   ));
+                   parsedDataContainer.appendChild(createStatusNotificationSection(messageGroups.StatusNotification, messageGroups));
                }
                
                if (messageGroups.StartTransaction.length > 0) {
                    parsedDataContainer.appendChild(createCollapsibleSection(
                        'Start Transactions',
                        'start-transactions-table',
-                       ['Time Stamp', 'Transaction ID', 'Connector ID', 'ID Tag', 'Meter Start', 'Response Status', 'Tx Type', 'Replay Delay', 'Offline Replay'],
+                       ['Time Stamp', 'Transaction ID', 'Internal TX ID', 'Connector ID', 'ID Tag', 'Meter Start', 'Response Status', 'Tx Type', 'Replay Delay', 'Offline Replay'],
                        messageGroups.StartTransaction.map(msg => {
                            const _lTs = new Date(msg.timestamp).getTime();
                            const _pTs = new Date(msg.message[3].timestamp).getTime();
                            const _delta = Math.abs(_lTs - _pTs);
                            const _isR = !isNaN(_delta) && _delta > OFFLINE_REPLAY_THRESHOLD_MS;
+                           const _cmsTxId = msg.responsePayload?.transactionId;
+                           const _intTxId = _cmsTxId ? (internalTxMap.get(String(_cmsTxId)) || '\u2014') : '\u2014';
                            return {
                                fileName: msg.fileName,
                                'Time Stamp': msg.timestamp,
-                               'Transaction ID': msg.responsePayload?.transactionId,
+                               'Transaction ID': _cmsTxId,
+                               'Internal TX ID': _intTxId,
                                'Connector ID': msg.message[3].connectorId,
                                'ID Tag': msg.message[3].idTag,
                                'Meter Start': msg.message[3].meterStart,
@@ -2298,7 +2320,7 @@
                    parsedDataContainer.appendChild(createCollapsibleSection(
                        'Stop Transactions',
                        'stop-transactions-table',
-                       ['Time Stamp', 'Transaction ID', 'Meter Stop', 'Stop Reason', 'SoC Begin (%)', 'SoC End (%)', 'Location', 'Tx Type', 'Replay Delay', 'Offline Replay'],
+                       ['Time Stamp', 'Transaction ID', 'Internal TX ID', 'Meter Stop', 'Stop Reason', 'SoC Begin (%)', 'SoC End (%)', 'Location', 'Tx Type', 'Replay Delay', 'Offline Replay'],
                         messageGroups.StopTransaction.map(msg => {
                             // Extract SoC data from transactionData
                             let socBegin = 'N/A';
@@ -2328,10 +2350,16 @@
                             const _sPTs = new Date(msg.message[3].timestamp).getTime();
                             const _sDelta = Math.abs(_sLTs - _sPTs);
                             const _sIsR = !isNaN(_sDelta) && _sDelta > OFFLINE_REPLAY_THRESHOLD_MS;
+                            const _sCmsTxId = msg.message[3].transactionId;
+                            const _sIsZero = _sCmsTxId === 0;
+                            const _sIntTxId = _sIsZero
+                                ? '\u26A0 txId=0 (No CMS ID)'
+                                : (internalTxMap.get(String(_sCmsTxId)) || '\u2014');
                             return {
                                fileName: msg.fileName,
                                'Time Stamp': msg.timestamp,
-                               'Transaction ID': msg.message[3].transactionId,
+                               'Transaction ID': _sCmsTxId,
+                               'Internal TX ID': _sIntTxId,
                                'Meter Stop': msg.message[3].meterStop,
                                'Stop Reason': msg.message[3].reason || 'N/A',
                                'SoC Begin (%)': socBegin,
@@ -2523,6 +2551,8 @@
                             document.getElementById('summary-card-3-value').textContent = '-';
                             document.getElementById('summary-card-4-value').textContent = '-';
                             document.getElementById('meter-values-body').innerHTML = '';
+                            const _itxBanner = document.getElementById('internal-tx-id-banner');
+                            if (_itxBanner) _itxBanner.innerHTML = '';
                         }
                     });
 
@@ -3751,7 +3781,7 @@
                 const tableContainer = document.createElement('div');
                 tableContainer.className = 'overflow-x-auto max-h-[500px]';
 
-                const headers = ['S.No.', 'Tx ID', 'Start Time (IST)', 'End Time (IST)', 'Duration (min)',
+                const headers = ['S.No.', 'Tx ID', 'Internal TX ID', 'Start Time (IST)', 'End Time (IST)', 'Duration (min)',
                     'Connector ID', 'ID Tag', 'Meter Start (kWh)', 'Meter Stop (kWh)', 'Total Energy (kWh)',
                     'Start/Stop Diff (Wh)', 'Avg Power (kW)', 'Peak Power (kW)',
                     'Avg Current Outlet (A)', 'Avg Current EV (A)',
@@ -3868,9 +3898,14 @@
                         const meterStartKwh = typeof tx.meterStart === 'number' ? (tx.meterStart / 1000).toFixed(2) : 'N/A';
                         const meterStopKwh = typeof tx.meterStop === 'number' ? (tx.meterStop / 1000).toFixed(2) : 'N/A';
 
+                        const _internalTxId = tx.internalTransactionId || internalTxMap.get(String(tx.id)) || null;
+                        const _internalTxCell = _internalTxId
+                            ? `<span class="font-mono text-xs text-indigo-700 dark:text-indigo-300">${_internalTxId}</span>`
+                            : `<span class="text-gray-400 dark:text-gray-500">\u2014</span>`;
                         tr.innerHTML = `
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">${index + 1}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">${tx.id}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${_internalTxCell}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${convertToIST(tx.startTime)}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${tx.stopTime ? convertToIST(tx.stopTime) : 'Ongoing'}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${typeof tx.duration === 'number' ? tx.duration.toFixed(2) : tx.duration}</td>
@@ -4099,6 +4134,778 @@
                         }
                     }
                 });
+            }
+
+            function createStatusNotificationSection(messages, messageGroups) {
+                const section = document.createElement('section');
+                section.className = 'bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700';
+
+                // ── Header ──
+                const headerWrapper = document.createElement('div');
+                headerWrapper.className = 'flex justify-between items-center';
+                const header = document.createElement('div');
+                header.className = 'flex items-center cursor-pointer';
+                header.innerHTML = `
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mr-4">Status Notifications (${messages.length})</h2>
+                    <svg class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                `;
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-lg text-sm';
+                exportBtn.textContent = 'Export to Excel';
+                exportBtn.addEventListener('click', e => { e.stopPropagation(); exportTableToExcel('status-notifications-table', 'Status_Notifications.xlsx'); });
+                headerWrapper.appendChild(header);
+                headerWrapper.appendChild(exportBtn);
+                section.appendChild(headerWrapper);
+
+                // ── Collapsible content ──
+                const content = document.createElement('div');
+                content.className = 'mt-4';
+
+                // ── Row data ──
+                const rows = messages.map((msg, i) => {
+                    const p = msg.message[3];
+                    return {
+                        sno: i + 1,
+                        fileName: msg.fileName || '',
+                        logTs: msg.timestamp || '\u2014',
+                        payloadTs: p.timestamp || '\u2014',
+                        connectorId: p.connectorId !== undefined ? String(p.connectorId) : '\u2014',
+                        status: p.status || '\u2014',
+                        errorCode: p.errorCode || '\u2014',
+                        vendorId: p.vendorId || '\u2014',
+                        vendorErrorCode: p.vendorErrorCode || '\u2014',
+                        info: p.info || '\u2014',
+                        sessionFlow: '',   // populated after flow analysis
+                        _rawMsg: msg
+                    };
+                });
+
+                // ══════════════════════════════════════════
+                // ANALYTICS
+                // ══════════════════════════════════════════
+
+                // 1. Summary counts
+                const totalEvents     = messages.length;
+                const uniqueStatuses  = new Set(rows.map(r => r.status)).size;
+                const faultedCount    = rows.filter(r => r.status === 'Faulted').length;
+                const errorCount      = rows.filter(r => r.errorCode !== 'NoError' && r.errorCode !== '\u2014').length;
+                const connectorCount  = new Set(rows.map(r => r.connectorId)).size;
+
+                // 2. Status distribution
+                const statusDist = new Map();
+                rows.forEach(r => statusDist.set(r.status, (statusDist.get(r.status) || 0) + 1));
+                const statusOrder = ['Available','Preparing','Charging','SuspendedEV','SuspendedEVSE','Finishing','Faulted','Unavailable','Reserved'];
+                const sortedStatuses = [...statusDist.entries()].sort((a, b) => {
+                    const ai = statusOrder.indexOf(a[0]), bi = statusOrder.indexOf(b[0]);
+                    if (ai !== -1 && bi !== -1) return ai - bi;
+                    if (ai !== -1) return -1;
+                    if (bi !== -1) return 1;
+                    return b[1] - a[1];
+                });
+                const maxStatusCount = Math.max(...statusDist.values());
+
+                // 3. Session flow analysis — per connector, track what follows each "Preparing"
+                //    A successful session: Preparing → Charging → Finishing/Available
+                //    Skipped charging:     Preparing → Finishing (stopped before power)
+                //    Abandoned:            Preparing → Available (EV disconnected/no auth)
+                //    Faulted before charge:Preparing → Faulted
+                const byConnector = new Map();
+                messages.forEach((msg, origIdx) => {
+                    const cid = String(msg.message[3].connectorId ?? 'N/A');
+                    if (!byConnector.has(cid)) byConnector.set(cid, []);
+                    byConnector.get(cid).push({ status: msg.message[3].status, ts: msg.timestamp, origIdx });
+                });
+                let flowFull = 0, flowSkipped = 0, flowAbandoned = 0, flowFaulted = 0;
+                const perConnFlow = [];
+                byConnector.forEach((evts, cid) => {
+                    evts.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+                    let cf = 0, cs = 0, ca = 0, cflt = 0;
+                    for (let i = 0; i < evts.length; i++) {
+                        if (evts[i].status === 'Preparing') {
+                            let next = null, nextIdx = -1;
+                            for (let j = i + 1; j < evts.length; j++) {
+                                if (evts[j].status !== 'Preparing') { next = evts[j].status; nextIdx = evts[j].origIdx; break; }
+                            }
+                            let flowLabel = '';
+                            if (next === 'Charging')                          { cf++;   flowLabel = 'Charging'; }
+                            else if (next === 'Finishing')                    { cs++;   flowLabel = 'Finishing'; }
+                            else if (next === 'Available' || next === null)   { ca++;   flowLabel = 'Available'; }
+                            else if (next === 'Faulted')                      { cflt++; flowLabel = 'Faulted'; }
+                            else                                              { ca++;   flowLabel = 'Available'; }
+                            // Tag the Preparing row and its next-status row
+                            if (flowLabel) {
+                                rows[evts[i].origIdx].sessionFlow = flowLabel;
+                                if (nextIdx !== -1) rows[nextIdx].sessionFlow = flowLabel;
+                            }
+                        }
+                    }
+                    flowFull    += cf; flowSkipped += cs;
+                    flowAbandoned += ca; flowFaulted  += cflt;
+                    const connTotal = cf + cs + ca + cflt;
+                    if (connTotal > 0 || evts.length > 0)
+                        perConnFlow.push({ cid, cf, cs, ca, cflt, total: connTotal });
+                });
+                perConnFlow.sort((a, b) => String(a.cid).localeCompare(String(b.cid), undefined, { numeric: true }));
+
+                // ══════════════════════════════════════════
+                // 3b. Repeated RemoteStart detection
+                //     Problem: Preparing → (Finishing | Available | Faulted) without Charging,
+                //              with ≥ threshold RemoteStartTransaction requests in the window.
+                //     Benign: Preparing → Available with 0 RemoteStarts (EV unplugged).
+                //     Healthy: Preparing → Charging (any RS count).
+                // ══════════════════════════════════════════
+                const _mg = messageGroups || {};
+                const _allMsgs = [].concat(
+                    _mg.BootNotification || [], _mg.Heartbeat || [], _mg.StatusNotification || [],
+                    _mg.StartTransaction || [], _mg.StopTransaction || [], _mg.MeterValues || [],
+                    _mg.Other || []
+                );
+                const _callResultByUuid = new Map();
+                _allMsgs.forEach(m => {
+                    if (m && m.message && m.message[0] === 3 && m.message[1] != null) {
+                        _callResultByUuid.set(m.message[1], m);
+                    }
+                });
+                const _remoteStartMsgs = _allMsgs.filter(m =>
+                    m && m.message && m.message[0] === 2 &&
+                    m.message[2] === 'RemoteStartTransaction' && m.direction === 'received'
+                );
+                const allProblemSessions = [];
+                // Fast path: no RemoteStart activity → skip the entire correlation pass
+                // (raw-log regex scan, authorize correlation, per-session walk).
+                if (_remoteStartMsgs.length > 0) {
+                const _authorizeReqMsgs = _allMsgs.filter(m =>
+                    m && m.message && m.message[0] === 2 &&
+                    m.message[2] === 'Authorize' && m.direction === 'sent'
+                );
+                const _rawLines = (typeof window !== 'undefined' && window.rawLogLines) || [];
+                const _runtimeBlockRegex = /\[([^\]]+)\]\s*\[OCPPRuntime\]\s*Cannot auth\.?\s*Outlet\s+(\d+)\s+is already authorized for user="([^"]+)"/;
+                const _runtimeStartRegex = /\[([^\]]+)\]\s*\[OCPPRuntime\]\s*Starting Transaction remotely for connector\s+(\d+)/;
+                const _openApiAuthRegex = /\[([^\]]+)\][\s\S]*?\[OpenAPIControl\]\s+POST\s+\/outlets\/(\d+)\/auth\s*\(([^)]+)\)/;
+                const _runtimeBlocks = [];
+                const _runtimeStarts = [];
+                const _openApiAuths = [];
+                // One pass over raw lines — cheap substring guards before each regex.
+                for (let _li = 0; _li < _rawLines.length; _li++) {
+                    const line = _rawLines[_li];
+                    if (!line) continue;
+                    if (line.indexOf('Cannot auth') !== -1) {
+                        const mm = line.match(_runtimeBlockRegex);
+                        if (mm) _runtimeBlocks.push({ ts: mm[1], outlet: mm[2], user: mm[3], lineNumber: _li + 1, text: `Cannot auth. Outlet ${mm[2]} is already authorized for user="${mm[3]}"` });
+                    }
+                    if (line.indexOf('Starting Transaction remotely') !== -1) {
+                        const mm = line.match(_runtimeStartRegex);
+                        if (mm) _runtimeStarts.push({ ts: mm[1], outlet: mm[2], lineNumber: _li + 1, text: `Starting Transaction remotely for connector ${mm[2]}` });
+                    }
+                    if (line.indexOf('[OpenAPIControl]') !== -1 && line.indexOf('/auth') !== -1) {
+                        const mm = line.match(_openApiAuthRegex);
+                        if (mm) _openApiAuths.push({ ts: mm[1], outlet: mm[2], idTag: mm[3].trim(), lineNumber: _li + 1, text: `POST /outlets/${mm[2]}/auth (${mm[3].trim()})` });
+                    }
+                }
+
+                byConnector.forEach((evts, cid) => {
+                    // evts already sorted by timestamp above
+                    for (let i = 0; i < evts.length; i++) {
+                        if (evts[i].status !== 'Preparing') continue;
+                        let endIdx = -1;
+                        for (let j = i + 1; j < evts.length; j++) {
+                            if (evts[j].status !== 'Preparing') { endIdx = j; break; }
+                        }
+                        const startTs = evts[i].ts;
+                        const endEvt = endIdx !== -1 ? evts[endIdx] : null;
+                        const endStatus = endEvt ? endEvt.status : 'Open';
+                        const endTs = endEvt ? endEvt.ts : null;
+                        if (endStatus === 'Charging') continue; // healthy — skip
+                        const startMs = new Date(startTs).getTime();
+                        const endMs = endTs ? new Date(endTs).getTime() : Infinity;
+                        const rsInWindow = _remoteStartMsgs.filter(rs => {
+                            const rsCid = rs.message[3] && rs.message[3].connectorId;
+                            if (String(rsCid) !== String(cid)) return false;
+                            const t = new Date(rs.timestamp).getTime();
+                            return t >= startMs && t <= endMs;
+                        }).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                        const rsDetails = rsInWindow.map((rs, rIdx) => {
+                            const uuid = rs.message[1];
+                            const idTag = (rs.message[3] && rs.message[3].idTag) || '\u2014';
+                            const rsResp = _callResultByUuid.get(uuid);
+                            const ocppAccepted = !!(rsResp && rsResp.message[2] && rsResp.message[2].status === 'Accepted');
+                            const rsTs = new Date(rs.timestamp).getTime();
+                            const nextRs = rsInWindow[rIdx + 1];
+                            const authLimit = nextRs ? new Date(nextRs.timestamp).getTime() : endMs;
+                            const auth = _authorizeReqMsgs.find(a => {
+                                const at = new Date(a.timestamp).getTime();
+                                return at > rsTs && at <= authLimit &&
+                                       a.message[3] && a.message[3].idTag === idTag;
+                            });
+                            const authUuid = auth ? auth.message[1] : null;
+                            const authResp = authUuid ? _callResultByUuid.get(authUuid) : null;
+                            const authOk = !!(authResp && authResp.message[2] &&
+                                              authResp.message[2].idTagInfo &&
+                                              authResp.message[2].idTagInfo.status === 'Accepted');
+                            const scanFromTs = authResp ? new Date(authResp.timestamp).getTime()
+                                             : auth ? new Date(auth.timestamp).getTime()
+                                             : rsTs;
+                            // Runtime log: 'Cannot auth. Outlet N is already authorized for user="<existing>"'
+                            // The `user=` field names the EXISTING (winning) idTag, not the one being rejected.
+                            // So this RS is runtime-blocked iff a block fires in its auth-window AND the
+                            // block's user differs from this RS's idTag (i.e., someone ELSE already holds the lock).
+                            const block = _runtimeBlocks.find(b => {
+                                if (String(b.outlet) !== String(cid)) return false;
+                                if (b.user === idTag) return false;
+                                const bt = new Date(b.ts).getTime();
+                                return bt >= scanFromTs && bt <= authLimit;
+                            });
+                            // OpenAPIControl POST /outlets/<cid>/auth (<idTag>) inside RS window
+                            const openApi = _openApiAuths.find(o => {
+                                if (String(o.outlet) !== String(cid)) return false;
+                                if (o.idTag !== idTag) return false;
+                                const ot = new Date(o.ts).getTime();
+                                return ot >= rsTs && ot <= authLimit;
+                            });
+                            // Runtime "Starting Transaction remotely for connector <cid>" right after RS
+                            const runtimeStart = _runtimeStarts.find(r => {
+                                if (String(r.outlet) !== String(cid)) return false;
+                                const rt = new Date(r.ts).getTime();
+                                return rt >= rsTs && rt <= authLimit;
+                            });
+                            return {
+                                uuid, idTag,
+                                rsLine: rs.lineNumber,
+                                rsTs: rs.timestamp,
+                                ocppAccepted,
+                                ocppReplyLine: rsResp ? rsResp.lineNumber : null,
+                                authorizeSent: !!auth,
+                                authorizeOk: authOk,
+                                authLine: auth ? auth.lineNumber : null,
+                                runtimeBlocked: !!block,
+                                blockLine: block ? block.lineNumber : null,
+                                blockText: block ? block.text : null,
+                                openApiText: openApi ? openApi.text : null,
+                                openApiLine: openApi ? openApi.lineNumber : null,
+                                runtimeStartText: runtimeStart ? runtimeStart.text : null,
+                                runtimeStartLine: runtimeStart ? runtimeStart.lineNumber : null
+                            };
+                        });
+                        const distinctIdTags = [...new Set(rsDetails.map(d => d.idTag))];
+                        const winning = rsDetails.find(d => d.ocppAccepted && !d.runtimeBlocked);
+                        const rejected = rsDetails.filter(d => d.runtimeBlocked).map(d => d.idTag);
+                        const durationMs = endTs ? Math.max(0, new Date(endTs).getTime() - startMs) : null;
+
+                        allProblemSessions.push({
+                            cid,
+                            preparingOrigIdx: evts[i].origIdx,
+                            endOrigIdx: endIdx !== -1 ? evts[endIdx].origIdx : null,
+                            preparingTs: startTs,
+                            preparingLine: messages[evts[i].origIdx] && messages[evts[i].origIdx].lineNumber,
+                            endStatus,
+                            endTs,
+                            endLine: endIdx !== -1 ? (messages[evts[endIdx].origIdx] && messages[evts[endIdx].origIdx].lineNumber) : null,
+                            durationMs,
+                            remoteStartCount: rsInWindow.length,
+                            distinctIdTags,
+                            sameTagDuplicates: Math.max(0, rsInWindow.length - distinctIdTags.length),
+                            differentTagRequests: distinctIdTags.length > 1 ? distinctIdTags.length : 0,
+                            ocppAcceptedCount: rsDetails.filter(d => d.ocppAccepted).length,
+                            authorizeSentCount: rsDetails.filter(d => d.authorizeSent).length,
+                            authorizeOkCount: rsDetails.filter(d => d.authorizeOk).length,
+                            runtimeBlockedCount: rsDetails.filter(d => d.runtimeBlocked).length,
+                            winningIdTag: winning ? winning.idTag : null,
+                            rejectedIdTags: [...new Set(rejected)],
+                            details: rsDetails
+                        });
+                    }
+                });
+                } // end if (_remoteStartMsgs.length > 0)
+
+                // 4. Error code frequency (non-NoError)
+                const errMap = new Map();
+                rows.filter(r => r.errorCode !== 'NoError' && r.errorCode !== '\u2014').forEach(r => {
+                    const key = `${r.errorCode}||${r.vendorErrorCode}||${r.vendorId}`;
+                    if (!errMap.has(key)) errMap.set(key, { errorCode: r.errorCode, vendorErrorCode: r.vendorErrorCode, vendorId: r.vendorId, connectors: new Set(), count: 0 });
+                    const e = errMap.get(key);
+                    e.count++;
+                    e.connectors.add(r.connectorId);
+                });
+                const errRows = [...errMap.values()].sort((a, b) => b.count - a.count);
+
+                // ══════════════════════════════════════════
+                // SUMMARY PANEL
+                // ══════════════════════════════════════════
+                const summaryPanel = document.createElement('div');
+                summaryPanel.className = 'mb-5';
+
+                // Summary cards
+                const statusColor = s => {
+                    if (s === 'Faulted')     return 'text-red-600 dark:text-red-400 font-semibold';
+                    if (s === 'Charging')    return 'text-green-600 dark:text-green-400 font-semibold';
+                    if (s === 'Preparing')   return 'text-blue-600 dark:text-blue-400';
+                    if (s === 'Finishing')   return 'text-orange-600 dark:text-orange-400';
+                    if (s === 'Unavailable') return 'text-gray-500 dark:text-gray-400';
+                    return '';
+                };
+                const statusBarColor = s => {
+                    if (s === 'Available')  return 'bg-teal-400';
+                    if (s === 'Preparing')  return 'bg-blue-400';
+                    if (s === 'Charging')   return 'bg-green-500';
+                    if (s === 'Finishing')  return 'bg-orange-400';
+                    if (s === 'Faulted')    return 'bg-red-500';
+                    if (s === 'Unavailable')return 'bg-gray-400';
+                    return 'bg-purple-400';
+                };
+
+                const cardsDiv = document.createElement('div');
+                cardsDiv.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4';
+                cardsDiv.innerHTML = `
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
+                        <div class="text-2xl font-bold text-blue-700 dark:text-blue-300">${totalEvents}</div>
+                        <div class="text-xs text-blue-600 dark:text-blue-400 mt-1 uppercase font-medium">Total Events</div>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-800 text-center">
+                        <div class="text-2xl font-bold text-purple-700 dark:text-purple-300">${uniqueStatuses}</div>
+                        <div class="text-xs text-purple-600 dark:text-purple-400 mt-1 uppercase font-medium">Unique Statuses</div>
+                    </div>
+                    <div class="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800 text-center">
+                        <div class="text-2xl font-bold text-red-700 dark:text-red-300">${faultedCount}</div>
+                        <div class="text-xs text-red-600 dark:text-red-400 mt-1 uppercase font-medium">Faulted Events</div>
+                    </div>
+                    <div class="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg border border-orange-200 dark:border-orange-800 text-center">
+                        <div class="text-2xl font-bold text-orange-700 dark:text-orange-300">${errorCount}</div>
+                        <div class="text-xs text-orange-600 dark:text-orange-400 mt-1 uppercase font-medium">Error Events</div>
+                    </div>
+                    <div class="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-lg border border-teal-200 dark:border-teal-800 text-center">
+                        <div class="text-2xl font-bold text-teal-700 dark:text-teal-300">${connectorCount}</div>
+                        <div class="text-xs text-teal-600 dark:text-teal-400 mt-1 uppercase font-medium">Connectors</div>
+                    </div>
+                    <div class="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-center" title="Sessions where CMS sent multiple RemoteStartTransaction requests and the connector never reached Charging">
+                        <div class="text-2xl font-bold text-amber-700 dark:text-amber-300" id="repeat-remote-count">0</div>
+                        <div class="text-xs text-amber-600 dark:text-amber-400 mt-1 uppercase font-medium">⚠ Repeat RemoteStart</div>
+                    </div>`;
+                summaryPanel.appendChild(cardsDiv);
+                const repeatCountEl = cardsDiv.querySelector('#repeat-remote-count');
+
+                // Two-column grid: Status Distribution | Session Flow Analysis
+                const twoCol = document.createElement('div');
+                twoCol.className = 'grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4';
+
+                // ── Status Distribution ──
+                const distDiv = document.createElement('div');
+                distDiv.className = 'bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200 dark:border-gray-600 p-3';
+                distDiv.innerHTML = `<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">📊 Status Distribution</h4>`;
+                const distTable = document.createElement('table');
+                distTable.className = 'w-full text-sm';
+                distTable.innerHTML = `<thead><tr>
+                    <th class="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 uppercase">Status</th>
+                    <th class="text-right text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 uppercase pr-3">Count</th>
+                    <th class="text-right text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 uppercase pr-3">%</th>
+                    <th class="text-left text-xs font-medium text-gray-500 dark:text-gray-400 pb-2 uppercase">Bar</th>
+                </tr></thead>`;
+                const distTbody = document.createElement('tbody');
+                sortedStatuses.forEach(([st, cnt]) => {
+                    const pct = ((cnt / totalEvents) * 100).toFixed(1);
+                    const barW = Math.round((cnt / maxStatusCount) * 100);
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="py-1 pr-2 font-medium text-gray-800 dark:text-gray-200 ${statusColor(st)} whitespace-nowrap">${st}</td>
+                        <td class="py-1 text-right pr-3 font-mono text-gray-700 dark:text-gray-300">${cnt}</td>
+                        <td class="py-1 text-right pr-3 text-gray-500 dark:text-gray-400">${pct}%</td>
+                        <td class="py-1 w-full"><div class="h-3 rounded ${statusBarColor(st)} opacity-80" style="width:${barW}%;min-width:4px"></div></td>`;
+                    distTbody.appendChild(tr);
+                });
+                distTable.appendChild(distTbody);
+                distDiv.appendChild(distTable);
+                twoCol.appendChild(distDiv);
+
+                // ── Session Flow Analysis ──
+                const flowDiv = document.createElement('div');
+                flowDiv.className = 'bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200 dark:border-gray-600 p-3';
+                const totalFlow = flowFull + flowSkipped + flowAbandoned + flowFaulted;
+                const flowPct = n => totalFlow > 0 ? ((n / totalFlow) * 100).toFixed(1) : '0.0';
+                flowDiv.innerHTML = `<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">⚡ Session Flow Analysis</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">What happened after each <span class="font-semibold text-blue-600 dark:text-blue-400">Preparing</span> event? A successful session goes Preparing → Charging → Finishing/Available.</p>`;
+
+                // Flow summary cards (2×2)
+                const flowCards = document.createElement('div');
+                flowCards.className = 'grid grid-cols-2 gap-2 mb-3';
+                flowCards.innerHTML = `
+                    <div class="bg-green-50 dark:bg-green-900/20 rounded p-2 border border-green-200 dark:border-green-800">
+                        <div class="text-lg font-bold text-green-700 dark:text-green-300">${flowFull} <span class="text-xs font-normal">(${flowPct(flowFull)}%)</span></div>
+                        <div class="text-xs text-green-600 dark:text-green-400 font-medium">✅ Preparing → Charging</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500">Session started normally</div>
+                    </div>
+                    <div class="bg-orange-50 dark:bg-orange-900/20 rounded p-2 border border-orange-200 dark:border-orange-800">
+                        <div class="text-lg font-bold text-orange-700 dark:text-orange-300">${flowSkipped} <span class="text-xs font-normal">(${flowPct(flowSkipped)}%)</span></div>
+                        <div class="text-xs text-orange-600 dark:text-orange-400 font-medium">⚠ Preparing → Finishing</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500">Stopped before charging</div>
+                    </div>
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded p-2 border border-yellow-200 dark:border-yellow-800">
+                        <div class="text-lg font-bold text-yellow-700 dark:text-yellow-300">${flowAbandoned} <span class="text-xs font-normal">(${flowPct(flowAbandoned)}%)</span></div>
+                        <div class="text-xs text-yellow-600 dark:text-yellow-400 font-medium">⚠ Preparing → Available</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500">Abandoned / no auth</div>
+                    </div>
+                    <div class="bg-red-50 dark:bg-red-900/20 rounded p-2 border border-red-200 dark:border-red-800">
+                        <div class="text-lg font-bold text-red-700 dark:text-red-300">${flowFaulted} <span class="text-xs font-normal">(${flowPct(flowFaulted)}%)</span></div>
+                        <div class="text-xs text-red-600 dark:text-red-400 font-medium">✗ Preparing → Faulted</div>
+                        <div class="text-xs text-gray-400 dark:text-gray-500">Fault before charging</div>
+                    </div>`;
+                flowDiv.appendChild(flowCards);
+
+                // Per-connector breakdown
+                if (perConnFlow.length > 0) {
+                    const connTable = document.createElement('table');
+                    connTable.className = 'w-full text-xs mt-1';
+                    connTable.innerHTML = `<thead><tr class="text-gray-500 dark:text-gray-400 uppercase">
+                        <th class="text-left pb-1 pr-2">Connector</th>
+                        <th class="text-center pb-1 px-1 text-green-600 dark:text-green-400">→ Charging</th>
+                        <th class="text-center pb-1 px-1 text-orange-500 dark:text-orange-400">→ Finishing</th>
+                        <th class="text-center pb-1 px-1 text-yellow-600 dark:text-yellow-400">→ Available</th>
+                        <th class="text-center pb-1 px-1 text-red-500 dark:text-red-400">→ Faulted</th>
+                    </tr></thead>`;
+                    const connTbody = document.createElement('tbody');
+                    perConnFlow.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'border-t border-gray-200 dark:border-gray-600';
+                        tr.innerHTML = `
+                            <td class="py-0.5 pr-2 font-semibold text-gray-700 dark:text-gray-300">C${r.cid}</td>
+                            <td class="text-center py-0.5 px-1 text-green-700 dark:text-green-300 font-mono">${r.cf || '\u2014'}</td>
+                            <td class="text-center py-0.5 px-1 text-orange-600 dark:text-orange-400 font-mono">${r.cs || '\u2014'}</td>
+                            <td class="text-center py-0.5 px-1 text-yellow-700 dark:text-yellow-300 font-mono">${r.ca || '\u2014'}</td>
+                            <td class="text-center py-0.5 px-1 text-red-600 dark:text-red-400 font-mono">${r.cflt || '\u2014'}</td>`;
+                        connTbody.appendChild(tr);
+                    });
+                    connTable.appendChild(connTbody);
+                    flowDiv.appendChild(connTable);
+                }
+                twoCol.appendChild(flowDiv);
+                summaryPanel.appendChild(twoCol);
+
+                // ── Repeated RemoteStart Sessions (configurable threshold) ──
+                const repeatDiv = document.createElement('div');
+                repeatDiv.className = 'bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-700 p-3 mb-4';
+                const repeatHeader = document.createElement('div');
+                repeatHeader.className = 'flex items-center justify-between mb-2 flex-wrap gap-2';
+                const repeatTitle = document.createElement('div');
+                repeatTitle.innerHTML = `
+                    <h4 class="text-sm font-semibold text-amber-800 dark:text-amber-200">⚠ Repeated RemoteStart Sessions</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Preparing → Finishing / Available / Faulted (no Charging) with multiple <code class="font-mono text-[11px]">RemoteStartTransaction</code> requests. OCPP client accepts all; runtime blocks later duplicates with <code class="font-mono text-[11px]">"Cannot auth. Outlet N is already authorized"</code>.</p>`;
+                repeatHeader.appendChild(repeatTitle);
+                const thresholdWrap = document.createElement('div');
+                thresholdWrap.className = 'flex items-center gap-2 shrink-0';
+                const thresholdLbl = document.createElement('label');
+                thresholdLbl.className = 'text-xs font-medium text-gray-600 dark:text-gray-300';
+                thresholdLbl.textContent = 'Min RemoteStart:';
+                const thresholdInput = document.createElement('input');
+                thresholdInput.type = 'number';
+                thresholdInput.min = '2';
+                thresholdInput.value = '2';
+                thresholdInput.className = 'w-16 px-2 py-1 text-sm border border-amber-300 dark:border-amber-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-500';
+                thresholdWrap.appendChild(thresholdLbl);
+                thresholdWrap.appendChild(thresholdInput);
+                repeatHeader.appendChild(thresholdWrap);
+                repeatDiv.appendChild(repeatHeader);
+                const repeatBody = document.createElement('div');
+                repeatBody.className = 'overflow-auto';
+                repeatDiv.appendChild(repeatBody);
+                summaryPanel.appendChild(repeatDiv);
+
+                let currentThreshold = 2;
+                const _filterBad = () => allProblemSessions.filter(s => {
+                    if (s.endStatus === 'Available' && s.remoteStartCount === 0) return false;
+                    return s.remoteStartCount >= currentThreshold;
+                });
+                const _fmtDur = ms => {
+                    if (ms == null) return 'open';
+                    const sec = Math.round(ms / 1000);
+                    const m = Math.floor(sec / 60), r = sec % 60;
+                    return `${m}m ${r}s`;
+                };
+                const renderBadSessions = () => {
+                    const bad = _filterBad();
+                    if (repeatCountEl) repeatCountEl.textContent = bad.length;
+                    rows.forEach(r => { r.repeatIssue = null; });
+                    bad.forEach(s => {
+                        if (s.preparingOrigIdx != null && rows[s.preparingOrigIdx]) {
+                            rows[s.preparingOrigIdx].repeatIssue = s.remoteStartCount;
+                        }
+                    });
+                    repeatBody.innerHTML = '';
+                    if (allProblemSessions.length === 0) {
+                        repeatBody.innerHTML = '<p class="text-xs text-gray-500 dark:text-gray-400 italic py-2">No Preparing sessions without Charging detected.</p>';
+                    } else if (bad.length === 0) {
+                        repeatBody.innerHTML = `<p class="text-xs text-gray-500 dark:text-gray-400 italic py-2">No sessions at or above the current threshold (${currentThreshold}). ${allProblemSessions.length} non-Charging session${allProblemSessions.length===1?'':'s'} exist below threshold.</p>`;
+                    } else {
+                        // One entry per problematic session: compact header strip + per-RS sub-table.
+                        bad.forEach((s, sIdx) => {
+                            const card = document.createElement('div');
+                            card.className = 'border-l-4 border-amber-400 dark:border-amber-600 bg-white dark:bg-gray-800 pl-3 pr-2 py-2 mb-4';
+
+                            // ── Compact header strip ──
+                            //   Left: Connector · Preparing ts :L → Finishing ts :L · Duration
+                            //   Right: N RemoteStart · ✅ K won · ❌ M blocked
+                            const wonCount = s.endStatus === 'Charging' ? 1 : 0; // definition: reached Charging
+                            const hdr = document.createElement('div');
+                            hdr.className = 'flex items-start justify-between flex-wrap gap-3 pb-2 mb-2 border-b border-amber-100 dark:border-amber-800';
+                            hdr.innerHTML = `
+                                <div class="text-xs text-gray-700 dark:text-gray-300 space-y-0.5">
+                                    <div><span class="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded text-[11px] font-semibold mr-2">Connector ${s.cid}</span><span class="text-gray-500 dark:text-gray-400">Preparing</span> <span class="font-mono">${s.preparingTs || '\u2014'}</span>${s.preparingLine ? `<span class="text-gray-400 font-mono"> :L${s.preparingLine}</span>` : ''}</div>
+                                    <div class="pl-[92px]"><span class="text-gray-500 dark:text-gray-400"><span class="${statusColor(s.endStatus)} font-semibold">${s.endStatus}</span></span> <span class="font-mono">${s.endTs || 'open'}</span>${s.endLine ? `<span class="text-gray-400 font-mono"> :L${s.endLine}</span>` : ''}</div>
+                                    <div class="pl-[92px]"><span class="text-gray-500 dark:text-gray-400">Duration</span> <span class="font-mono">${_fmtDur(s.durationMs)}</span></div>
+                                </div>
+                                <div class="text-xs text-right space-y-0.5">
+                                    <div class="font-semibold text-amber-700 dark:text-amber-300">${s.remoteStartCount} RemoteStart</div>
+                                    <div class="text-green-600 dark:text-green-400">✅ ${wonCount} won</div>
+                                    <div class="text-red-600 dark:text-red-400">❌ ${s.runtimeBlockedCount} blocked</div>
+                                </div>`;
+                            card.appendChild(hdr);
+
+                            // ── Per-RemoteStart sub-table ──
+                            const subTbl = document.createElement('table');
+                            subTbl.className = 'w-full text-xs';
+                            subTbl.innerHTML = `<thead class="text-gray-500 dark:text-gray-400 uppercase">
+                                <tr>
+                                    <th class="text-left pb-1 pr-2 w-8">#</th>
+                                    <th class="text-left pb-1 pr-2">Time · Line</th>
+                                    <th class="text-left pb-1 pr-2">idTag</th>
+                                    <th class="text-left pb-1 pr-2" title="CallResult the EVSE (OCPP client) sent in reply to this RemoteStartTransaction">EVSE RS reply</th>
+                                    <th class="text-left pb-1 pr-2" title="[OpenAPIControl] POST /outlets/N/auth (idTag) — absence means physical auth was not written">OpenAPIControl status</th>
+                                    <th class="text-left pb-1" title='[OCPPRuntime] "Cannot auth…" if blocked, else "Starting Transaction remotely"'>OCPP Runtime status</th>
+                                </tr>
+                            </thead>`;
+                            const sTb = document.createElement('tbody');
+                            s.details.forEach((d, i) => {
+                                const isBlocked = d.runtimeBlocked;
+                                const hasOpenApi = !!d.openApiText;
+                                const tr = document.createElement('tr');
+                                tr.className = 'border-t border-gray-100 dark:border-gray-700 align-top ' +
+                                    (isBlocked ? 'bg-red-50/50 dark:bg-red-900/10'
+                                     : hasOpenApi ? 'bg-green-50/50 dark:bg-green-900/10'
+                                     : '');
+                                const evseReply = d.ocppAccepted
+                                    ? `<span class="text-green-600 dark:text-green-400 font-semibold">Accepted</span>${d.ocppReplyLine ? `<span class="text-gray-400 font-mono"> :L${d.ocppReplyLine}</span>` : ''}`
+                                    : '<span class="text-gray-400">\u2014</span>';
+                                const openApiCell = hasOpenApi
+                                    ? `<span class="font-mono text-[11px] text-gray-700 dark:text-gray-300">${d.openApiText}</span>${d.openApiLine ? `<span class="text-gray-400 font-mono text-[11px]"> :L${d.openApiLine}</span>` : ''}`
+                                    : '<span class="text-gray-400 italic">\u2014 (not called)</span>';
+                                const runtimeCell = isBlocked
+                                    ? `<span class="font-mono text-[11px] text-red-700 dark:text-red-300 font-semibold">${d.blockText || 'Cannot auth.'}</span>${d.blockLine ? `<span class="text-gray-400 font-mono text-[11px]"> :L${d.blockLine}</span>` : ''}`
+                                    : d.runtimeStartText
+                                        ? `<span class="font-mono text-[11px] text-gray-700 dark:text-gray-300">${d.runtimeStartText}</span>${d.runtimeStartLine ? `<span class="text-gray-400 font-mono text-[11px]"> :L${d.runtimeStartLine}</span>` : ''}`
+                                        : '<span class="text-gray-400">\u2014</span>';
+                                tr.innerHTML = `
+                                    <td class="py-1 pr-2 font-mono text-gray-500">${i + 1}</td>
+                                    <td class="py-1 pr-2 font-mono text-[11px] text-gray-700 dark:text-gray-300">${d.rsTs || '\u2014'}${d.rsLine ? `<span class="text-gray-400"> :L${d.rsLine}</span>` : ''}</td>
+                                    <td class="py-1 pr-2 font-mono font-semibold ${isBlocked ? 'text-red-600 dark:text-red-400' : hasOpenApi ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}">${d.idTag}</td>
+                                    <td class="py-1 pr-2">${evseReply}</td>
+                                    <td class="py-1 pr-2">${openApiCell}</td>
+                                    <td class="py-1">${runtimeCell}</td>`;
+                                sTb.appendChild(tr);
+                            });
+                            subTbl.appendChild(sTb);
+                            card.appendChild(subTbl);
+                            repeatBody.appendChild(card);
+                        });
+                    }
+                    if (typeof buildTbody === 'function') buildTbody(_currentFiltered());
+                };
+                const _applyThreshold = () => {
+                    const v = parseInt(thresholdInput.value, 10);
+                    currentThreshold = (!isNaN(v) && v >= 2) ? v : 2;
+                    renderBadSessions();
+                };
+                thresholdInput.addEventListener('change', _applyThreshold);
+                thresholdInput.addEventListener('input', _applyThreshold);
+
+                // ── Error Code Frequency ──
+                if (errRows.length > 0) {
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200 dark:border-gray-600 p-3 mb-4';
+                    errDiv.innerHTML = `<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">🔴 Error Code Frequency <span class="text-xs font-normal text-gray-400">(non-NoError only)</span></h4>`;
+                    const errTable = document.createElement('table');
+                    errTable.className = 'w-full text-sm';
+                    errTable.innerHTML = `<thead class="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                        <tr>
+                            <th class="text-left pb-2 pr-4">Error Code</th>
+                            <th class="text-left pb-2 pr-4">Vendor Error Code</th>
+                            <th class="text-left pb-2 pr-4">Vendor ID</th>
+                            <th class="text-center pb-2 pr-4">Count</th>
+                            <th class="text-left pb-2">Connectors</th>
+                        </tr>
+                    </thead>`;
+                    const errTbody = document.createElement('tbody');
+                    errRows.forEach(e => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'border-t border-gray-200 dark:border-gray-600';
+                        tr.innerHTML = `
+                            <td class="py-1.5 pr-4 font-semibold text-red-700 dark:text-red-300">${e.errorCode}</td>
+                            <td class="py-1.5 pr-4 text-gray-700 dark:text-gray-300">${e.vendorErrorCode}</td>
+                            <td class="py-1.5 pr-4 text-gray-600 dark:text-gray-400">${e.vendorId}</td>
+                            <td class="py-1.5 pr-4 text-center font-mono font-semibold text-gray-800 dark:text-gray-200">${e.count}</td>
+                            <td class="py-1.5 text-gray-500 dark:text-gray-400 text-xs">${[...e.connectors].sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true})).join(', ')}</td>`;
+                        errTbody.appendChild(tr);
+                    });
+                    errTable.appendChild(errTbody);
+                    errDiv.appendChild(errTable);
+                    summaryPanel.appendChild(errDiv);
+                }
+
+                content.appendChild(summaryPanel);
+
+                // ── Divider ──
+                const divider = document.createElement('hr');
+                divider.className = 'border-gray-200 dark:border-gray-600 mb-4';
+                content.appendChild(divider);
+
+                // ── Filter bar ──
+                const uniq = key => [...new Set(rows.map(r => r[key]))].filter(v => v && v !== '\u2014').sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+                const filterBar = document.createElement('div');
+                filterBar.className = 'mb-3 flex flex-wrap gap-3 items-end';
+                const filterFields = [
+                    { label: 'Connector ID',      key: 'connectorId' },
+                    { label: 'Status',            key: 'status' },
+                    { label: 'Error Code',        key: 'errorCode' },
+                    { label: 'Vendor ID',         key: 'vendorId' },
+                    { label: 'Vendor Error Code', key: 'vendorErrorCode' },
+                    { label: 'Info',              key: 'info' }
+                ];
+                const selects = {};
+                filterFields.forEach(({ label, key }) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'flex flex-col';
+                    const lbl = document.createElement('label');
+                    lbl.className = 'text-xs font-medium text-gray-500 dark:text-gray-400 mb-1';
+                    lbl.textContent = label;
+                    const sel = document.createElement('select');
+                    sel.className = 'text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500';
+                    sel.innerHTML = `<option value="">All</option>` + uniq(key).map(v => `<option value="${v}">${v}</option>`).join('');
+                    selects[key] = sel;
+                    wrap.appendChild(lbl);
+                    wrap.appendChild(sel);
+                    filterBar.appendChild(wrap);
+                });
+
+                // ── Session Flow filter ──
+                const flowWrap = document.createElement('div');
+                flowWrap.className = 'flex flex-col';
+                const flowLbl = document.createElement('label');
+                flowLbl.className = 'text-xs font-medium text-gray-500 dark:text-gray-400 mb-1';
+                flowLbl.textContent = 'Session Flow';
+                const flowSel = document.createElement('select');
+                flowSel.className = 'text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500';
+                flowSel.innerHTML = `
+                    <option value="">All</option>
+                    <option value="Charging">✅ Preparing → Charging</option>
+                    <option value="Finishing">⚠ Preparing → Finishing</option>
+                    <option value="Available">⚠ Preparing → Available</option>
+                    <option value="Faulted">✗ Preparing → Faulted</option>`;
+                flowWrap.appendChild(flowLbl);
+                flowWrap.appendChild(flowSel);
+                filterBar.appendChild(flowWrap);
+
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'text-xs px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 self-end';
+                clearBtn.textContent = 'Clear Filters';
+                filterBar.appendChild(clearBtn);
+                const countLabel = document.createElement('span');
+                countLabel.className = 'text-xs text-gray-400 dark:text-gray-500 self-end ml-auto';
+                countLabel.textContent = `${rows.length} of ${rows.length} shown`;
+                filterBar.appendChild(countLabel);
+                content.appendChild(filterBar);
+
+                // ── Table ──
+                const tableWrap = document.createElement('div');
+                tableWrap.className = 'overflow-auto max-h-[500px]';
+                const table = document.createElement('table');
+                table.id = 'status-notifications-table';
+                table.className = 'min-w-full divide-y divide-gray-200 dark:divide-gray-700';
+                const thClass = 'px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10 whitespace-nowrap';
+                table.innerHTML = `<thead class="bg-gray-50 dark:bg-gray-700"><tr>
+                    <th class="${thClass}">S.No.</th>
+                    <th class="${thClass}">File Name</th>
+                    <th class="${thClass}">Log Timestamp</th>
+                    <th class="${thClass}">Payload Timestamp</th>
+                    <th class="${thClass}">Connector ID</th>
+                    <th class="${thClass}">Status</th>
+                    <th class="${thClass}">Error Code</th>
+                    <th class="${thClass}">Vendor ID</th>
+                    <th class="${thClass}">Vendor Error Code</th>
+                    <th class="${thClass}">Info</th>
+                </tr></thead>`;
+                const tbody = document.createElement('tbody');
+                tbody.className = 'bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700';
+                const tdClass = 'px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap';
+
+                let _lastFiltered = rows;
+                const _currentFiltered = () => _lastFiltered;
+                const buildTbody = filteredRows => {
+                    _lastFiltered = filteredRows;
+                    tbody.innerHTML = '';
+                    filteredRows.forEach(r => {
+                        const tr = document.createElement('tr');
+                        const hasIssue = r.repeatIssue && r.status === 'Preparing';
+                        tr.className = r.status === 'Faulted'
+                            ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                            : hasIssue
+                                ? 'bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/40';
+                        const pill = hasIssue
+                            ? ` <span class="inline-block ml-1 px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 rounded" title="Multiple RemoteStart requests in this session — see Repeated RemoteStart Sessions panel above">⚠ ${r.repeatIssue}× RS</span>`
+                            : '';
+                        tr.innerHTML = `
+                            <td class="${tdClass} font-semibold">${r.sno}</td>
+                            <td class="${tdClass} text-gray-500 dark:text-gray-400 max-w-[140px] truncate" title="${r.fileName}">${r.fileName || 'N/A'}</td>
+                            <td class="${tdClass} font-mono text-xs">${r.logTs}</td>
+                            <td class="${tdClass} font-mono text-xs">${r.payloadTs}</td>
+                            <td class="${tdClass}">${r.connectorId}</td>
+                            <td class="${tdClass} ${statusColor(r.status)}">${r.status}${pill}</td>
+                            <td class="${tdClass}">${r.errorCode}</td>
+                            <td class="${tdClass}">${r.vendorId}</td>
+                            <td class="${tdClass}">${r.vendorErrorCode}</td>
+                            <td class="${tdClass}">${r.info}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                    countLabel.textContent = `${filteredRows.length} of ${rows.length} shown`;
+                };
+                buildTbody(rows);
+                table.appendChild(tbody);
+                tableWrap.appendChild(table);
+                content.appendChild(tableWrap);
+                section.appendChild(content);
+
+                // ── Filter logic ──
+                const applyFilters = () => {
+                    const active = {};
+                    filterFields.forEach(({ key }) => { if (selects[key].value) active[key] = selects[key].value; });
+                    const flowFilter = flowSel.value;
+                    let filtered = Object.keys(active).length === 0
+                        ? rows
+                        : rows.filter(r => Object.entries(active).every(([k, v]) => r[k] === v));
+                    if (flowFilter) {
+                        filtered = filtered.filter(r => r.sessionFlow === flowFilter);
+                    }
+                    buildTbody(filtered);
+                };
+                filterFields.forEach(({ key }) => selects[key].addEventListener('change', applyFilters));
+                flowSel.addEventListener('change', applyFilters);
+                clearBtn.addEventListener('click', () => {
+                    filterFields.forEach(({ key }) => { selects[key].value = ''; });
+                    flowSel.value = '';
+                    buildTbody(rows);
+                });
+
+                // ── Collapse toggle ──
+                header.addEventListener('click', () => {
+                    content.classList.toggle('hidden');
+                    header.querySelector('svg').classList.toggle('rotate-180');
+                });
+                if (messages.length > 10) {
+                    content.classList.add('hidden');
+                    header.querySelector('svg').classList.add('rotate-180');
+                }
+
+                // Initial render of repeat-RemoteStart panel + card count + row pills
+                renderBadSessions();
+
+                return section;
             }
 
             function createFaultStatusSummarySection(statusNotifications) {
@@ -5444,6 +6251,8 @@
                     const startMsg = startTxs.find(m => m.responsePayload?.transactionId === tx.id);
                     const stopMsg  = stopTxs.find(m => m.message[3].transactionId === tx.id);
                     const mk = (stage, status, note) => ({ stage, status, note });
+                    const _internalTxId = tx.internalTransactionId || internalTxMap.get(String(tx.id)) || null;
+                    const _stopTxIdZero = stopMsg && stopMsg.message[3].transactionId === 0;
 
                     const preparingFound = txStart && statusNotifs.find(m =>
                         m.message[3].connectorId === tx.connectorId &&
@@ -5503,7 +6312,15 @@
                             !txStop ? 'info' : releaseFound ? 'pass' : 'warn',
                             !txStop ? 'Session not yet ended'
                             : releaseFound ? `Connector ${tx.connectorId} → ${releaseFound.message[3].status}`
-                            : 'Connector did not report Finishing/Available after StopTransaction')
+                            : 'Connector did not report Finishing/Available after StopTransaction'),
+                        mk('CMS \u2194 Internal TX ID',
+                            _stopTxIdZero ? 'fail'
+                            : _internalTxId ? 'pass' : 'warn',
+                            _stopTxIdZero
+                                ? `StopTransaction sent with transactionId=0 — CMS cannot match session. Internal: ${_internalTxId || 'N/A'}`
+                            : _internalTxId
+                                ? `CMS: ${tx.id} \u2194 Internal: ${_internalTxId}`
+                                : 'Internal TX ID not found in log (runtime line absent or older firmware)')
                     ];
 
                     const failedCount = lifecycle.filter(s => s.status === 'fail').length;
@@ -5512,6 +6329,7 @@
                         txId: tx.id, connectorId: tx.connectorId,
                         startTime: tx.startTime, stopTime: tx.stopTime,
                         idTag: tx.idTag, totalEnergy: tx.totalEnergy,
+                        internalTransactionId: _internalTxId,
                         lifecycle,
                         overallStatus: failedCount > 0 ? 'fail' : warnCount > 0 ? 'warn' : 'pass',
                         failedCount, warnCount
@@ -5715,7 +6533,7 @@
                   : s === 'warn' ? '#d97706'  // amber-600
                   : '#6b7280';               // gray-500
 
-                const stageLabels = ['EV Conn','Start Tx','Auth','Charging','Begin MV','Periodic MV','Stop Tx','Stop ACK','Released'];
+                const stageLabels = ['EV Conn','Start Tx','Auth','Charging','Begin MV','Periodic MV','Stop Tx','Stop ACK','Released','ID Map'];
 
                 if (perTransactionResults.length === 0) {
                     lifecyclePanel.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">No transactions found in this log.</p>';
@@ -5740,12 +6558,16 @@
 
                         const txHeader = document.createElement('div');
                         txHeader.className = `flex items-center justify-between p-3 cursor-pointer select-none ${txBg}`;
+                        const _itxDisplay = txResult.internalTransactionId
+                            ? `<span class="text-xs font-mono text-indigo-600 dark:text-indigo-400" title="Internal TX ID">${txResult.internalTransactionId}</span>`
+                            : `<span class="text-xs text-gray-400 dark:text-gray-500 italic">no internal id</span>`;
                         txHeader.innerHTML = `
                             <div class="flex items-center gap-3 flex-wrap">
                                 <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">TX ${txResult.txId}</span>
                                 <span class="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">C${txResult.connectorId}</span>
                                 <span class="text-xs font-mono text-gray-500 dark:text-gray-400">${startStr}</span>
                                 <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">${energyStr}</span>
+                                ${_itxDisplay}
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">${txBadge}
                                 <svg class="w-4 h-4 text-gray-400 pv-tx-chevron transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -6256,6 +7078,7 @@
                     allAlerts     = [];
                     allDowntimes  = [];
                     processedFiles = [];
+                    internalTxMap = new Map();
                     window.rawLogLines = [];
                     document.getElementById('parser-status').textContent = `Loading from repository: ${rec.filename}...`;
                     await parseOcppLogsAsync(content, rec.filename, 1, 1);
@@ -7019,6 +7842,10 @@
                      document.getElementById('transaction-summary-cards').parentElement.appendChild(detailedStatsContainer);
                  }
 
+                 // Clear internal TX ID banner for aggregate views
+                 const _itxBannerEl = document.getElementById('internal-tx-id-banner');
+                 if (_itxBannerEl) _itxBannerEl.innerHTML = '';
+
                  if (txId === 'all') {
                     card1Label.textContent = 'Total Transactions';
                     card1Value.textContent = allTxIds.length;
@@ -7083,6 +7910,21 @@
                  card1Label.textContent = 'Transaction ID';
                  card1Value.textContent = txId;
 
+                 // Show Internal TX ID below the cards
+                 let internalTxBanner = document.getElementById('internal-tx-id-banner');
+                 if (!internalTxBanner) {
+                     internalTxBanner = document.createElement('div');
+                     internalTxBanner.id = 'internal-tx-id-banner';
+                     internalTxBanner.className = 'mt-3 text-sm';
+                     document.getElementById('transaction-summary-cards').after(internalTxBanner);
+                 }
+                 const _itxId = internalTxMap.get(String(txId));
+                 if (_itxId) {
+                     internalTxBanner.innerHTML = `<span class="text-gray-500 dark:text-gray-400">Internal TX ID: </span><span class="font-mono text-indigo-700 dark:text-indigo-300 font-semibold">${_itxId}</span>`;
+                 } else {
+                     internalTxBanner.innerHTML = `<span class="text-gray-400 dark:text-gray-500 italic">Internal TX ID: — (not found in log)</span>`;
+                 }
+
                  card2Label.textContent = 'Meter Readings';
                  const meterReadingsForTx = meterValuesData.filter(mv => String(mv.message[3].transactionId) === String(txId));
                  const meterReadingsCount = meterReadingsForTx.reduce((acc, curr) => acc + curr.message[3].meterValue.length, 0);
@@ -7114,30 +7956,30 @@
                                      </thead>
                                      <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                          <tr>
-                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Current Outlet (A)</td>
-                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.currentOutlet.max}</td>
-                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.currentOutlet.min}</td>
-                                             <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
-                                             <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
-                                         </tr>
-                                         <tr>
-                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Current EV (A)</td>
+                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Target Current (A) — EV Demand</td>
                                              <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.currentEV.max}</td>
                                              <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.currentEV.min}</td>
                                              <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
                                              <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
                                          </tr>
                                          <tr>
-                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Voltage Outlet (V)</td>
-                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.voltageOutlet.max}</td>
-                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.voltageOutlet.min}</td>
+                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Present Current (A) — Charger Output</td>
+                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.currentOutlet.max}</td>
+                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.currentOutlet.min}</td>
                                              <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
                                              <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
                                          </tr>
                                          <tr>
-                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Voltage EV (V)</td>
+                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Target Voltage (V) — EV Demand</td>
                                              <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.voltageEV.max}</td>
                                              <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.voltageEV.min}</td>
+                                             <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
+                                             <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
+                                         </tr>
+                                         <tr>
+                                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Present Voltage (V) — Charger Output</td>
+                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.voltageOutlet.max}</td>
+                                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">${stats.voltageOutlet.min}</td>
                                              <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
                                              <td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td>
                                          </tr>
@@ -7929,9 +8771,9 @@
                     data: {
                         labels: graphData.timestamps,
                         datasets: [
-                            { 
-                                label: 'Target Current (A)', 
-                                data: graphData.currentOutlet, 
+                            {
+                                label: 'Target Current (A)',
+                                data: graphData.currentEV,
                                 borderColor: '#FF8C00',
                                 backgroundColor: 'transparent',
                                 borderWidth: 2,
@@ -7943,9 +8785,9 @@
                                 pointHoverBorderColor: '#FFFFFF',
                                 pointHoverBorderWidth: 2
                             },
-                            { 
-                                label: 'Present Current (A)', 
-                                data: graphData.currentEV, 
+                            {
+                                label: 'Present Current (A)',
+                                data: graphData.currentOutlet,
                                 borderColor: '#FFD700',
                                 backgroundColor: 'transparent',
                                 borderWidth: 3,
@@ -8017,9 +8859,9 @@
                     data: {
                         labels: graphData.timestamps,
                         datasets: [
-                            { 
-                                label: 'Target Voltage (V)', 
-                                data: graphData.voltageOutlet, 
+                            {
+                                label: 'Target Voltage (V)',
+                                data: graphData.voltageEV,
                                 borderColor: '#FF8C00',
                                 backgroundColor: 'transparent',
                                 borderWidth: 2,
@@ -8031,9 +8873,9 @@
                                 pointHoverBorderColor: '#FFFFFF',
                                 pointHoverBorderWidth: 2
                             },
-                            { 
-                                label: 'Present Voltage (V)', 
-                                data: graphData.voltageEV, 
+                            {
+                                label: 'Present Voltage (V)',
+                                data: graphData.voltageOutlet,
                                 borderColor: '#FFD700',
                                 backgroundColor: 'transparent',
                                 borderWidth: 3,
