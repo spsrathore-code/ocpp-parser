@@ -6940,10 +6940,6 @@
                     const rec = await dbGet(savedId);
                     if (!rec) return;
                     if (save && siteName) { rec.siteName = siteName; await dbPut(rec); }
-                    if (_driveToken && rec.driveFileId === null) {
-                        const driveId = await uploadLogToDrive(rec.filename, rec.content, rec);
-                        if (driveId) { rec.driveFileId = driveId; await dbPut(rec); }
-                    }
                     refreshRepoPanelList();
                 };
                 document.getElementById('lr-sitename-save-btn').onclick = () => dismiss(true);
@@ -6978,7 +6974,10 @@
                     (r.tags     || []).some(t => t.toLowerCase().includes(searchVal))
                 ) : all;
                 if (filtered.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-10 text-center text-sm text-gray-400 dark:text-gray-500 italic">${searchVal ? 'No logs match your search.' : 'No logs yet. Logs are saved automatically after each parse.'}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="9" class="px-4 py-10 text-center text-sm text-gray-400 dark:text-gray-500 italic">${searchVal ? 'No logs match your search.' : 'No logs yet. Logs are saved automatically after each parse.'}</td></tr>`;
+                    const selAllEmpty = document.getElementById('lr-select-all');
+                    if (selAllEmpty) selAllEmpty.checked = false;
+                    updateSelectedCount();
                     return;
                 }
                 tbody.innerHTML = filtered.map(r => {
@@ -6988,8 +6987,12 @@
                     const sizeTxt = r.fileSize > 1048576 ? (r.fileSize/1048576).toFixed(1)+' MB' : Math.round(r.fileSize/1024)+' KB';
                     const tags    = (r.tags || []).map(t => `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 mr-1 mb-0.5">${t}</span>`).join('');
                     const cloud   = r.driveFileId ? '<span class="text-xs text-green-600 dark:text-green-400 font-medium">☁ Synced</span>' : '<span class="text-xs text-gray-400">Local</span>';
+                    const syncBtn = r.driveFileId
+                        ? `<button data-action="sync" data-id="${r.id}" class="text-green-600 dark:text-green-400 hover:underline mr-2">Re-sync</button>`
+                        : `<button data-action="sync" data-id="${r.id}" class="text-indigo-600 dark:text-indigo-400 hover:underline mr-2">Sync</button>`;
                     const esc     = (s) => String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     return `<tr data-repo-id="${r.id}" class="hover:bg-gray-50 dark:hover:bg-gray-700/40 border-b border-gray-100 dark:border-gray-700/50">
+                        <td class="px-3 py-2.5"><input type="checkbox" data-repo-check="${r.id}" class="lr-row-check rounded border-gray-300 dark:border-gray-600"></td>
                         <td class="px-3 py-2.5 text-xs font-mono text-gray-800 dark:text-gray-200 max-w-xs" title="${esc(r.filename)}"><div class="truncate max-w-[180px]">${r.filename}</div></td>
                         <td class="px-3 py-2.5 text-xs text-gray-600 dark:text-gray-400">${r.siteName || '<span class="text-gray-300 dark:text-gray-600 italic">—</span>'}</td>
                         <td class="px-3 py-2.5 text-xs font-mono text-gray-500 dark:text-gray-400">${r.evseIp || '—'}</td>
@@ -7000,11 +7003,25 @@
                         <td class="px-3 py-2.5 text-xs whitespace-nowrap">
                             <button data-action="load" data-id="${r.id}" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium mr-2">Load & Analyze</button>
                             <button data-action="tag"  data-id="${r.id}" class="text-gray-500 dark:text-gray-400 hover:underline mr-2">Tag</button>
+                            ${syncBtn}
                             <button data-action="del"  data-id="${r.id}" data-filename="${esc(r.filename)}" data-driveid="${r.driveFileId || ''}" class="text-red-500 dark:text-red-400 hover:underline">Delete</button>
                         </td>
                     </tr>`;
                 }).join('');
+                const selAll = document.getElementById('lr-select-all');
+                if (selAll) selAll.checked = false;
+                updateSelectedCount();
                 updateStorageInfo();
+            }
+
+            function getSelectedRepoIds() {
+                return Array.from(document.querySelectorAll('.lr-row-check:checked'))
+                    .map(cb => parseInt(cb.dataset.repoCheck));
+            }
+
+            function updateSelectedCount() {
+                const el = document.getElementById('lr-selected-count');
+                if (el) el.textContent = `${getSelectedRepoIds().length} selected`;
             }
 
             // ── Core repository functions ───────────────────────────────────────
@@ -7159,6 +7176,75 @@
                 modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
             }
 
+            // ── Manual Drive sync ───────────────────────────────────────────────
+            async function syncLogToDrive(id, opts = {}) {
+                if (!_driveToken) {
+                    if (!opts.silent) alert('Connect Google Drive first — use the "Connect Google Drive" button in the Log Repository header.');
+                    return false;
+                }
+                const rec = await dbGet(id);
+                if (!rec || !rec.content) return false;
+                const driveId = await uploadLogToDrive(rec.filename, rec.content, rec);
+                if (driveId) {
+                    rec.driveFileId = driveId;
+                    await dbPut(rec);
+                    if (!opts.silent) { showRepoToast(`☁ Synced to Drive: ${rec.filename}`); refreshRepoPanelList(); }
+                    return true;
+                }
+                if (!opts.silent) showRepoToast(`⚠️ Drive sync failed: ${rec.filename}`);
+                return false;
+            }
+
+            async function syncAllToDrive(idList) {
+                if (!_driveToken) {
+                    alert('Connect Google Drive first — use the "Connect Google Drive" button in the Log Repository header.');
+                    return;
+                }
+                const all = await dbGetAll();
+                const targets = (idList && idList.length)
+                    ? all.filter(r => idList.includes(r.id))
+                    : all.filter(r => r.driveFileId === null);
+                if (targets.length === 0) {
+                    showRepoToast('Nothing to sync — selected logs are already on Drive.');
+                    return;
+                }
+                showRepoToast(`☁ Syncing ${targets.length} log(s) to Drive…`, 8000);
+                let ok = 0;
+                for (const r of targets) { if (await syncLogToDrive(r.id, { silent: true })) ok++; }
+                showRepoToast(`☁ Synced ${ok}/${targets.length} log(s) to Drive`);
+                refreshRepoPanelList();
+            }
+
+            // ── Bulk delete ─────────────────────────────────────────────────────
+            async function deleteSelectedRepoEntries() {
+                const ids = getSelectedRepoIds();
+                if (ids.length === 0) { showRepoToast('No logs selected.'); return; }
+                if (!confirm(`Delete ${ids.length} selected log(s) from the browser repository?\nThis cannot be undone.`)) return;
+                const all = await dbGetAll();
+                const withDrive = all.filter(r => ids.includes(r.id) && r.driveFileId);
+                let alsoDrive = false;
+                if (withDrive.length && _driveToken) {
+                    alsoDrive = confirm(`${withDrive.length} of these are also on Google Drive.\n\nOK = delete from Drive too   |   Cancel = keep on Drive`);
+                }
+                for (const id of ids) {
+                    const rec = all.find(r => r.id === id);
+                    await dbDelete(id);
+                    if (alsoDrive && rec && rec.driveFileId) await deleteFromDrive(rec.driveFileId);
+                }
+                showRepoToast(`🗑 Deleted ${ids.length} log(s) from browser`);
+                refreshRepoPanelList();
+            }
+
+            async function deleteAllBrowserLogs() {
+                const all = await dbGetAll();
+                if (all.length === 0) { showRepoToast('Repository is already empty.'); return; }
+                if (!confirm(`Delete ALL ${all.length} log(s) from the browser repository?\n\nThis frees browser storage. Logs already synced to Google Drive are NOT affected.\nThis cannot be undone.`)) return;
+                for (const r of all) await dbDelete(r.id);
+                showRepoToast(`🗑 Cleared ${all.length} log(s) from browser storage`);
+                refreshRepoPanelList();
+                updateStorageInfo();
+            }
+
             function createLogRepositoryPanel() {
                 const panel = document.createElement('section');
                 panel.id = 'lr-panel';
@@ -7173,18 +7259,31 @@
                         <div class="flex items-center gap-2 flex-shrink-0 ml-3">
                             <span id="lr-drive-status" class="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 whitespace-nowrap">☁ Not connected</span>
                             <button id="lr-connect-btn" class="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline whitespace-nowrap">Connect Google Drive</button>
-                            <svg id="lr-chevron" class="w-4 h-4 text-gray-400 transform transition-transform duration-200 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            <svg id="lr-chevron" class="w-4 h-4 text-gray-400 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </div>
                     </div>
-                    <div id="lr-panel-body">
+                    <div id="lr-panel-body" class="hidden">
                         <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
                             <input id="lr-search-input" type="text" placeholder="Search by filename, site name, EVSE IP or tag…"
                                 class="w-full text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <div class="flex flex-wrap items-center gap-2 mt-3">
+                                <label class="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                                    <input id="lr-select-all" type="checkbox" class="rounded border-gray-300 dark:border-gray-600">
+                                    Select all
+                                </label>
+                                <span id="lr-selected-count" class="text-xs text-gray-400 dark:text-gray-500">0 selected</span>
+                                <span class="flex-1"></span>
+                                <button id="lr-sync-selected-btn" class="text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 px-3 py-1.5 rounded-lg">☁ Sync selected</button>
+                                <button id="lr-sync-all-btn" class="text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/60 px-3 py-1.5 rounded-lg">☁ Sync all to Drive</button>
+                                <button id="lr-delete-selected-btn" class="text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60 px-3 py-1.5 rounded-lg">🗑 Delete selected</button>
+                                <button id="lr-delete-all-btn" class="text-xs font-medium bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg">🗑 Delete all browser logs</button>
+                            </div>
                         </div>
                         <div class="overflow-x-auto">
                             <table id="lr-log-table" class="w-full text-sm">
                                 <thead class="bg-gray-50 dark:bg-gray-700/50 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                     <tr>
+                                        <th class="px-3 py-2 text-left font-medium w-8"><span class="sr-only">Select</span></th>
                                         <th class="px-3 py-2 text-left font-medium">Filename</th>
                                         <th class="px-3 py-2 text-left font-medium">Site Name</th>
                                         <th class="px-3 py-2 text-left font-medium">EVSE IP</th>
@@ -7196,7 +7295,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="lr-log-tbody">
-                                    <tr><td colspan="8" class="px-4 py-10 text-center text-sm text-gray-400 dark:text-gray-500 italic">No logs yet. Logs are saved automatically after each parse.</td></tr>
+                                    <tr><td colspan="9" class="px-4 py-10 text-center text-sm text-gray-400 dark:text-gray-500 italic">No logs yet. Logs are saved automatically after each parse.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -7236,8 +7335,22 @@
                     const driveId  = btn.dataset.driveid  || null;
                     if (action === 'load') await loadAndAnalyzeFromRepo(id);
                     if (action === 'tag')  await repoEditTags(id);
+                    if (action === 'sync') await syncLogToDrive(id);
                     if (action === 'del')  await repoDeleteEntry(id, filename, driveId);
                 });
+
+                // Multi-select + bulk actions
+                document.getElementById('lr-log-tbody').addEventListener('change', e => {
+                    if (e.target.classList.contains('lr-row-check')) updateSelectedCount();
+                });
+                document.getElementById('lr-select-all').addEventListener('change', e => {
+                    document.querySelectorAll('.lr-row-check').forEach(cb => { cb.checked = e.target.checked; });
+                    updateSelectedCount();
+                });
+                document.getElementById('lr-sync-selected-btn').addEventListener('click', () => syncAllToDrive(getSelectedRepoIds()));
+                document.getElementById('lr-sync-all-btn').addEventListener('click', () => syncAllToDrive());
+                document.getElementById('lr-delete-selected-btn').addEventListener('click', deleteSelectedRepoEntries);
+                document.getElementById('lr-delete-all-btn').addEventListener('click', deleteAllBrowserLogs);
 
                 // Connect / Disconnect Google Drive
                 document.getElementById('lr-connect-btn').addEventListener('click', () => {
