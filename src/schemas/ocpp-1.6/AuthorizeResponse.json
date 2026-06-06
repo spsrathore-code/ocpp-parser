@@ -1,0 +1,52 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:AuthorizeResponse",
+    "title": "AuthorizeResponse",
+    "type": "object",
+    "properties": {
+        "idTagInfo": {
+            "type": "object",
+            "properties": {
+                "expiryDate": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "parentIdTag": {
+                    "type": "string",
+                    "maxLength": 20
+                },
+                "status": {
+                    "type": "string",
+                    "additionalProperties": false,
+                    "enum": [
+                        "Accepted",
+                        "Blocked",
+                        "Expired",
+                        "Invalid",
+                        "ConcurrentTx"
+                    ]
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "status"
+            ]
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "idTagInfo"
+    ]
+}
+
+
+
+
+
+[3,"a8318611-d0a3-4507-9600-e1e63cf20f88",{"idTagInfo":{"status":"Accepted","expiryDate":"2026-02-16T09:16:52.879Z","parentIdTag":"VID:0024ACF7AC8E"}}]
+
+
+[3,"639f290c-d835-429f-9ec5-ca8415ff4dd2",{"idTagInfo":{"status":"Invalid","expiryDate":"2026-02-16T04:26:12.023Z","parentIdTag":"VID:0024ACC20E8E"}}]
+
+[3,"c7c02349-8cf7-4a05-9eb8-4b8e56ebb824",{"idTagInfo":{"status":"Invalid"}}]
+

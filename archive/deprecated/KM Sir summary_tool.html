@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DC Charger OCPP Logs Transaction Summary</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+.scrollable-table {
+  max-height: 600px;
+  max-width: 90%;
+  overflow-x: auto;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  font-size: 12px;
+  
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 800px; /* Ensure headers don’t break */
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  text-align: left;
+}
+
+th {
+  background-color: #f4f4f4;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.scrollable-table td:first-child,
+.scrollable-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: #f4f4f4;
+  z-index: 1;
+}
+
+canvas {
+  max-width: 100%;
+  margin-top: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+
+</head>
+<body>
+  <div id="loading" style="font-size:16px; color:#007bff; margin-bottom:10px; display: none; align-items: center; gap: 10px;">
+    <div class="spinner" style="width:16px;height:16px;border:2px solid #007bff;border-top:2px solid transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+    <span id="loadingText">Upload file</span>
+  </div>
+
+  <div style="font-size: 14px; color: #555; margin-bottom: 10px;">
+    <strong>Version:</strong> 4.0.0 | <strong>Developed by:</strong> Quench Chargers Lab
+  </div>
+
+  <h1>DC Charger OCPP Logs Transaction Summary</h1>
+<div style="font-size: 13px; margin-bottom: 10px; color: #444;">
+  <strong>Legend:</strong><br>
+  <span style="background-color: yellow; padding: 2px 6px;">Yellow</span> – Zero energy transaction (&lt;1 kWh)<br>
+<span style="background-color: red; padding: 2px 6px; color: white;">Red</span> – Current delivery mismatch (&lt;95% or &gt;105%) or Avg energy diff/txn &gt; 10 Wh<br>
+<span style="background-color: orange; padding: 2px 6px; color: black;">Orange</span> – Temperature exceeded 60°C (Inlet/Body) and 65°C (Outlet)
+<span style="background-color: lightblue; padding: 2px 6px; color: black;">Blue</span> – Start/Stop Diff(Wh) &gt; 10Wh
+</div>
+
+  <input type="file" id="upload" accept=".xlsx, .csv" />
+<span id="fileNameDisplay" style="margin-left: 10px; font-weight: bold; color: #333;"></span>
+<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+  <label for="colorFilter">Highlight Filter:</label>
+<select id="colorFilter">
+  <option value="All Issue Tx">All Issue Tx (Yellow/Red/Orange/Blue)</option>
+  <option value="all" selected>All</option>
+  <option value="yellow">Yellow (Zero-Energy)</option>
+  <option value="red">Red (Mismatch)</option>
+  <option value="orange">Orange (Temperature)</option>
+  <option value="blue">Blue (Start/Stop Diff High)</option>
+  <option value="white">White (Normal)</option>
+</select>
+<span id="txCountLabel" style="margin-left: 10px; font-weight: bold; color: #007bff;">Transaction Count: 0</span>
+<button id="exportBtn">Export Summary to Excel</button>
+  <div id="output"></div>
+
+  <label for="txFilter">Filter by Transaction ID:</label>
+  <select id="txFilter"></select>
+
+  <label for="xAxis">X-Axis:</label>
+  <select id="xAxis"></select>
+
+  <label for="yAxis">Y-Axis:</label>
+  <select id="yAxis" multiple size="5"></select>
+
+  <button id="plotBtn">Plot Graph</button>
+ 
+
+
+
+  <canvas id="chartCanvas"></canvas>
+
+  <script>
+
+//Author: Kushagra Mittal
+//Project: DC Charger OCPP Logs Transaction Summary
+//Description: Parses, summarizes, filters, and plots OCPP transaction data from Excel uploads.
+    let meterValuesMap = {};
+    document.getElementById('upload').addEventListener('change', function(e) {
+      document.getElementById('loading').style.display = 'flex';
+      document.getElementById('loadingText').innerText = 'Processing data... Please wait.';
+      const file = e.target.files[0];
+	document.getElementById('fileNameDisplay').innerText = `Loaded File: ${file.name}`;
+      if (!file) return;
+      const reader = new FileReader();
+
+	// Reset UI filters and chart on new file upload
+document.getElementById('colorFilter').value = 'all';
+document.getElementById('txFilter').innerHTML = '<option value="">-- Select Transaction --</option>';
+document.getElementById('xAxis').innerHTML = '';
+document.getElementById('yAxis').innerHTML = '';
+if (window.myChart) {
+  window.myChart.destroy();
+  window.myChart = null;
+}
+document.getElementById('chartCanvas').getContext('2d').clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+
+
+reader.onload = function(e) {
+  let rows = [];
+
+  // Check if the file is CSV or XLSX
+  if (file.name.endsWith('.csv')) {
+    const csvText = e.target.result;
+    try {
+      const workbook = XLSX.read(csvText, { type: 'string' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(sheet);
+	// ✅ Add column check here
+const requiredColumns = ['Command', 'MsgFlow', 'PayloadData', 'UniqueID'];
+const fileColumns = Object.keys(rows[0] || {});
+const missingColumns = requiredColumns.filter(col => !fileColumns.includes(col));
+
+if (missingColumns.length > 0) {
+  alert("❌ The uploaded file is missing required columns:\n" + missingColumns.join(', '));
+  document.getElementById('upload').value = ''; // Reset input
+  document.getElementById('loading').style.display = 'none';
+  return;
+}
+    } catch (err) {
+      alert("Error parsing CSV: " + err.message);
+      document.getElementById('loading').style.display = 'none';
+      return;
+    }
+  } else {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(sheet);
+// ✅ Add column check here
+const requiredColumns = ['Command', 'MsgFlow', 'PayloadData', 'UniqueID'];
+const fileColumns = Object.keys(rows[0] || {});
+const missingColumns = requiredColumns.filter(col => !fileColumns.includes(col));
+
+if (missingColumns.length > 0) {
+  alert("❌ The uploaded file is missing required columns:\n" + missingColumns.join(', '));
+  document.getElementById('upload').value = ''; // Reset input
+  document.getElementById('loading').style.display = 'none';
+  return;
+}
+  }
+
+  window.parsedRows = rows;
+  meterValuesMap = {};
+  const combinedMap = {};
+
+        rows.forEach(row => {
+          const uid = String(row.UniqueID).trim().replace(/^"|"$/g, '');
+
+          if (!combinedMap[uid]) combinedMap[uid] = { request: null, confirmation: null };
+          if (row.MsgFlow === 'CP --> CMS') combinedMap[uid].request = row;
+          else if (row.MsgFlow === 'CMS --> CP') combinedMap[uid].confirmation = row;
+
+          if (row.Command === 'MeterValues') {
+            try {
+              const payload = JSON.parse(row.PayloadData);
+              const txId = payload.transactionId;
+              if (!txId) return;
+              meterValuesMap[txId] = meterValuesMap[txId] || [];
+              payload.meterValue.forEach(entry => {
+                if (entry.sampledValue.some(v => v.context === 'Sample.Periodic')) {
+                  meterValuesMap[txId].push({ timestamp: entry.timestamp, sampledValue: entry.sampledValue });
+                }
+              });
+            } catch (err) {
+              console.warn('Invalid MeterValues payload', err);
+            }
+          }
+        });
+
+const matchedStarts = [], matchedStops = [];
+const startRequests = [], startConfs = [];
+
+// Step 1: Collect StartTransaction and Confirmation entries with UID and index
+rows.forEach((row, i) => {
+  const uid = String(row.UniqueID).replaceAll('"', '');
+  if (row.Command === 'StartTransaction' && row.MsgFlow === 'CP --> CMS') {
+    startRequests.push({ uid, row, index: i });
+  }
+  if (row.Command === 'StartTransactionConfirmation' && row.MsgFlow === 'CMS --> CP') {
+    startConfs.push({ uid, row, index: i });
+  }
+});
+
+// Step 2: Match StartTransaction with confirmation using UID and proximity
+const usedConfirmIndexes = new Set();
+startRequests.forEach(reqEntry => {
+  const { uid, row: reqRow, index: reqIndex } = reqEntry;
+  const matchingConf = startConfs.find(conf =>
+    conf.uid === uid &&
+    Math.abs(conf.index - reqIndex) <= 10 &&
+    !usedConfirmIndexes.has(conf.index)
+  );
+
+  if (matchingConf) {
+    usedConfirmIndexes.add(matchingConf.index);
+    try {
+      const reqPayload = JSON.parse(reqRow.PayloadData);
+      const confPayload = JSON.parse(matchingConf.row.PayloadData);
+
+      matchedStarts.push({
+        connector: reqPayload.connectorId,
+        transactionId: confPayload.transactionId,
+        startTime: reqPayload.timestamp || reqRow.RecieveTime,
+        meterStart: reqPayload.meterStart
+      });
+    } catch (e) {
+      console.warn("❌ Parsing StartTransaction pair failed:", e);
+    }
+  }
+});
+
+// Step 3: Match StopTransaction entries by transactionId
+rows.forEach(row => {
+  if (row.Command === 'StopTransaction' && row.MsgFlow === 'CP --> CMS') {
+    try {
+      const payload = JSON.parse(row.PayloadData);
+      if (payload.transactionId) {
+        matchedStops.push({
+          transactionId: payload.transactionId,
+          endTime: payload.timestamp || row.RecieveTime,
+          meterStop: payload.meterStop,
+          stopReason: payload.reason
+        });
+      }
+    } catch (e) {
+      console.warn("❌ Error parsing stop payload:", e);
+    }
+  }
+});
+
+const statusMap = {};
+const vendorErrorMap = {};
+const startMap = Object.fromEntries(matchedStarts.map(s => [s.transactionId, s]));
+
+// Step 4: Map StopTransaction to finishing StatusNotification using connectorId
+rows.forEach((row, i) => {
+  if (row.Command === 'StopTransaction') {
+    let transactionId = null;
+    try {
+      const payload = JSON.parse(row.PayloadData);
+      transactionId = payload.transactionId;
+    } catch {}
+
+    if (!transactionId) return;
+
+    const connectorInfo = startMap[transactionId];
+    if (!connectorInfo || connectorInfo.connector == null) {
+      console.log(`❌ No connector ID found in StartTransaction for TX ${transactionId}`);
+      statusMap[transactionId] = 'N/A';
+      vendorErrorMap[transactionId] = 'N/A';
+      return;
+    }
+
+    const connectorId = connectorInfo.connector;
+    let found = false;
+
+    for (let offset = -5; offset <= 5; offset++) {
+      const idx = i + offset;
+      if (idx < 0 || idx >= rows.length) continue;
+
+      const candidate = rows[idx];
+      if (candidate.Command === 'StatusNotification') {
+        try {
+          const notifPayload = JSON.parse(candidate.PayloadData);
+          const status = (notifPayload.status || '').toLowerCase();
+          const candidateConnectorId = notifPayload.connectorId;
+
+          if (status === 'finishing' && candidateConnectorId === connectorId) {
+            statusMap[transactionId] = notifPayload.info || notifPayload.status || 'Finishing';
+            vendorErrorMap[transactionId] = notifPayload.vendorErrorCode || 'N/A';
+            found = true;
+            break;
+          }
+        } catch (e) {
+          console.warn(`⚠️ Failed to parse StatusNotification: ${e.message}`);
+        }
+      }
+    }
+
+    if (!found) {
+      statusMap[transactionId] = 'N/A';
+      vendorErrorMap[transactionId] = 'N/A';
+    }
+  }
+});
+
+
+
+// 🧠 Build session windows before summary
+const sessionWindows = matchedStops.map(stop => {
+  const start = startMap[stop.transactionId];
+  if (!start) return null;
+  return {
+    transactionId: stop.transactionId,
+    connectorId: parseInt(start.connector),  // ensure integer
+    startTime: new Date(start.startTime),
+    endTime: new Date(stop.endTime)
+  };
+}).filter(Boolean);
+
+// 🟡 Debug session windows
+console.log("📋 All session windows:");
+sessionWindows.forEach(s => console.log(`TX ${s.transactionId} | Conn ${s.connectorId} | ${s.startTime.toISOString()} - ${s.endTime.toISOString()}`));
+
+// ✅ Build summary
+const summary = [];
+const connectorLastTx = {};
+
+matchedStops.forEach(stop => {
+  const st = startMap[stop.transactionId];
+  if (!st) return;
+
+  const startTime = new Date(st.startTime);
+  const endTime = new Date(stop.endTime);
+  const durationMin = (endTime - startTime) / 60000;
+  const energy = stop.meterStop - st.meterStart;
+  const txId = stop.transactionId;
+  const connectorId = parseInt(st.connector);  // ensure integer
+
+  console.log(`\n🔍 Checking TX ${txId} | Connector ${connectorId} | Time: ${startTime.toISOString()} - ${endTime.toISOString()}`);
+
+  const entries = meterValuesMap[txId] || [];
+  let evDemandSum = 0, powerOfferedSum = 0, powerImportSum = 0;
+  let totalCurrentImport = 0, totalCurrentOffered = 0;
+  let voltage = 0, current = 0;
+  let maxTempInlet = -Infinity, maxTempOutlet = -Infinity, maxTempBody = -Infinity;
+
+  entries.forEach(entry => {
+    entry.sampledValue.forEach(s => {
+      const context = s.context?.toLowerCase();
+      const meas = s.measurand?.toLowerCase();
+      const loc = s.location?.toLowerCase();
+      const unit = s.unit?.toLowerCase();
+
+      if (context === 'sample.periodic') {
+        if (meas === 'voltage' && loc === 'ev' && unit === 'v') voltage = parseFloat(s.value);
+        if (meas === 'current.offered' && loc === 'ev') current = parseFloat(s.value);
+        if (meas === 'power.offered' && loc === 'outlet') powerOfferedSum += parseFloat(s.value);
+        if (meas === 'power.active.import' && loc === 'outlet') powerImportSum += parseFloat(s.value);
+        if (meas === 'current.import' && loc === 'outlet') totalCurrentImport += parseFloat(s.value);
+        if (meas === 'current.offered' && loc === 'ev') totalCurrentOffered += parseFloat(s.value);
+
+        if (meas === 'temperature') {
+          const tempVal = parseFloat(s.value);
+          if (loc === 'inlet') maxTempInlet = Math.max(maxTempInlet, tempVal);
+          else if (loc === 'outlet') maxTempOutlet = Math.max(maxTempOutlet, tempVal);
+          else if (loc === 'body') maxTempBody = Math.max(maxTempBody, tempVal);
+        }
+
+        if (voltage && current) {
+          evDemandSum += voltage * current;
+          voltage = 0; current = 0;
+        }
+      }
+    });
+  });
+
+  const minVal = Math.min(evDemandSum, powerOfferedSum);
+  const powerMismatch = powerImportSum > 0 ? (powerImportSum / minVal) * 100 : 0;
+  const currentMismatch = totalCurrentOffered > 0 ? (totalCurrentImport / totalCurrentOffered) * 100 : 0;
+
+  console.log(`🔢 EvDemand: ${evDemandSum.toFixed(2)} | PowerOffered: ${powerOfferedSum.toFixed(2)} | PowerImport: ${powerImportSum.toFixed(2)}`);
+  console.log(`📈 CurrentMismatch: ${currentMismatch.toFixed(2)}%`);
+
+  let startStopDiff = 0;
+  if (connectorLastTx.hasOwnProperty(connectorId)) {
+    startStopDiff = connectorLastTx[connectorId] - st.meterStart;
+  }
+  connectorLastTx[connectorId] = stop.meterStop;
+
+  // 🔁 Check overlap
+  const overlapExists = sessionWindows.some(sw =>
+    sw.transactionId !== txId &&
+    sw.connectorId !== connectorId &&
+    (
+      (startTime >= sw.startTime && startTime <= sw.endTime) ||
+      (endTime >= sw.startTime && endTime <= sw.endTime) ||
+      (sw.startTime >= startTime && sw.endTime <= endTime)
+    )
+  );
+
+  if (overlapExists) {
+    console.log("🔀 Overlap detected with other connector session.");
+  } else {
+    console.log("✅ No overlap detected.");
+  }
+
+  let status = 'Normal';
+  if (energy < 1) {
+    status = 'Zero Energy Transaction';
+    console.log("🟡 Status: Zero Energy Transaction");
+  } else if (!overlapExists && (currentMismatch < 95 || currentMismatch > 105)) {
+    status = 'Current Delivery Mismatch';
+    console.log("🔴 Status: Current Delivery Mismatch");
+  } else if (maxTempInlet > 60 || maxTempOutlet > 65 || maxTempBody > 60) {
+    status = 'High Temperature';
+    console.log("🟠 Status: High Temperature");
+  } else if (startStopDiff > 10) {
+    status = 'Start/Stop Diff High';
+    console.log("🔵 Status: Start/Stop Diff High");
+  } else {
+    console.log("✅ Status: Normal");
+  }
+
+  summary.push({
+    'Transaction ID': txId,
+    'Connector ID': connectorId,
+    'Start Time(GMT)': st.startTime,
+    'End Time(GMT)': stop.endTime,
+    'Meter Start': st.meterStart,
+    'Meter Stop': stop.meterStop,
+    'Duration (minutes)': durationMin.toFixed(2),
+    'Energy Dispensed (Wh)': energy,
+    'Average Power (kW)': durationMin > 0 ? (energy / (durationMin / 60) / 1000).toFixed(2) : '0.00',
+    'Stop Status': statusMap[txId] || 'N/A',
+    'Vendor Error Code': vendorErrorMap[txId] || 'N/A',
+    'Stop Reason': stop.stopReason,
+    'Power Delivery Mismatch %': powerMismatch.toFixed(2),
+    'Current Delivery Mismatch %': currentMismatch.toFixed(2),
+    'Max Temp Inlet (°C)': isFinite(maxTempInlet) ? maxTempInlet.toFixed(1) : 'N/A',
+    'Max Temp Outlet (°C)': isFinite(maxTempOutlet) ? maxTempOutlet.toFixed(1) : 'N/A',
+    'Max Temp Body (°C)': isFinite(maxTempBody) ? maxTempBody.toFixed(1) : 'N/A',
+  });
+});
+
+// ✅ Final sort
+summary.sort((a, b) => parseInt(a['Connector ID']) - parseInt(b['Connector ID']));
+
+// ➕ Start/Stop Diff Calculation for same connector
+for (let i = 0; i < summary.length; i++) {
+  const current = summary[i];
+  const prev = summary[i - 1];
+
+  if (i > 0 && current['Connector ID'] === prev['Connector ID']) {
+    current['Start/Stop Diff(Wh)'] = prev['Meter Start'] - current['Meter Stop'];
+  } else {
+    current['Start/Stop Diff(Wh)'] = 'N/A';
+  }
+}
+
+try
+{
+// ✅ Ensure Start/Stop Diff header
+if (!('Start/Stop Diff(Wh)' in summary[0])) {
+  summary[0]['Start/Stop Diff(Wh)'] = 'N/A';
+}
+}catch
+{
+const headers = summary.length > 0 ? Object.keys(summary[0]) : [];
+if (!headers.includes('Start/Stop Diff(Wh)')) headers.push('Start/Stop Diff(Wh)');
+
+
+}
+// ✅ Fill Transaction Status separately using updated logic
+summary.forEach(row => {
+  const energy = parseFloat(row['Energy Dispensed (Wh)']);
+  const currentMismatch = parseFloat(row['Current Delivery Mismatch %']);
+  const tInlet = parseFloat(row['Max Temp Inlet (°C)']);
+  const tOutlet = parseFloat(row['Max Temp Outlet (°C)']);
+  const tBody = parseFloat(row['Max Temp Body (°C)']);
+  const startStopDiff = parseFloat(row['Start/Stop Diff(Wh)']);
+
+  // Check if this row had an overlapping session
+  const connectorId = parseInt(row['Connector ID']);
+  const txStart = new Date(row['Start Time(GMT)']);
+  const txEnd = new Date(row['End Time(GMT)']);
+  const txId = row['Transaction ID'];
+
+  const overlapExists = sessionWindows.some(sw =>
+    sw.transactionId !== txId &&
+    sw.connectorId !== connectorId &&
+    (
+      (txStart >= sw.startTime && txStart <= sw.endTime) ||
+      (txEnd >= sw.startTime && txEnd <= sw.endTime) ||
+      (sw.startTime >= txStart && sw.endTime <= txEnd)
+    )
+  );
+
+  // 🟩 Updated classification logic
+  if (energy < 1000) {
+    row['Transaction Status'] = 'Zero Energy Transaction';
+  } else if (!overlapExists && currentMismatch !== 0 && (currentMismatch < 95 || currentMismatch > 105)) {
+    row['Transaction Status'] = 'Current Delivery Mismatch';
+  } else if (tInlet > 60 || tOutlet > 65 || tBody > 60) {
+    row['Transaction Status'] = 'High Temperature';
+  } else if (!isNaN(startStopDiff) && startStopDiff > 10) {
+    row['Transaction Status'] = 'Start/Stop Diff High';
+  } else {
+    row['Transaction Status'] = 'Normal';
+  }
+});
+
+
+
+
+
+// ✅ Now render
+renderSummaryTable(summary);
+
+
+renderSummaryTable(summary); // ✅ actually display the summary table
+document.getElementById('colorFilter').dispatchEvent(new Event('change')); // ✅ apply initial filter and populate Transaction IDs
+
+function renderSummaryTable(summary) {
+  let headers = [];
+  try {
+    if (summary.length > 0) {
+      headers = Object.keys(summary[0]);
+    }
+  } catch (err) {
+    console.error("⚠️ Failed to extract headers:", err);
+    document.getElementById('output').innerHTML = '<p style="color:red;">Error: Failed to generate table headers. Please check the data.</p>';
+    return;
+  }
+
+  const reorderedHeaders = ['Transaction Status', ...headers.filter(h => h !== 'Transaction Status')];
+
+  let html = '<div class="scrollable-table"><table id="summaryTable"><tr>' +
+      reorderedHeaders.map(h => `<th>${h}</th>`).join('') +
+      '</tr>';
+
+  summary.forEach(row => {
+    const energy = parseFloat(row['Energy Dispensed (Wh)']);
+    const currentMismatch = parseFloat(row['Current Delivery Mismatch %']);
+    const tInlet = parseFloat(row['Max Temp Inlet (°C)']);
+    const tOutlet = parseFloat(row['Max Temp Outlet (°C)']);
+    const tBody = parseFloat(row['Max Temp Body (°C)']);
+    const startStopDiff = parseFloat(row['Start/Stop Diff(Wh)']);
+
+    let style = '';
+    let colorClass = '';
+
+    if (row['Transaction Status'] === 'Zero Energy Transaction') {
+      style = ' style="background-color: yellow"';
+      colorClass = 'yellow';
+    } else if (row['Transaction Status'] === 'Current Delivery Mismatch') {
+      style = ' style="background-color: red"';
+      colorClass = 'red';
+    } else if (row['Transaction Status'] === 'High Temperature') {
+      style = ' style="background-color: orange"';
+      colorClass = 'orange';
+    } else if (row['Transaction Status'] === 'Start/Stop Diff High') {
+      style = ' style="background-color: lightblue"';
+      colorClass = 'blue';
+    } else {
+      colorClass = 'white';
+    }
+
+    html += `<tr class="summaryRow ${colorClass}" data-txid="${row['Transaction ID']}"${style}>` +
+      reorderedHeaders.map(h => `<td>${row[h] !== undefined ? row[h] : ''}</td>`).join('') +
+      '</tr>';
+  });
+
+  html += '</table></div>';
+  document.getElementById('output').innerHTML = html;
+}
+
+
+
+// Filter table rows based on selected color
+function populateTxFilter() {
+  const txFilter = document.getElementById('txFilter');
+  txFilter.innerHTML = '<option value="">-- Select Transaction --</option>';
+  const seen = new Set();
+  document.querySelectorAll('.summaryRow').forEach(row => {
+    if (row.style.display !== 'none') {
+      const txId = row.getAttribute('data-txid');
+      if (txId && !seen.has(txId)) {
+        txFilter.appendChild(new Option(txId, txId));
+        seen.add(txId);
+      }
+    }
+  });
+}
+
+
+document.getElementById('colorFilter').onchange = function () {
+  const selected = this.value;
+  const rows = document.querySelectorAll('.summaryRow');
+  let count = 0;
+
+  rows.forEach(row => {
+    const isWhite = row.classList.contains('white');
+    const isMatch = row.classList.contains(selected);
+    const isBlue = row.classList.contains('blue');
+
+const visible =
+  selected === 'all' ||
+  (selected === 'All Issue Tx' && !(isWhite)) ||
+  (selected === 'blue' && isBlue) ||
+  isMatch;
+
+
+    row.style.display = visible ? '' : 'none';
+    if (visible) count++;
+  });
+
+  // ✅ Update transaction count label
+  document.getElementById('txCountLabel').innerText = `Transaction Count: ${count}`;
+
+  populateTxFilter(); // 🔁 Refresh the Transaction ID dropdown
+};
+
+
+// 🔁 Trigger default filter and Transaction ID update
+// document.getElementById('colorFilter').dispatchEvent(new Event('change'));
+
+
+// Trigger default filter (All Issue Tx)
+//document.getElementById('colorFilter').dispatchEvent(new Event('change'));
+
+renderSummaryTable(summary);
+setTimeout(() => {
+  document.getElementById('colorFilter').dispatchEvent(new Event('change'));
+}, 0);
+// connector status
+
+
+
+        // Add Connector Stats
+        const connectorStats = {};
+        summary.forEach(row => {
+          const id = row['Connector ID'];
+          if (!connectorStats[id]) connectorStats[id] = [];
+          connectorStats[id].push(row);
+        });
+
+let statsHTML = '<h2>Connector Stats</h2><div class="scrollable-table"><table><tr>' +
+
+  '<th>Connector ID</th><th>Avg Power (kW)</th><th>Peak Power (kW)</th>' +
+  '<th>Zero-Energy Txns</th><th>Mismatch &lt; 95%</th><th>Temperature High</th><th>Start/Stop Diff High</th>' +
+  '<th>Normal</th><th>Total Txns</th><th>Zero-Energy Rate (%)</th>' +
+  '<th>Mismatch Rate (%)</th><th>Temp High Rate (%)</th><th>Diff High Rate (%)</th><th>Normal Rate (%)</th></tr>';
+
+Object.entries(connectorStats).forEach(([id, rows]) => {
+  const avg = rows.reduce((sum, r) => sum + parseFloat(r['Average Power (kW)']), 0) / rows.length;
+  const peak = Math.max(...rows.map(r => parseFloat(r['Average Power (kW)'])));
+
+  let zeroCount = 0, mismatchCount = 0, tempHighCount = 0, diffHighCount = 0, normalCount = 0;
+
+  rows.forEach(r => {
+    const status = r['Transaction Status'];
+
+    if (status === 'Zero Energy Transaction') zeroCount++;
+    else if (status === 'Current Delivery Mismatch') mismatchCount++;
+    else if (status === 'Temperature High') tempHighCount++;
+    else if (status === 'Start/Stop Diff High') diffHighCount++;
+    else normalCount++;
+  });
+
+  const total = rows.length;
+  const zeroRate = ((zeroCount / total) * 100).toFixed(2);
+  const mismatchRate = ((mismatchCount / total) * 100).toFixed(2);
+  const tempRate = ((tempHighCount / total) * 100).toFixed(2);
+  const diffRate = ((diffHighCount / total) * 100).toFixed(2);
+  const normalRate = ((normalCount / total) * 100).toFixed(2);
+
+  statsHTML += `<tr><td>${id}</td><td>${avg.toFixed(2)}</td><td>${peak.toFixed(2)}</td>` +
+    `<td>${zeroCount}</td><td>${mismatchCount}</td><td>${tempHighCount}</td><td>${diffHighCount}</td><td>${normalCount}</td><td>${total}</td>` +
+    `<td>${zeroRate}</td><td>${mismatchRate}</td><td>${tempRate}</td><td>${diffRate}</td><td>${normalRate}</td></tr>`;
+});
+
+statsHTML += '</table>';
+document.getElementById('output').innerHTML += statsHTML;
+
+// Add Energy Dispense Check Summary
+let energyCheckHTML = '<h2>Energy Dispense Check Summary</h2><div class="scrollable-table"><table><tr>' +
+
+  '<th>Connector ID</th><th>Min Meter Start</th><th>Max Meter Stop</th>' +
+  '<th>Recorded Energy (Wh)</th><th>Summed Dispensed Energy (Wh)</th>' +
+  '<th>Energy Difference (Wh)</th><th>Energy Diff / Transaction (Wh)</th></tr>';
+
+Object.entries(connectorStats).forEach(([id, rows]) => {
+  const meterStarts = rows.map(r => parseFloat(r['Meter Start']));
+  const meterStops = rows.map(r => parseFloat(r['Meter Stop']));
+  const minStart = Math.min(...meterStarts);
+  const maxStop = Math.max(...meterStops);
+  const recordedEnergy = maxStop - minStart;
+  const summedDispensed = rows.reduce((sum, r) => sum + parseFloat(r['Energy Dispensed (Wh)']), 0);
+  const energyDiff = recordedEnergy - summedDispensed;
+  const diffPerTxn = rows.length > 0 ? energyDiff / rows.length : 0;
+
+  const rowStyle = (diffPerTxn > 10) ? ' style="background-color: red; color: white;"' : '';
+
+  energyCheckHTML += `<tr${rowStyle}><td>${id}</td><td>${minStart}</td><td>${maxStop}</td>` +
+    `<td>${recordedEnergy}</td><td>${summedDispensed.toFixed(2)}</td>` +
+    `<td>${energyDiff.toFixed(2)}</td><td>${diffPerTxn.toFixed(2)}</td></tr>`;
+});
+
+energyCheckHTML += '</table></div>';
+document.getElementById('output').innerHTML += energyCheckHTML;
+
+// ✅ Build connector-specific complete transaction indices
+const completeTxIndicesByConnector = {};
+const globalCompleteTxIndices = [];
+
+matchedStops.forEach(stop => {
+  const txId = stop.transactionId;
+  const startEntry = matchedStarts.find(s => s.transactionId === txId);
+  const connectorId = startEntry?.connector ?? 'Unknown';
+
+  const stopIdx = rows.findIndex(row =>
+    row.PayloadData?.includes(`"transactionId":${txId}`) ||
+    row.PayloadData?.includes(`"transactionId":"${txId}"`)
+  );
+
+  if (stopIdx !== -1) {
+    globalCompleteTxIndices.push(stopIdx);
+    if (!completeTxIndicesByConnector[connectorId]) completeTxIndicesByConnector[connectorId] = [];
+    completeTxIndicesByConnector[connectorId].push(stopIdx);
+  }
+});
+
+globalCompleteTxIndices.sort((a, b) => a - b);
+Object.values(completeTxIndicesByConnector).forEach(list => list.sort((a, b) => a - b));
+
+// ✅ Incomplete Transactions Logic (Connector ID Priority)
+const incompleteHTMLRows = [];
+const allTxIds = new Set([...matchedStarts.map(s => s.transactionId), ...matchedStops.map(s => s.transactionId)]);
+
+allTxIds.forEach(txId => {
+  const hasStart = matchedStarts.some(s => s.transactionId === txId);
+  const hasStop = matchedStops.some(s => s.transactionId === txId);
+
+  if (!(hasStart && hasStop)) {
+    const startEntry = matchedStarts.find(s => s.transactionId === txId);
+    const stopEntry = matchedStops.find(s => s.transactionId === txId);
+
+    let connectorId = startEntry?.connector ?? null;
+
+    // Fallback: Extract from Sample.Periodic MeterValues if StartTransaction is missing
+    if (!connectorId && meterValuesMap[txId]) {
+      for (const entry of meterValuesMap[txId]) {
+        const periodicSample = entry.sampledValue.find(s => (s.context || '').toLowerCase() === 'sample.periodic' && s.location && s.measurand);
+        if (periodicSample && 'connectorId' in entry) {
+          connectorId = entry.connectorId;
+          break;
+        }
+      }
+    }
+
+    connectorId = connectorId ?? 'Unknown';
+
+    // Find index in logs
+    let txIndex = -1;
+    rows.forEach((row, i) => {
+      if (
+        row.PayloadData?.includes(`"transactionId":${txId}`) ||
+        row.PayloadData?.includes(`"transactionId":"${txId}"`)
+      ) {
+        txIndex = i;
+      }
+    });
+
+    let location = 'Unknown';
+    if (txIndex !== -1) {
+      const indices = completeTxIndicesByConnector[connectorId] ?? globalCompleteTxIndices;
+      const hasBefore = indices.some(i => i < txIndex);
+      const hasAfter = indices.some(i => i > txIndex);
+
+      if (!hasBefore && hasAfter) location = 'Start of Logs';
+      else if (hasBefore && !hasAfter) location = 'End of Logs';
+      else if (hasBefore && hasAfter) location = 'Between Logs';
+    }
+
+    incompleteHTMLRows.push({
+      id: txId,
+      connector: connectorId,
+      missing: (!hasStart ? 'Start' : 'Stop'),
+      location
+    });
+  }
+});
+
+// ✅ Render Incomplete Transaction Table
+let incompleteHTML = '<h2>Incomplete Transaction Summary</h2><div class="scrollable-table"><table id="incompleteTable"><tr>' +
+  '<th>Transaction ID</th><th>Connector ID</th><th>Missing</th><th>Location</th><th>Reason</th></tr>';
+
+incompleteHTMLRows.forEach(row => {
+  let reason = '';
+  let rowStyle = '';
+
+  if (row.location === 'Start of Logs') {
+    reason = 'Transaction continued in next date';
+  } else if (row.location === 'End of Logs') {
+    reason = 'Transaction started in previous date';
+  } else if (row.location === 'Between Logs') {
+    reason = 'Transaction error';
+    rowStyle = ' style="background-color: red; color: white;"';
+  } else {
+    reason = 'Unknown';
+  }
+
+  incompleteHTML += `<tr${rowStyle}>
+    <td>${row.id}</td>
+    <td>${row.connector}</td>
+    <td>${row.missing}</td>
+    <td>${row.location}</td>
+    <td>${reason}</td>
+  </tr>`;
+});
+
+incompleteHTML += '</table></div>';
+document.getElementById('output').innerHTML += incompleteHTML;
+
+const faultStats = {};
+
+rows.forEach(row => {
+  if (row.Command === 'StatusNotification') {
+    try {
+      const payload = JSON.parse(row.PayloadData);
+      if ((payload.status || '').toLowerCase() === 'faulted') {
+        const id = payload.connectorId ?? 'Unknown';
+        if (!faultStats[id]) faultStats[id] = [];
+        faultStats[id].push({
+          info: payload.info || 'N/A',
+          vendorErrorCode: payload.vendorErrorCode || 'N/A'
+        });
+      }
+    } catch (err) {
+      console.warn("Error parsing StatusNotification for fault:", err);
+    }
+  }
+});
+
+let faultHTML = '<h2>Fault Status Summary</h2><div class="scrollable-table"><table id="faultTable"><tr>' +
+
+  '<th>Connector ID</th><th>Fault Info</th><th>Vendor Error Code</th><th>Count</th></tr>';
+
+
+if (Object.keys(faultStats).length > 0) {
+  Object.entries(faultStats).forEach(([id, faults]) => {
+    const faultMap = {};
+    faults.forEach(f => {
+      const key = `${f.info}|${f.vendorErrorCode}`;
+      if (!faultMap[key]) faultMap[key] = 0;
+      faultMap[key]++;
+    });
+
+    Object.entries(faultMap).forEach(([key, count]) => {
+      const [info, vendorCode] = key.split('|');
+      faultHTML += `<tr><td>${id}</td><td>${info}</td><td>${vendorCode}</td><td>${count}</td></tr>`;
+    });
+  });
+} else {
+  faultHTML += '<tr><td colspan="4">N/A</td></tr>';
+}
+
+faultHTML += '</table></div>';
+document.getElementById('output').innerHTML += faultHTML;
+
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loadingText').innerText = 'Upload file';
+        document.getElementById('loading').style.display = 'none';
+
+
+
+// Populate filters using only Transaction IDs from the summary table
+const txFilter = document.getElementById('txFilter');
+txFilter.innerHTML = '<option value="">-- Select Transaction --</option>';
+summary.forEach(row => {
+  txFilter.appendChild(new Option(row['Transaction ID'], row['Transaction ID']));
+});
+
+// Populate x/y dropdowns
+txFilter.onchange = () => {
+  const selected = txFilter.value;
+  const xAxis = document.getElementById('xAxis');
+  const yAxis = document.getElementById('yAxis');
+  xAxis.innerHTML = '';
+  yAxis.innerHTML = '';
+
+  const paramSet = new Set();
+  let hasSoCTimestamps = false;
+
+  (meterValuesMap[selected] || []).forEach(entry => {
+    entry.sampledValue.forEach(s => {
+      if ((s.context || '').toLowerCase() === 'sample.periodic') {
+        const measurand = s.measurand || '';
+        const location = s.location || '';
+        const phase = s.phase || '';
+        let key = `${measurand}_${location}`;
+        if (phase) key += `_${phase}`;
+        paramSet.add(key);
+
+        if (measurand === 'SoC') {
+          hasSoCTimestamps = true;
+        }
+      }
+    });
+  });
+
+  if (hasSoCTimestamps) {
+    xAxis.appendChild(new Option('timestamp (SoC)', 'timestamp_soc'));
+  }
+
+  [...paramSet].sort().forEach(key => {
+    xAxis.appendChild(new Option(key, key));
+    yAxis.appendChild(new Option(key, key));
+  });
+};
+
+
+
+
+        // Plot chart
+document.getElementById('plotBtn').onclick = () => {
+  const txId = txFilter.value;
+  const xKey = document.getElementById('xAxis').value;
+  const yKeys = [...document.getElementById('yAxis').selectedOptions].map(o => o.value);
+  const ctx = document.getElementById('chartCanvas').getContext('2d');
+  if (window.myChart) window.myChart.destroy();
+
+  const xMap = new Map();
+  const yMapGroup = {};
+  const entries = meterValuesMap[txId] || [];
+
+  entries.forEach(entry => {
+    const timestamp = entry.timestamp;
+
+    let hasSoc = false;
+    let socValue = null;
+
+    entry.sampledValue.forEach(s => {
+      if ((s.context || '').toLowerCase() !== 'sample.periodic') return;
+
+      const measurand = s.measurand || '';
+const location = s.location || '';
+const phase = s.phase || '';
+let key = `${measurand}_${location}`;
+if (phase) key += `_${phase}`;
+
+      const val = parseFloat(s.value);
+
+      // Handle regular xKey as measurand
+      if (key === xKey && xKey !== 'timestamp_soc') {
+        xMap.set(timestamp, val);
+      }
+
+      // Handle timestamp_soc case
+      if (s.measurand === 'SoC' && xKey === 'timestamp_soc') {
+        xMap.set(timestamp, timestamp);  // X-axis = timestamp
+        hasSoc = true;
+      }
+
+      // Store yKeys data
+      if (yKeys.includes(key)) {
+        if (!yMapGroup[key]) yMapGroup[key] = new Map();
+        yMapGroup[key].set(timestamp, val);
+      }
+    });
+  });
+
+  const commonTimes = [...xMap.keys()]
+    .filter(t => yKeys.every(k => yMapGroup[k]?.has(t)))
+    .sort((a, b) => new Date(a) - new Date(b));
+
+  const xData = commonTimes.map(t => xMap.get(t));
+
+  const datasets = yKeys.map(key => ({
+    label: key + ' vs ' + xKey,
+    data: commonTimes.map(t => yMapGroup[key].get(t)),
+    borderWidth: 2,
+    fill: false,
+    tension: 0.1
+  }));
+
+  window.myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: xData,
+      datasets
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { title: { display: true, text: xKey } },
+        y: { title: { display: true, text: 'Values' } }
+      }
+    }
+  });
+};
+
+
+
+
+// Export to Excel with CPID and timestamp in filename
+// ✅ Move this OUTSIDE the reader.onload / upload event block
+
+document.getElementById('exportBtn').onclick = () => {
+  const wb = XLSX.utils.book_new();
+
+  let chargePointId = 'UnknownCPID';
+  if (window.parsedRows && window.parsedRows.length > 0) {
+    const firstRow = window.parsedRows[0];
+    for (const key in firstRow) {
+      if (key.toLowerCase() === 'cpid') {
+        chargePointId = String(firstRow[key]).replace(/\s+/g, '_');
+        break;
+      }
+    }
+  }
+
+const tables = document.querySelectorAll('#output table');
+
+if (tables.length > 0) {
+const reorderedSummary = summary.map(row => {
+  const { ['Transaction Status']: ts, ...rest } = row;
+  return { 'Transaction Status': ts, ...rest };
+});
+const summarySheet = XLSX.utils.json_to_sheet(reorderedSummary);
+XLSX.utils.book_append_sheet(wb, summarySheet, 'Transaction Summary');
+
+}
+if (tables.length > 1) {
+  const connectorSheet = XLSX.utils.table_to_sheet(tables[1]);
+  XLSX.utils.book_append_sheet(wb, connectorSheet, 'Connector Stats');
+}
+if (tables.length > 2) {
+  const energyCheckSheet = XLSX.utils.table_to_sheet(tables[2]);
+  XLSX.utils.book_append_sheet(wb, energyCheckSheet, 'Energy Dispense Check');
+}
+const faultTable = document.querySelector('#faultTable');
+if (faultTable) {
+  const faultSheet = XLSX.utils.table_to_sheet(faultTable);
+  XLSX.utils.book_append_sheet(wb, faultSheet, 'Fault Status');
+}
+
+const incompleteTable = document.querySelector('#incompleteTable');
+if (incompleteTable) {
+  const incompleteSheet = XLSX.utils.table_to_sheet(incompleteTable);
+  XLSX.utils.book_append_sheet(wb, incompleteSheet, 'Incomplete Transactions');
+}
+
+  if (window.myChart) {
+    const chartData = window.myChart.data;
+    const aoa = [['Transaction ID', 'X-Axis']];
+chartData.labels.forEach((label, i) => {
+  aoa.push([txFilter.value, label, ...chartData.datasets.map(ds => ds.data[i])]);
+});
+aoa[0].push(...chartData.datasets.map(ds => ds.label));
+
+    const chartSheet = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, chartSheet, 'Graph Data');
+  }
+
+  const now = new Date();
+  const pad = n => n.toString().padStart(2, '0');
+  const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+  const filename = `Transaction_Summary_${chargePointId}_${timestamp}.xlsx`;
+
+  XLSX.writeFile(wb, filename);
+};
+
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loadingText').innerText = 'Upload file';
+ 	document.getElementById('upload').value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
+</body>
+</html>

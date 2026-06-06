@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:BootNotificationResponse",
+    "title": "BootNotificationResponse",
+    "type": "object",
+    "properties": {
+        "status": {
+            "type": "string",
+            "additionalProperties": false,
+            "enum": [
+                "Accepted",
+                "Pending",
+                "Rejected"
+            ]
+        },
+        "currentTime": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "interval": {
+            "type": "integer"
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "status",
+        "currentTime",
+        "interval"
+    ]
+}
+
+
+[3,"44854b2a-bdab-471d-8e2e-636a19a10b21",{"currentTime":"2026-02-16T02:32:11.930Z","interval":300,"status":"Accepted"}]
+

@@ -1,0 +1,54 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:BootNotificationRequest",
+    "title": "BootNotificationRequest",
+    "type": "object",
+    "properties": {
+        "chargePointVendor": {
+            "type": "string",
+            "maxLength": 20
+        },
+        "chargePointModel": {
+            "type": "string",
+            "maxLength": 20
+        },
+        "chargePointSerialNumber": {
+            "type": "string",
+            "maxLength": 25
+        },
+        "chargeBoxSerialNumber": {
+            "type": "string",
+            "maxLength": 25
+        },
+        "firmwareVersion": {
+            "type": "string",
+            "maxLength": 50
+        },
+        "iccid": {
+            "type": "string",
+            "maxLength": 20
+        },
+        "imsi": {
+            "type": "string",
+            "maxLength": 20
+        },
+        "meterType": {
+            "type": "string",
+            "maxLength": 25
+        },
+        "meterSerialNumber": {
+            "type": "string",
+            "maxLength": 25
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "chargePointVendor",
+        "chargePointModel"
+    ]
+}
+
+
+
+
+[2,"44854b2a-bdab-471d-8e2e-636a19a10b21","BootNotification",{"chargePointModel":"CLASSIC","chargePointVendor":"QUENCH","chargeBoxSerialNumber":"secc2300-05788","chargePointSerialNumber":"60","firmwareVersion":"release-1.2.57-LE-1.2.57-AB-1.2.57"}]
