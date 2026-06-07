@@ -51,36 +51,36 @@ THINK ──→ PLAN ──→ BUILD ──────→ REVIEW ──→ TEST
 > | `docs/skill-chain.md` (this file) | Design overview: what every skill does in one line | Summary |
 > | `skills/[name]/SKILL.md` | Executable workflow: the actual steps Claude follows, full OCPP rules, edge cases, outputs | Full detail |
 >
-> The OCPP adaptations listed below are intentional summaries. Full domain-specific rules — OCPP 1.6J enum checks, canonical source path rules, Parser section constraints, CHANGELOG format, deploy workflow — live inside each individual `skills/[name]/SKILL.md`. Those files are written during implementation and evolve as the project grows. This doc never needs to change when a skill improves.
+> The OCPP adaptations below cite specific spec sections from `knowledge/standards/ocpp-1.6/` and `specs/requirements.md`. Entries marked **for Parser:** apply only to the Parser; unmarked entries apply across all 5 suite tools. Full tool-conditional routing logic lives inside each `skills/[name]/SKILL.md` — this table is the one-line pointer, not the full rule.
 
 ### Phase 1 — Think
 *Validate the idea before writing a line of code.*
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/office-hours` | Six forcing questions that reframe the problem; pushes back on framing; generates alternatives | Asks: does this need OCPP compliance? Does it break interoperability? |
-| `/spec` | Turns vague intent into an executable spec with success criteria | Knows OCPP schema locations, Parser section structure, requirements.md format |
-| `/autoplan` | Runs office-hours + plan-ceo-review + plan-eng-review in one go for well-defined features | Shortcut for small, well-understood features |
+| `/office-hours` | Six forcing questions that reframe the problem; pushes back on framing; generates alternatives | Asks which of the 6 Feature Profiles (§3.3) this touches; flags any transport-layer assumptions that conflict with J03–J07 |
+| `/spec` | Turns vague intent into an executable spec with success criteria | For Parser: references `specs/requirements.md` FR numbering and 19-section structure; for all tools: cites `knowledge/standards/ocpp-1.6/` as spec SSOT (§7 enums, §9 config keys, J04 message envelopes) |
+| `/autoplan` | Runs office-hours + plan-ceo-review + plan-eng-review in one go for well-defined features | Shortcut for small, well-understood features where all three Think/Plan questions have clear answers |
 
 ### Phase 2 — Plan
 *Lock architecture, data flow, and test plan before building.*
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/plan-ceo-review` | Scope review: Expansion / Hold / Reduction — is this the right problem? | Checks against suite vision in `specs/vision.md` |
-| `/plan-eng-review` | Engineering lock: architecture, data flow, edge cases, diagrams, test plan | Knows OCPP 1.6J message types, typed-ocpp, Parser 9813-line constraint |
-| `/plan-design-review` | UI/UX review for Parser sections: rates design 0–10, detects over-engineering | Knows Parser's 19-section layout, export-to-Excel constraint |
-| `/plan-devex-review` | Developer/operator experience review: who uses this, what is their workflow | Treats charger operators and field engineers as the persona |
+| `/plan-ceo-review` | Scope review: Expansion / Hold / Reduction — is this the right problem? | Identifies which of the 5 suite tools (Parser / Validation Engine / CMS / Charger Emulator / Training Emulator) this feature belongs to before committing scope |
+| `/plan-eng-review` | Engineering lock: architecture, data flow, edge cases, diagrams, test plan | Validates CALL[2]/CALLRESULT[3]/CALLERROR[4] envelope design (J04 §4.1.3), 10 error codes (J04 Table 7), 9 ChargePointStatus values (§7.7), 38 config keys (§9); for Parser: enforces 9813-line single-file constraint and additive-only architecture rule (requirements.md §§11–16 pattern) |
+| `/plan-design-review` | UI/UX review for Parser sections: rates design 0–10, detects over-engineering | For Parser: checks requirements.md UI/UX requirements (UI-001–UI-014), 19-section layout, per-section table column definitions (§7.1–§7.5); for other tools: that tool's UI spec when available |
+| `/plan-devex-review` | Developer/operator experience review: who uses this, what is their workflow | Persona = charger operator / field engineer; reviews CLI/API/UI ergonomics for the active tool's primary user |
 
 ### Phase 3 — Build
 *Implementation. Has a completion checkpoint command — `/build-complete`.*
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/investigate` | Systematic root-cause debugging; traces data flow, tests hypotheses | Knows Parser chunked parsing (1000 lines/chunk), MessageId correlation, OCPP message structure |
-| `/design-consultation` | Build a complete design system from scratch for a new section | Knows Parser's section template, colour scheme, export format |
-| `/design-shotgun` | Generate 4–6 UI variants side-by-side for comparison | Used when designing new Parser sections with multiple layout options |
-| `/design-html` | Convert approved mockup to production HTML/CSS | Knows the Parser is a single HTML file; knows canonical source path |
+| `/investigate` | Systematic root-cause debugging; traces data flow, tests hypotheses | Applies synchronicity rule (J04 §4.1.1: one outstanding CALL per sender), UniqueId match requirement (J04 §4.1.3), §4.9 9×9 status transition matrix; for Parser: traces MessageId correlation and chunked parsing (1000 lines/chunk) |
+| `/design-consultation` | Build a complete design system from scratch for a new section | For Parser: follows requirements.md §6 (UI-001–UI-014), section template, colour scheme, export-to-Excel format |
+| `/design-shotgun` | Generate 4–6 UI variants side-by-side for comparison | For Parser: variants must satisfy UI-001–UI-014 and match per-section table column definitions from requirements.md §7 |
+| `/design-html` | Convert approved mockup to production HTML/CSS | For Parser: single HTML file `src/app/OCPP_Parser_Complete_ 21 Jan'26.html`; status colour-coding maps to §7.7 (9 ChargePointStatus values), error codes to §7.6 (16 ChargePointErrorCode values), stop reasons to §7.36 Reason (11 values) |
 | `/build-complete` | **Checkpoint command.** Marks Build ✅ in WORKFLOW.md, prints next step, and prompts `/review`. Run this when you are satisfied implementation is done. | — |
 
 > **Two safety nets so you never silently skip Build:**
@@ -92,38 +92,38 @@ THINK ──→ PLAN ──→ BUILD ──────→ REVIEW ──→ TEST
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/review` | Staff engineer code review: bugs, completeness gaps, auto-fixes obvious issues | Checks OCPP 1.6J compliance, CHANGELOG format, canonical source vs index.html |
-| `/design-review` | Designer audits finished UI; atomic commits with before/after | Checks Parser section consistency, export button placement, responsive layout |
-| `/devex-review` | Live DX audit: tests the workflow as an operator would | Walks through: load log → parse → analyse → export |
-| `/cso` | Security audit: OWASP Top 10 + STRIDE threat model | Checks XSS in log rendering, file input sanitisation, no credential leakage |
+| `/review` | Staff engineer code review: bugs, completeness gaps, auto-fixes obvious issues | 8-point OCPP checklist: J04 Table 2 (envelope structure), J04 Table 7 (10 error codes), §7.7 (9 status values), §7.6 (16 error codes), §9 (38 config keys), §3.15 (ISO 8601 timestamps), §3.8 (connector numbering); for Parser: requirements.md SSOT accuracy, CHANGELOG format, canonical source vs index.html |
+| `/design-review` | Designer audits finished UI; atomic commits with before/after | For Parser: verifies FR-327 colour coding aligns with §7.7 ChargePointStatus (9 values), UI-001–UI-014 compliance, export button placement per requirements.md §6 |
+| `/devex-review` | Live DX audit: tests the workflow as an operator would | For Parser: walks load log → parse → analyse → export; for other tools: the active tool's primary operator workflow |
+| `/cso` | Security audit: OWASP Top 10 + STRIDE threat model | J06: AuthorizationKey MUST NOT appear in GetConfiguration response (J06 §6.2.2); HTTP Basic Auth key = 20 bytes as 40 hex chars; RSA cert ≤ 2048 bytes (J06 §6.2.1); TLS mandatory for internet-facing deployments |
 
 ### Phase 5 — Test
 *Verify the feature works end-to-end before shipping.*
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/qa` | QA lead: tests in real browser, finds bugs, auto-fixes, generates regression tests | Loads sample logs from `data/samples/`, checks all 19 Parser sections |
-| `/qa-only` | Same as /qa but report bugs without code changes — for review queue | Used when fixes need discussion before applying |
-| `/benchmark` | Measures page load, parse time, Excel export time — before/after on every PR | Relevant for Parser with large logs (6000+ line files) |
+| `/qa` | QA lead: tests in real browser, finds bugs, auto-fixes, generates regression tests | For Parser: loads `data/samples/`, validates all 19 sections against requirements.md; OCPP checks: J04 Table 7 error codes, §4.9 status transitions, §7.6 ChargePointErrorCode (16 values), §7.36 Reason (11 stop codes), §3.15 ISO 8601 timestamps, §3.8 connector IDs |
+| `/qa-only` | Same as /qa but report bugs without code changes — for review queue | Same OCPP checks as `/qa`; used when fixes need discussion before applying |
+| `/benchmark` | Measures page load, parse time, Excel export time — before/after on every PR | For Parser: large logs (6000+ lines, 1000-line chunk size); for all tools: before/after comparison on every PR touching parsing or processing paths |
 
 ### Phase 6 — Ship
 *Get the work into main and verify production health.*
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/ship` | Branch → PR workflow: sync, test, push, open PR | Knows: edit canonical source → copy to index.html → branch → PR (never direct to main) |
-| `/document-release` | Updates all docs to match shipped changes; CHANGELOG entry | Knows CHANGELOG format, requirements.md SSOT, docs/ structure |
-| `/document-generate` | Generates missing docs from scratch when gaps are found | Uses Diataxis framework; knows docs/ folder structure |
-| `/land-and-deploy` | Merges approved PR, monitors GitHub Pages deploy | Waits for GitHub Pages build; verifies deployed URL is live |
-| `/canary` | Post-deploy health check: console errors, broken sections, export failures | Opens deployed Parser URL; loads a sample log; checks all sections |
+| `/ship` | Branch → PR workflow: sync, test, push, open PR | For Parser: edit canonical source → copy to root `index.html` → branch → PR (never direct to main); for other tools: standard branch → PR pattern |
+| `/document-release` | Updates all docs to match shipped changes; CHANGELOG entry | For Parser: updates `specs/requirements.md` SSOT and CHANGELOG; for all tools: updates that tool's SSOT doc and CHANGELOG when available |
+| `/document-generate` | Generates missing docs from scratch when gaps are found | Uses Diataxis framework (Reference, How-to, Tutorial, Explanation); sources OCPP protocol content from `knowledge/standards/ocpp-1.6/` |
+| `/land-and-deploy` | Merges approved PR, monitors GitHub Pages deploy | For Parser: monitors GitHub Pages at `https://spsrathore-code.github.io/ocpp-parser/`; for other tools: monitors that tool's deploy target |
+| `/canary` | Post-deploy health check: console errors, broken sections, export failures | For Parser: opens live URL, loads a sample log, verifies all 19 sections render and export correctly |
 
 ### Phase 7 — Reflect
 *Learn from what was built. Preserve context for next session.*
 
 | Slash command | Purpose | OCPP adaptation |
 |---|---|---|
-| `/retro` | Weekly retrospective: what shipped, what took longer than expected, patterns | Reviews project-journal.md entries for the week |
-| `/learn` | Appends session summary to `knowledge/project-journal.md`; moves tasks in `specs/tasks.md` | Triggered at end of every session or on demand ("update the journal") |
+| `/retro` | Weekly retrospective: what shipped, what took longer than expected, patterns | Reviews `knowledge/project-journal.md` for the period; flags any OCPP protocol decisions that should be documented in `knowledge/standards/ocpp-1.6/` |
+| `/learn` | Appends session summary to `knowledge/project-journal.md`; moves tasks in `specs/tasks.md` | Triggered at end of every session or on demand ("update the journal"); captures any new OCPP domain findings discovered during the session |
 
 ### Safety tools (available at any time, any phase)
 
