@@ -2,6 +2,36 @@
 
 Chronological record of significant decisions and sessions. Detailed change history is in `../CHANGELOG.md`; this is the higher-level narrative.
 
+## 2026-06-08 — MD file registry designed, built, and shipped
+
+### Discussed
+- Problem: 32 MD files across 7 folders, growing to 60+ once skill chain runs — impossible to remember purpose, status, and inter-file dependencies after any significant gap
+- Whether to embed the registry in `project-standard.md` or keep it separate — decided separate (`docs/md-registry.md`) because the registry is a live dynamic inventory while project-standard.md is a static rulebook
+- Visual companion tool (browser-based diagram renderer) — declined; text table sufficient
+- Three trigger scenarios for opening the registry: session start orientation, adding a new file, checking for stale/contradictory files — all three equally important
+- "Type" vs "Role" column — "Type" felt arbitrary and overlapping; replaced with "Role" (5 values: RULES/BLUEPRINT/RULEBOOK/TRACKER/GUIDE) which describes what a file *does* rather than what category it belongs to
+
+### Decided
+- **Option A adopted:** single `docs/md-registry.md` — one table per folder section, Role + Status + Purpose + "Updates when" columns, definitions embedded at top (self-contained)
+- **Status values:** ACTIVE / REFERENCE-ONLY / DORMANT / DRAFT
+- **Maintenance rule:** new MD file = new registry row in the same commit — mandated in `project-standard.md` so it is a governance rule, not just convention
+- **Skill integration:** `/document-release` adds rows for new files; `/learn` flags missing entries at session end
+- **skills/ section** scaffolded as placeholder — populated when skill chain implementation runs
+
+### Implemented
+- `docs/superpowers/specs/2026-06-08-md-registry-design.md` — approved design spec
+- `docs/superpowers/plans/2026-06-08-md-registry-implementation.md` — 3-task implementation plan
+- `docs/md-registry.md` — created; 35 files registered (all current MD files fully populated)
+- `project-standard.md` — two additions: `md-registry.md` entry in docs/ tree + MD File Registry Rule under Repository Design Principle
+- All committed and pushed to `docs/skill-chain-design` branch
+
+### Next
+- Open and merge PR for `docs/skill-chain-design` branch on GitHub (covers skill-chain.md Section 3 update + MD registry + standards folder + superpowers plans)
+- Sync local main after merge: `git checkout main && git pull`
+- Merge pending `chore/repo-standardization` PR (open since 2026-06-06)
+- Execute skill chain implementation: Tasks 0–10 from `docs/superpowers/plans/2026-06-06-skill-chain-implementation.md` on a new `feat/skill-chain-implementation` branch
+- Update `docs/md-registry.md` skills/ section once skill chain implementation runs (~32 new SKILL.md files)
+
 ## 2026-06-07 — skill-chain.md Section 3 updated with spec-grounded OCPP adaptations
 
 ### Discussed
