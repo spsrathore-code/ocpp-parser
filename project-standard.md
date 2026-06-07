@@ -12,6 +12,7 @@ Purpose: How the repository to be organized.
 ➡️ **Repository Design Principle**
 
 * Organized for **Humans + AI Agents + Future You**.
+* **MD File Registry Rule:** Every MD file added to this repo must have an entry in `docs/md-registry.md` in the same commit. No MD file without a registry entry.
 
 ➡️ **Repository Creation Flow**
 
@@ -91,6 +92,7 @@ Project-Name/
 │
 ├── docs/                     ← DOCUMENT
 │   │
+│   ├── md-registry.md        ← MD file inventory (all MD files, role, status, purpose)
 │   ├── overview.md           ← Business overview
 │   ├── architecture.md       ← System design
 │   ├── workflow.md           ← Process flow
