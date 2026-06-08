@@ -168,6 +168,17 @@ Project-Name/
 │   Why: Reusable Claude workflows
 │   Memory Aid: "How is Claude customized?"
 │
+├── skills/                   ← SKILL CHAIN
+│   │
+│   ├── WORKFLOW.md           ← Live phase state (auto-updated by skills)
+│   ├── CHAIN.md              ← Quick reference: 7-phase chain map
+│   └── [skill-name]/
+│       └── SKILL.md          ← Executable workflow definition
+│
+│   Purpose: AI-executable workflow skills (Think→Plan→Build→Review→Test→Ship→Reflect)
+│   Why: Enforces structured, traceable workflow; nothing falls through the cracks
+│   Memory Aid: "What workflow step am I on?"
+│
 ├── archive/                  ← HISTORICAL RECORDS
 │   │
 │   ├── old-docs/
