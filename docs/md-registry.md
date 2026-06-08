@@ -1,6 +1,6 @@
 # MD File Registry — OCPP Tool Suite
 
-> **Last reviewed:** 2026-06-08
+> **Last reviewed:** 2026-06-08 (skills/ section populated after skill chain implementation)
 > One row per MD file. Add a row in the same commit as any new MD file. Remove a row when a file is deleted.
 
 ---
@@ -116,8 +116,39 @@
 
 ## skills/
 
-> This section is empty until the skill chain implementation runs (Tasks 0–10 of `docs/superpowers/plans/2026-06-06-skill-chain-implementation.md`). Once complete, add rows for: `skills/WORKFLOW.md`, `skills/CHAIN.md`, and all 30 `skills/[name]/SKILL.md` files.
+> All 30 SKILL.md files are `RULES` / `ACTIVE` — executable workflow definitions invoked via `/slash-commands`. Edit when skill behaviour needs to change; never edit mid-session.
 
 | File | Role | Status | Purpose | Updates when |
 |---|---|---|---|---|
-| *(populated during skill chain implementation)* | — | — | — | — |
+| [skills/WORKFLOW.md](../skills/WORKFLOW.md) | `TRACKER` | `ACTIVE` | Live per-feature phase state — ✅/⏳/⬜ per phase; auto-updated by every skill | Any skill runs and updates a phase; new feature started; completed feature archived |
+| [skills/CHAIN.md](../skills/CHAIN.md) | `BLUEPRINT` | `REFERENCE-ONLY` | Quick reference map of the 7-phase chain; prerequisites and next-command per phase | New skill added; phase structure changes |
+| [skills/office-hours/SKILL.md](../skills/office-hours/SKILL.md) | `RULES` | `ACTIVE` | Phase 1 THINK: six forcing questions to frame a feature; saves framing to scratchpad/ | Skill behaviour updated; OCPP adaptation refined |
+| [skills/spec/SKILL.md](../skills/spec/SKILL.md) | `RULES` | `ACTIVE` | Phase 1 THINK: converts framing into executable spec; saves to docs/superpowers/specs/; marks Think ✅ | Skill behaviour updated |
+| [skills/autoplan/SKILL.md](../skills/autoplan/SKILL.md) | `RULES` | `ACTIVE` | THINK+PLAN shortcut: skips interactive Q&A; marks both Think ✅ and Plan ✅ in one run | Skill behaviour updated |
+| [skills/plan-ceo-review/SKILL.md](../skills/plan-ceo-review/SKILL.md) | `RULES` | `ACTIVE` | Phase 2 PLAN: scope review in Expansion / Hold / Reduction modes against specs/vision.md | Skill behaviour updated |
+| [skills/plan-eng-review/SKILL.md](../skills/plan-eng-review/SKILL.md) | `RULES` | `ACTIVE` | Phase 2 PLAN: engineering lock — architecture, data flow, edge cases, test plan; marks Plan ✅ | Skill behaviour updated |
+| [skills/plan-design-review/SKILL.md](../skills/plan-design-review/SKILL.md) | `RULES` | `ACTIVE` | Phase 2 PLAN: UI audit 0-10 on Clarity/Consistency/Completeness/Export/Simplicity; references UI-001–UI-014 | Skill behaviour updated |
+| [skills/plan-devex-review/SKILL.md](../skills/plan-devex-review/SKILL.md) | `RULES` | `ACTIVE` | Phase 2 PLAN: operator persona walkthrough (field engineer, on-site, time pressure); time-to-insight estimate | Skill behaviour updated |
+| [skills/build-complete/SKILL.md](../skills/build-complete/SKILL.md) | `RULES` | `ACTIVE` | Phase 3 BUILD checkpoint: self-check before Review; records branch in WORKFLOW.md; marks Build ✅ | Skill behaviour updated |
+| [skills/investigate/SKILL.md](../skills/investigate/SKILL.md) | `RULES` | `ACTIVE` | Phase 3 BUILD debug aid (callable any phase): 3 hypotheses ranked by likelihood | Skill behaviour updated |
+| [skills/design-consultation/SKILL.md](../skills/design-consultation/SKILL.md) | `RULES` | `ACTIVE` | Phase 3 BUILD: full design system from scratch — header, cards, table, empty state, export, colour coding | Skill behaviour updated |
+| [skills/design-shotgun/SKILL.md](../skills/design-shotgun/SKILL.md) | `RULES` | `ACTIVE` | Phase 3 BUILD: generates 4 ASCII sketch variants for user to choose one for /design-html | Skill behaviour updated |
+| [skills/design-html/SKILL.md](../skills/design-html/SKILL.md) | `RULES` | `ACTIVE` | Phase 3 BUILD: implements chosen design into canonical Parser HTML source; knows 10,000-line size warning | Skill behaviour updated |
+| [skills/review/SKILL.md](../skills/review/SKILL.md) | `RULES` | `ACTIVE` | Phase 4 REVIEW: 8-point OCPP checklist; auto-fix + flag classification; marks Review ✅ | Skill behaviour updated |
+| [skills/design-review/SKILL.md](../skills/design-review/SKILL.md) | `RULES` | `ACTIVE` | Phase 4 REVIEW: 6 UI audit checks; atomic commits per fix | Skill behaviour updated |
+| [skills/devex-review/SKILL.md](../skills/devex-review/SKILL.md) | `RULES` | `ACTIVE` | Phase 4 REVIEW: target <30s time-to-insight; compares against /plan-devex-review predictions | Skill behaviour updated |
+| [skills/cso/SKILL.md](../skills/cso/SKILL.md) | `RULES` | `ACTIVE` | Phase 4 REVIEW: OWASP Top 10 + STRIDE; focused on XSS via log content injection; J06 §6.2.2 | Skill behaviour updated |
+| [skills/qa/SKILL.md](../skills/qa/SKILL.md) | `RULES` | `ACTIVE` | Phase 5 TEST: loads both sample logs; 19-section checks; auto-fix bugs; marks Test ✅ | Skill behaviour updated; new sample log added |
+| [skills/qa-only/SKILL.md](../skills/qa-only/SKILL.md) | `RULES` | `ACTIVE` | Phase 5 TEST: same as /qa but report only — numbered bug list, no auto-fix | Skill behaviour updated |
+| [skills/benchmark/SKILL.md](../skills/benchmark/SKILL.md) | `RULES` | `ACTIVE` | Phase 5 TEST: measures parse/export time before and after; 5s parse / 3s export targets | Skill behaviour updated; performance targets revised |
+| [skills/ship/SKILL.md](../skills/ship/SKILL.md) | `RULES` | `ACTIVE` | Phase 6 SHIP: syncs index.html from canonical source, pushes branch, provides PR URL | Skill behaviour updated |
+| [skills/document-release/SKILL.md](../skills/document-release/SKILL.md) | `RULES` | `ACTIVE` | Phase 6 SHIP: updates CHANGELOG.md; checks docs/ and specs/requirements.md for staleness | Skill behaviour updated |
+| [skills/document-generate/SKILL.md](../skills/document-generate/SKILL.md) | `RULES` | `ACTIVE` | Phase 6 SHIP: generates missing docs from scratch using Diataxis framework (Reference/How-to/Tutorial/Explanation) | Skill behaviour updated |
+| [skills/land-and-deploy/SKILL.md](../skills/land-and-deploy/SKILL.md) | `RULES` | `ACTIVE` | Phase 6 SHIP: confirms PR merged, syncs main, verifies GitHub Pages deploy live at production URL | Skill behaviour updated |
+| [skills/canary/SKILL.md](../skills/canary/SKILL.md) | `RULES` | `ACTIVE` | Phase 6 SHIP: post-deploy health check — 6 user-led checks on the live Parser URL | Skill behaviour updated |
+| [skills/retro/SKILL.md](../skills/retro/SKILL.md) | `RULES` | `ACTIVE` | Phase 7 REFLECT: weekly retrospective; reads journal + CHANGELOG; saves to knowledge/lessons-learned/ | Skill behaviour updated |
+| [skills/learn/SKILL.md](../skills/learn/SKILL.md) | `RULES` | `ACTIVE` | Phase 7 REFLECT: appends session entry to project-journal.md; updates tasks.md; marks Reflect ✅; archives feature | Skill behaviour updated |
+| [skills/careful/SKILL.md](../skills/careful/SKILL.md) | `RULES` | `ACTIVE` | Safety tool: warns before destructive commands (rm, reset --hard, push --force, etc.) for session duration | Skill behaviour updated |
+| [skills/freeze/SKILL.md](../skills/freeze/SKILL.md) | `RULES` | `ACTIVE` | Safety tool: restricts file edits to one specified directory until /unfreeze | Skill behaviour updated |
+| [skills/guard/SKILL.md](../skills/guard/SKILL.md) | `RULES` | `ACTIVE` | Safety tool: activates both /careful and /freeze simultaneously — maximum safety mode | Skill behaviour updated |
+| [skills/unfreeze/SKILL.md](../skills/unfreeze/SKILL.md) | `RULES` | `ACTIVE` | Safety tool: removes /freeze directory restriction; /careful remains if set separately | Skill behaviour updated |
