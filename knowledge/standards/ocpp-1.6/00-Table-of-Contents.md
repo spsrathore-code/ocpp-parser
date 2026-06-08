@@ -1,0 +1,200 @@
+---
+title: "OCPP 1.6J — Table of Contents"
+doc-type: index
+spec-version: "1.6 edition 2 — FINAL, 2017-09-28"
+spec-release-date: 2017-09-28
+publisher: Open Charge Alliance
+license: "Creative Commons Attribution-NoDerivatives 4.0 International (CC BY-ND 4.0)"
+source-document: ocpp-1_6J.pdf
+related-files:
+  - 02-Terminology-and-Conventions
+  - 03-Introduction
+  - 04-Operations-Initiated-by-Charge-Point
+  - 05-Operations-Initiated-by-Central-System
+  - 06-Messages
+  - 07-Types
+  - 08-Firmware-and-Diagnostics-File-Transfer
+  - 09-Configuration-Keys
+  - master_OCPP_1_6_schema.min.json
+tags:
+  - ocpp/1.6
+  - index
+  - table-of-contents
+  - moc
+---
+
+# OCPP 1.6J — Table of Contents
+
+Open Charge Point Protocol 1.6 edition 2 (FINAL, 2017-09-28). This is the map of content for the knowledge base; each entry links to the corresponding note (and section anchor). Page numbers refer to the source specification.
+
+- [[01-Scope|1. Scope]] — p. 4
+- [[02-Terminology-and-Conventions|2. Terminology and Conventions]] — p. 5
+  - [[02-Terminology-and-Conventions#2.1. Conventions|2.1. Conventions]] — p. 5
+  - [[02-Terminology-and-Conventions#2.2. Definitions|2.2. Definitions]] — p. 5
+  - [[02-Terminology-and-Conventions#2.3. Abbreviations|2.3. Abbreviations]] — p. 6
+  - [[02-Terminology-and-Conventions#2.4. References|2.4. References]] — p. 7
+- [[03-Introduction|3. Introduction]] — p. 8
+  - [[03-Introduction#3.1. Edition 2|3.1. Edition 2]] — p. 8
+  - [[03-Introduction#3.2. Document structure|3.2. Document structure]] — p. 8
+  - [[03-Introduction#3.3. Feature Profiles|3.3. Feature Profiles]] — p. 8
+  - [[03-Introduction#3.4. General views of operation|3.4. General views of operation]] — p. 10
+  - [[03-Introduction#3.5. Local Authorization & Offline Behavior|3.5. Local Authorization & Offline Behavior]] — p. 12
+  - [[03-Introduction#3.6. Transaction in relation to Energy Transfer Period|3.6. Transaction in relation to Energy Transfer Period]] — p. 15
+  - [[03-Introduction#3.7. Transaction-related messages|3.7. Transaction-related messages]] — p. 17
+  - [[03-Introduction#3.8. Connector numbering|3.8. Connector numbering]] — p. 18
+  - [[03-Introduction#3.9. ID Tokens|3.9. ID Tokens]] — p. 18
+  - [[03-Introduction#3.10. Parent idTag|3.10. Parent idTag]] — p. 19
+  - [[03-Introduction#3.11. Reservations|3.11. Reservations]] — p. 19
+  - [[03-Introduction#3.12. Vendor-specific data transfer|3.12. Vendor-specific data transfer]] — p. 19
+  - [[03-Introduction#3.13. Smart Charging|3.13. Smart Charging]] — p. 20
+  - [[03-Introduction#3.14. Time zones|3.14. Time zones]] — p. 29
+  - [[03-Introduction#3.15. Time notations|3.15. Time notations]] — p. 29
+  - [[03-Introduction#3.16. Metering Data|3.16. Metering Data]] — p. 29
+- [[04-Operations-Initiated-by-Charge-Point|4. Operations Initiated by Charge Point]] — p. 32
+  - [[04-Operations-Initiated-by-Charge-Point#4.1. Authorize|4.1. Authorize]] — p. 32
+  - [[04-Operations-Initiated-by-Charge-Point#4.2. Boot Notification|4.2. Boot Notification]] — p. 32
+  - [[04-Operations-Initiated-by-Charge-Point#4.3. Data Transfer|4.3. Data Transfer]] — p. 34
+  - [[04-Operations-Initiated-by-Charge-Point#4.4. Diagnostics Status Notification|4.4. Diagnostics Status Notification]] — p. 34
+  - [[04-Operations-Initiated-by-Charge-Point#4.5. Firmware Status Notification|4.5. Firmware Status Notification]] — p. 34
+  - [[04-Operations-Initiated-by-Charge-Point#4.6. Heartbeat|4.6. Heartbeat]] — p. 35
+  - [[04-Operations-Initiated-by-Charge-Point#4.7. Meter Values|4.7. Meter Values]] — p. 35
+  - [[04-Operations-Initiated-by-Charge-Point#4.8. Start Transaction|4.8. Start Transaction]] — p. 37
+  - [[04-Operations-Initiated-by-Charge-Point#4.9. Status Notification|4.9. Status Notification]] — p. 38
+  - [[04-Operations-Initiated-by-Charge-Point#4.10. Stop Transaction|4.10. Stop Transaction]] — p. 43
+- [[05-Operations-Initiated-by-Central-System|5. Operations Initiated by Central System]] — p. 45
+  - [[05-Operations-Initiated-by-Central-System#5.1. Cancel Reservation|5.1. Cancel Reservation]] — p. 45
+  - [[05-Operations-Initiated-by-Central-System#5.2. Change Availability|5.2. Change Availability]] — p. 45
+  - [[05-Operations-Initiated-by-Central-System#5.3. Change Configuration|5.3. Change Configuration]] — p. 45
+  - [[05-Operations-Initiated-by-Central-System#5.4. Clear Cache|5.4. Clear Cache]] — p. 46
+  - [[05-Operations-Initiated-by-Central-System#5.5. Clear Charging Profile|5.5. Clear Charging Profile]] — p. 47
+  - [[05-Operations-Initiated-by-Central-System#5.6. Data Transfer|5.6. Data Transfer]] — p. 47
+  - [[05-Operations-Initiated-by-Central-System#5.7. Get Composite Schedule|5.7. Get Composite Schedule]] — p. 47
+  - [[05-Operations-Initiated-by-Central-System#5.8. Get Configuration|5.8. Get Configuration]] — p. 48
+  - [[05-Operations-Initiated-by-Central-System#5.9. Get Diagnostics|5.9. Get Diagnostics]] — p. 48
+  - [[05-Operations-Initiated-by-Central-System#5.10. Get Local List Version|5.10. Get Local List Version]] — p. 49
+  - [[05-Operations-Initiated-by-Central-System#5.11. Remote Start Transaction|5.11. Remote Start Transaction]] — p. 49
+  - [[05-Operations-Initiated-by-Central-System#5.12. Remote Stop Transaction|5.12. Remote Stop Transaction]] — p. 50
+  - [[05-Operations-Initiated-by-Central-System#5.13. Reserve Now|5.13. Reserve Now]] — p. 51
+  - [[05-Operations-Initiated-by-Central-System#5.14. Reset|5.14. Reset]] — p. 52
+  - [[05-Operations-Initiated-by-Central-System#5.15. Send Local List|5.15. Send Local List]] — p. 52
+  - [[05-Operations-Initiated-by-Central-System#5.16. Set Charging Profile|5.16. Set Charging Profile]] — p. 53
+  - [[05-Operations-Initiated-by-Central-System#5.17. Trigger Message|5.17. Trigger Message]] — p. 55
+  - [[05-Operations-Initiated-by-Central-System#5.18. Unlock Connector|5.18. Unlock Connector]] — p. 56
+  - [[05-Operations-Initiated-by-Central-System#5.19. Update Firmware|5.19. Update Firmware]] — p. 57
+- [[06-Messages|6. Messages]] — p. 60
+  - [[06-Messages#6.1. Authorize.req|6.1. Authorize.req]] — p. 60
+  - [[06-Messages#6.2. Authorize.conf|6.2. Authorize.conf]] — p. 60
+  - [[06-Messages#6.3. BootNotification.req|6.3. BootNotification.req]] — p. 60
+  - [[06-Messages#6.4. BootNotification.conf|6.4. BootNotification.conf]] — p. 61
+  - [[06-Messages#6.5. CancelReservation.req|6.5. CancelReservation.req]] — p. 61
+  - [[06-Messages#6.6. CancelReservation.conf|6.6. CancelReservation.conf]] — p. 61
+  - [[06-Messages#6.7. ChangeAvailability.req|6.7. ChangeAvailability.req]] — p. 61
+  - [[06-Messages#6.8. ChangeAvailability.conf|6.8. ChangeAvailability.conf]] — p. 62
+  - [[06-Messages#6.9. ChangeConfiguration.req|6.9. ChangeConfiguration.req]] — p. 62
+  - [[06-Messages#6.10. ChangeConfiguration.conf|6.10. ChangeConfiguration.conf]] — p. 62
+  - [[06-Messages#6.11. ClearCache.req|6.11. ClearCache.req]] — p. 62
+  - [[06-Messages#6.12. ClearCache.conf|6.12. ClearCache.conf]] — p. 63
+  - [[06-Messages#6.13. ClearChargingProfile.req|6.13. ClearChargingProfile.req]] — p. 63
+  - [[06-Messages#6.14. ClearChargingProfile.conf|6.14. ClearChargingProfile.conf]] — p. 63
+  - [[06-Messages#6.15. DataTransfer.req|6.15. DataTransfer.req]] — p. 63
+  - [[06-Messages#6.16. DataTransfer.conf|6.16. DataTransfer.conf]] — p. 64
+  - [[06-Messages#6.17. DiagnosticsStatusNotification.req|6.17. DiagnosticsStatusNotification.req]] — p. 64
+  - [[06-Messages#6.18. DiagnosticsStatusNotification.conf|6.18. DiagnosticsStatusNotification.conf]] — p. 64
+  - [[06-Messages#6.19. FirmwareStatusNotification.req|6.19. FirmwareStatusNotification.req]] — p. 64
+  - [[06-Messages#6.20. FirmwareStatusNotification.conf|6.20. FirmwareStatusNotification.conf]] — p. 65
+  - [[06-Messages#6.21. GetCompositeSchedule.req|6.21. GetCompositeSchedule.req]] — p. 65
+  - [[06-Messages#6.22. GetCompositeSchedule.conf|6.22. GetCompositeSchedule.conf]] — p. 65
+  - [[06-Messages#6.23. GetConfiguration.req|6.23. GetConfiguration.req]] — p. 65
+  - [[06-Messages#6.24. GetConfiguration.conf|6.24. GetConfiguration.conf]] — p. 66
+  - [[06-Messages#6.25. GetDiagnostics.req|6.25. GetDiagnostics.req]] — p. 66
+  - [[06-Messages#6.26. GetDiagnostics.conf|6.26. GetDiagnostics.conf]] — p. 66
+  - [[06-Messages#6.27. GetLocalListVersion.req|6.27. GetLocalListVersion.req]] — p. 66
+  - [[06-Messages#6.28. GetLocalListVersion.conf|6.28. GetLocalListVersion.conf]] — p. 67
+  - [[06-Messages#6.29. Heartbeat.req|6.29. Heartbeat.req]] — p. 67
+  - [[06-Messages#6.30. Heartbeat.conf|6.30. Heartbeat.conf]] — p. 67
+  - [[06-Messages#6.31. MeterValues.req|6.31. MeterValues.req]] — p. 67
+  - [[06-Messages#6.32. MeterValues.conf|6.32. MeterValues.conf]] — p. 67
+  - [[06-Messages#6.33. RemoteStartTransaction.req|6.33. RemoteStartTransaction.req]] — p. 68
+  - [[06-Messages#6.34. RemoteStartTransaction.conf|6.34. RemoteStartTransaction.conf]] — p. 68
+  - [[06-Messages#6.35. RemoteStopTransaction.req|6.35. RemoteStopTransaction.req]] — p. 68
+  - [[06-Messages#6.36. RemoteStopTransaction.conf|6.36. RemoteStopTransaction.conf]] — p. 68
+  - [[06-Messages#6.37. ReserveNow.req|6.37. ReserveNow.req]] — p. 68
+  - [[06-Messages#6.38. ReserveNow.conf|6.38. ReserveNow.conf]] — p. 69
+  - [[06-Messages#6.39. Reset.req|6.39. Reset.req]] — p. 69
+  - [[06-Messages#6.40. Reset.conf|6.40. Reset.conf]] — p. 69
+  - [[06-Messages#6.41. SendLocalList.req|6.41. SendLocalList.req]] — p. 69
+  - [[06-Messages#6.42. SendLocalList.conf|6.42. SendLocalList.conf]] — p. 70
+  - [[06-Messages#6.43. SetChargingProfile.req|6.43. SetChargingProfile.req]] — p. 70
+  - [[06-Messages#6.44. SetChargingProfile.conf|6.44. SetChargingProfile.conf]] — p. 70
+  - [[06-Messages#6.45. StartTransaction.req|6.45. StartTransaction.req]] — p. 71
+  - [[06-Messages#6.46. StartTransaction.conf|6.46. StartTransaction.conf]] — p. 71
+  - [[06-Messages#6.47. StatusNotification.req|6.47. StatusNotification.req]] — p. 71
+  - [[06-Messages#6.48. StatusNotification.conf|6.48. StatusNotification.conf]] — p. 72
+  - [[06-Messages#6.49. StopTransaction.req|6.49. StopTransaction.req]] — p. 72
+  - [[06-Messages#6.50. StopTransaction.conf|6.50. StopTransaction.conf]] — p. 72
+  - [[06-Messages#6.51. TriggerMessage.req|6.51. TriggerMessage.req]] — p. 73
+  - [[06-Messages#6.52. TriggerMessage.conf|6.52. TriggerMessage.conf]] — p. 73
+  - [[06-Messages#6.53. UnlockConnector.req|6.53. UnlockConnector.req]] — p. 73
+  - [[06-Messages#6.54. UnlockConnector.conf|6.54. UnlockConnector.conf]] — p. 73
+  - [[06-Messages#6.55. UpdateFirmware.req|6.55. UpdateFirmware.req]] — p. 73
+  - [[06-Messages#6.56. UpdateFirmware.conf|6.56. UpdateFirmware.conf]] — p. 74
+- [[07-Types|7. Types]] — p. 75
+  - [[07-Types#7.1. AuthorizationData|7.1. AuthorizationData]] — p. 75
+  - [[07-Types#7.2. AuthorizationStatus|7.2. AuthorizationStatus]] — p. 75
+  - [[07-Types#7.3. AvailabilityStatus|7.3. AvailabilityStatus]] — p. 75
+  - [[07-Types#7.4. AvailabilityType|7.4. AvailabilityType]] — p. 76
+  - [[07-Types#7.5. CancelReservationStatus|7.5. CancelReservationStatus]] — p. 76
+  - [[07-Types#7.6. ChargePointErrorCode|7.6. ChargePointErrorCode]] — p. 76
+  - [[07-Types#7.7. ChargePointStatus|7.7. ChargePointStatus]] — p. 77
+  - [[07-Types#7.8. ChargingProfile|7.8. ChargingProfile]] — p. 78
+  - [[07-Types#7.9. ChargingProfileKindType|7.9. ChargingProfileKindType]] — p. 79
+  - [[07-Types#7.10. ChargingProfilePurposeType|7.10. ChargingProfilePurposeType]] — p. 79
+  - [[07-Types#7.11. ChargingProfileStatus|7.11. ChargingProfileStatus]] — p. 80
+  - [[07-Types#7.12. ChargingRateUnitType|7.12. ChargingRateUnitType]] — p. 80
+  - [[07-Types#7.13. ChargingSchedule|7.13. ChargingSchedule]] — p. 80
+  - [[07-Types#7.14. ChargingSchedulePeriod|7.14. ChargingSchedulePeriod]] — p. 81
+  - [[07-Types#7.15. CiString20Type|7.15. CiString20Type]] — p. 81
+  - [[07-Types#7.16. CiString25Type|7.16. CiString25Type]] — p. 81
+  - [[07-Types#7.17. CiString50Type|7.17. CiString50Type]] — p. 82
+  - [[07-Types#7.18. CiString255Type|7.18. CiString255Type]] — p. 82
+  - [[07-Types#7.19. CiString500Type|7.19. CiString500Type]] — p. 82
+  - [[07-Types#7.20. ClearCacheStatus|7.20. ClearCacheStatus]] — p. 82
+  - [[07-Types#7.21. ClearChargingProfileStatus|7.21. ClearChargingProfileStatus]] — p. 83
+  - [[07-Types#7.22. ConfigurationStatus|7.22. ConfigurationStatus]] — p. 83
+  - [[07-Types#7.23. DataTransferStatus|7.23. DataTransferStatus]] — p. 83
+  - [[07-Types#7.24. DiagnosticsStatus|7.24. DiagnosticsStatus]] — p. 84
+  - [[07-Types#7.25. FirmwareStatus|7.25. FirmwareStatus]] — p. 84
+  - [[07-Types#7.26. GetCompositeScheduleStatus|7.26. GetCompositeScheduleStatus]] — p. 84
+  - [[07-Types#7.27. IdTagInfo|7.27. IdTagInfo]] — p. 85
+  - [[07-Types#7.28. IdToken|7.28. IdToken]] — p. 85
+  - [[07-Types#7.29. KeyValue|7.29. KeyValue]] — p. 85
+  - [[07-Types#7.30. Location|7.30. Location]] — p. 86
+  - [[07-Types#7.31. Measurand|7.31. Measurand]] — p. 86
+  - [[07-Types#7.32. MessageTrigger|7.32. MessageTrigger]] — p. 88
+  - [[07-Types#7.33. MeterValue|7.33. MeterValue]] — p. 88
+  - [[07-Types#7.34. Phase|7.34. Phase]] — p. 89
+  - [[07-Types#7.35. ReadingContext|7.35. ReadingContext]] — p. 89
+  - [[07-Types#7.36. Reason|7.36. Reason]] — p. 90
+  - [[07-Types#7.37. RecurrencyKindType|7.37. RecurrencyKindType]] — p. 90
+  - [[07-Types#7.38. RegistrationStatus|7.38. RegistrationStatus]] — p. 91
+  - [[07-Types#7.39. RemoteStartStopStatus|7.39. RemoteStartStopStatus]] — p. 91
+  - [[07-Types#7.40. ReservationStatus|7.40. ReservationStatus]] — p. 91
+  - [[07-Types#7.41. ResetStatus|7.41. ResetStatus]] — p. 92
+  - [[07-Types#7.42. ResetType|7.42. ResetType]] — p. 92
+  - [[07-Types#7.43. SampledValue|7.43. SampledValue]] — p. 92
+  - [[07-Types#7.44. TriggerMessageStatus|7.44. TriggerMessageStatus]] — p. 93
+  - [[07-Types#7.45. UnitOfMeasure|7.45. UnitOfMeasure]] — p. 93
+  - [[07-Types#7.46. UnlockStatus|7.46. UnlockStatus]] — p. 94
+  - [[07-Types#7.47. UpdateStatus|7.47. UpdateStatus]] — p. 94
+  - [[07-Types#7.48. UpdateType|7.48. UpdateType]] — p. 95
+  - [[07-Types#7.49. ValueFormat|7.49. ValueFormat]] — p. 95
+- [[08-Firmware-and-Diagnostics-File-Transfer|8. Firmware and Diagnostics File Transfer]] — p. 96
+  - [[08-Firmware-and-Diagnostics-File-Transfer#8.1. Download Firmware|8.1. Download Firmware]] — p. 96
+  - [[08-Firmware-and-Diagnostics-File-Transfer#8.2. Upload Diagnostics|8.2. Upload Diagnostics]] — p. 96
+- [[09-Configuration-Keys|9. Standard Configuration Key Names & Values]] — p. 97
+  - [[09-Configuration-Keys#9.1. Core Profile|9.1. Core Profile]] — p. 97
+  - [[09-Configuration-Keys#9.2. Local Auth List Management Profile|9.2. Local Auth List Management Profile]] — p. 106
+  - [[09-Configuration-Keys#9.3. Reservation Profile|9.3. Reservation Profile]] — p. 106
+  - [[09-Configuration-Keys#9.4. Smart Charging Profile|9.4. Smart Charging Profile]] — p. 107
+- [[Appendix-A-New-in-OCPP-1.6|Appendix A: New in OCPP 1.6]] — p. 109
+  - [[Appendix-A-New-in-OCPP-1.6|A.1. Updated/New Messages:]] — p. 109

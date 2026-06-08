@@ -1,0 +1,54 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:DataTransferRequest",
+    "title": "DataTransferRequest",
+    "type": "object",
+    "properties": {
+        "vendorId": {
+            "type": "string",
+            "maxLength": 255
+        },
+        "messageId": {
+            "type": "string",
+            "maxLength": 50
+        },
+        "data": {
+            "type": "string"
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "vendorId"
+    ]
+}
+
+Eg. :
+
+"DataTransfer",{"vendorId":"QUENCH","messageId":"VehicleID","data":"e00ee105d1d7"}]
+
+
+
+✅ 1. Valid JSON String
+"data": "{\"status\":\"OK\",\"uptime\":1200}"
+
+This is a string that contains a JSON structure.
+
+It's how you send structured data when the schema only allows a string.
+
+When received, the system can deserialize this string to access the internal fields (status, uptime).
+
+// Valid - string with JSON content
+{
+  "vendorId": "VendorX",
+  "data": "{\"status\":\"OK\",\"uptime\":1200}"
+}
+
+// Invalid - object instead of string
+{
+  "vendorId": "VendorX",
+  "data": {
+    "status": "OK",
+    "uptime": 1200
+  }
+}
+

@@ -1,0 +1,25 @@
+# --- Dependencies ---
+node_modules/
+
+# --- Build output ---
+dist/
+build/
+*.tsbuildinfo
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# --- Large sample logs (track via Git LFS if ever needed) ---
+data/samples/*.log
+
+# --- Orphaned working folder (empty; locked CWD prevented auto-delete) ---
+OCPP Client Parser MD Collection/

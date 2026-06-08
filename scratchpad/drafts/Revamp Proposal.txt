@@ -1,0 +1,59 @@
+Use of JSON Schema in the Project
+
+1. Runtime message validation (revamp opportunity) - validate parsed payloads against the standard JSON schema, flag malformed/non-compliantmessages
+Ties to: Strengthens the fault-analysis paths (the RCAs showed corrupted/contradictory payloads)
+
+2. Build-spec for the "Planned" message types — Authorize, Reservation, Firmware, Smart Charging, and the Repeated RemoteStart panel
+  Ties to: Section 8 (FR-055–058), Section E
+3. Test fixtures — valid/invalid examples derived from each schema
+  Ties to: tests/fixtures/ (Principle: tests are the cheapest lake)
+
+Where to use and Put JSON Schema : put them code-adjacent:src/schemas/ocpp-1.6/ (a validator module imports them).
+
+
+
+
+## 
+
+Here is a comprehensive list of expanded use cases and requirements framed as explicit PRD (Product Requirement Document) points to help you brainstorm and scope your MVP.
+
+---
+
+## OCPP 1.6J Log Validator: Requirement Points
+
+### 1. Structural & Format Validation
+
+* **Multi-Format Parsing Engine:** The system **MUST** accept and parse log files uploaded in `.txt`, `.log`, `.csv`, and `.xlsx` (Excel) formats, successfully isolating the raw JSON string array from typical log metadata prefixes (timestamps, thread IDs, log levels).
+* **OCPP RPC Frame Structure Validation:** The validator **MUST** check that every message adheres to the basic OCPP 1.6J WebSocket array format mapping: `[MessageTypeId, MessageId, Action, Payload]` for Requests, and `[MessageTypeId, MessageId, Payload]` for Responses/Errors.
+* **Official JSON Schema Compliance:** The system **MUST** validate the payload of each message against the official OCPP 1.6J JSON schemas, flagging explicit schema violations (e.g., incorrect data types or missing mandatory fields like `connectorId` in `StatusNotification` etc.).
+
+### 2. Transactional & State Machine Validation
+
+* **Request-Response Pairing Validation:** The validator **MUST** track `MessageId` values to ensure every Call (Request) has a matching CallResult (Response) or CallError, calculating and reporting the latency/round-trip time between them.
+* **Transaction Lifecycle Flow Checks:** The system **MUST** analyze and validate sequence compliance for charging sessions. For example, a `StopTransaction` or a series of `MeterValues` **MUST NOT** occur without a preceding, successfully acknowledged `StartTransaction` utilizing the same `transactionId` ( Laundary list of Transaction Lifecycle Flow Checks must be prepared ) 
+* **Boot and Status Sync Validation:** The validator **MUST** flag logs where a Charge Point sends core operational messages (like `Heartbeat` or `MeterValues`) *before* it has received an `Accepted` status in a `BootNotificationResponse`. Similar to this laundary list of other such OCPP 1.6 J Validation must taken from the official OCPP 1.6J 
+
+### 3. Business Logic, Data , Transaction Integrity
+
+* **MeterValue Chronological Sanity Checks:** The system **MUST** evaluate sequential `MeterValues` to ensure that `meterStop` values are logically greater than or equal to `meterStart` values, and that energy readings (`SampledValue`) increment monotonically rather than jumping or dropping erratically.
+* **Errata Sheet Adjustments:** The validator **SHOULD** include a toggle to handle known quirks from the official OCPP 1.6J Errata sheet (e.g., handling the known schema typo regarding the unit "Celsius" in `MeterValues.json` and `StopTransaction.json`).
+* **Contextual Charging Profile Constraints:** The system **SHOULD** flag logic errors where a `SetChargingProfile` request attempts to configure a profile for a `connectorId` that doesn't exist, or outlines a schedule that breaks standard smart charging bounds.
+* Laundary list of all other business logic most importantly around transaction related. 
+
+
+
+
+
+
+Type-aware validation Check:
+1. The structure of the data (schema validation)
+2. The data type and relationship between messages (type checking)
+In OCPP terms, it doesn't just check whether a message is valid JSON—it also checks whether the message is the correct type and logically matches the related request.
+
+
+that is  instead of merely checking, "Is this JSON valid?" it checks, "Is this the correct OCPP message type, does it follow the schema, and does this response belong to the original request?
+
+
+
+
+Library for Emulator : https://github.com/SAP/e-mobility-charging-stations-simulator

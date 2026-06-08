@@ -1,0 +1,35 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:StartTransactionRequest",
+    "title": "StartTransactionRequest",
+    "type": "object",
+    "properties": {
+        "connectorId": {
+            "type": "integer"
+        },
+        "idTag": {
+            "type": "string",
+            "maxLength": 20
+        },
+        "meterStart": {
+            "type": "integer"
+        },
+        "reservationId": {
+            "type": "integer"
+        },
+        "timestamp": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "connectorId",
+        "idTag",
+        "meterStart",
+        "timestamp"
+    ]
+}
+
+
+[2,"7719f45c-b272-409e-b185-085e58601005","StartTransaction",{"connectorId":1,"idTag":"5693","meterStart":20756129,"timestamp":"2026-02-16T03:43:51.098Z"}]

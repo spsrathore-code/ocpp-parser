@@ -1,0 +1,81 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:StatusNotificationRequest",
+    "title": "StatusNotificationRequest",
+    "type": "object",
+    "properties": {
+        "connectorId": {
+            "type": "integer"
+        },
+        "errorCode": {
+            "type": "string",
+            "additionalProperties": false,
+            "enum": [
+                "ConnectorLockFailure",
+                "EVCommunicationError",
+                "GroundFailure",
+                "HighTemperature",
+                "InternalError",
+                "LocalListConflict",
+                "NoError",
+                "OtherError",
+                "OverCurrentFailure",
+                "PowerMeterFailure",
+                "PowerSwitchFailure",
+                "ReaderFailure",
+                "ResetFailure",
+                "UnderVoltage",
+                "OverVoltage",
+                "WeakSignal"
+            ]
+        },
+        "info": {
+            "type": "string",
+            "maxLength": 50
+        },
+        "status": {
+            "type": "string",
+            "additionalProperties": false,
+            "enum": [
+                "Available",
+                "Preparing",
+                "Charging",
+                "SuspendedEVSE",
+                "SuspendedEV",
+                "Finishing",
+                "Reserved",
+                "Unavailable",
+                "Faulted"
+            ]
+        },
+        "timestamp": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "vendorId": {
+            "type": "string",
+            "maxLength": 255
+        },
+        "vendorErrorCode": {
+            "type": "string",
+            "maxLength": 50
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "connectorId",
+        "errorCode",
+        "status"
+    ]
+}
+
+[2,"34a2d870-c413-4a81-b9c4-8e65cb965d1f","StatusNotification",{"connectorId":1,"errorCode":"NoError","status":"Charging","timestamp":"2026-02-16T03:43:52.121Z","vendorId":"QUENCH"}]
+
+
+[2,"15599022-ca81-4640-a8bf-bdbe138cc58c","StatusNotification",{"connectorId":0,"errorCode":"OtherError","info":"PowerFailure","status":"Faulted","timestamp":"2026-02-16T01:32:44.686Z","vendorId":"QUENCH","vendorErrorCode":"19"}]
+
+
+
+
+
+

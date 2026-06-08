@@ -1,0 +1,20 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "urn:OCPP:1.6:2019:12:AuthorizeRequest",
+    "title": "AuthorizeRequest",
+    "type": "object",
+    "properties": {
+        "idTag": {
+            "type": "string",
+            "maxLength": 20
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "idTag"
+    ]
+}
+
+[2,"4ca33de2-5bfd-47ce-bbb9-9eb2e1ff0fc5","Authorize",{"idTag":"VID:381F26326F04"}]
+
+[2,"b52e9716-c112-4509-a008-8dd331d3278b","Authorize",{"idTag":"7378"}]
