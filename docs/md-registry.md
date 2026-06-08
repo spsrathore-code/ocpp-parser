@@ -36,7 +36,7 @@
 | [project-standard.md](../project-standard.md) | `RULES` | `ACTIVE` | Universal repo structure rules and folder tree for all Claude projects | Repo structure changes; new file types; new governance rules |
 | [operating-principles.md](../operating-principles.md) | `RULES` | `ACTIVE` | 13 operating principles governing how Claude works in this repo | New constraint decided; workflow rule added |
 
-> ⚠️ `operating-principles.md` is at repo root but `CLAUDE.md` cites it as `knowledge/operating-principles.md`. Verify canonical location and consolidate if duplicated.
+> Canonical location confirmed: root. `CLAUDE.md` reference corrected (2026-06-08).
 
 ---
 

@@ -1,7 +1,7 @@
 # CLAUDE.md — AI Entry Point
 
 > Read this first every session.
-> **How to work** → `knowledge/operating-principles.md`. **How the repo is organised** → `knowledge/project-standard.md`. **Single source of truth for the Parser** → `specs/requirements.md`.
+> **How to work** → `operating-principles.md`. **How the repo is organised** → `project-standard.md`. **Single source of truth for the Parser** → `specs/requirements.md`.
 
 ## What this repo is
 
