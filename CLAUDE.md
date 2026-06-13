@@ -35,6 +35,21 @@ A **mega-repo for an OCPP tool suite** (Ador Digatron · DC fast chargers · OCP
 
 After editing `src/app/OCPP_Parser_Complete_ 21 Jan'26.html`: copy it to root `index.html`, commit, push — GitHub Pages auto-deploys. Full steps in `specs/requirements.md` → *Deploy Workflow*.
 
+## Skill Chain (Think → Plan → Build → Review → Test → Ship → Reflect)
+
+All significant work uses the skill chain. See `docs/skill-chain.md` for the full
+design. See `skills/WORKFLOW.md` for current feature state.
+
+- Invoke skills via slash commands: `/office-hours`, `/spec`, `/plan-eng-review`,
+  `/review`, `/cso`, `/qa`, `/ship`, `/learn`, etc.
+- Each skill reads `skills/WORKFLOW.md`, prints a phase banner, checks prerequisites,
+  does its work, updates WORKFLOW.md, and prints the next command.
+- Build phase: run `/build-complete` when implementation is done. Forgot? `/review`
+  will prompt you.
+- Safety tools available any time: `/careful`, `/freeze`, `/guard`, `/unfreeze`.
+- Never skip phases without recording the skip in `skills/WORKFLOW.md`.
+- Session journal: say "update the journal" → appends to `knowledge/project-journal.md`.
+
 ## Where things live
 
 `specs/` plan · `src/` build (`app/` parser · `schemas/` OCPP schemas · future `services/` = validation engine) · `tests/` · `docs/` (incl. validation spec) · `knowledge/` (standards, principles, diagnostics L-001/2/3) · `data/samples/` logs · `assets/` images · `archive/` · `scratchpad/`.
