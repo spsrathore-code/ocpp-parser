@@ -49,6 +49,7 @@ design. See `skills/WORKFLOW.md` for current feature state.
 - Safety tools available any time: `/careful`, `/freeze`, `/guard`, `/unfreeze`.
 - Never skip phases without recording the skip in `skills/WORKFLOW.md`.
 - Session journal: say "update the journal" → appends to `knowledge/project-journal.md`.
+- **Keep tracking current as you go — do NOT defer it to Ship/Reflect.** Update `specs/roadmap.md` (the live suite dashboard — the single "how far / how long" view of all 5 tools) at **every phase / sub-phase boundary**; refresh `specs/tasks.md` as items move; append to `knowledge/project-journal.md` each session. Long multi-phase builds must not run with stale trackers.
 
 ## Where things live
 

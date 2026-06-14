@@ -1,22 +1,32 @@
 # Tasks — current work items
 
-> Living list. Done items move to `../CHANGELOG.md`.
+> Living list of granular work. **Suite-level status is in `specs/roadmap.md`** (the
+> dashboard); this file is the finer-grained active task list. Done items also flow
+> to `knowledge/project-journal.md` and (for shipped parser changes) `CHANGELOG.md`.
+> **Last updated:** 2026-06-14
 
 ## Done
 
-- [x] Consolidate scattered MD docs into one SSOT (`requirements.md`).
-- [x] Reconcile SSOT against the actual tool source (v2.7 — downtime engine, Sections 18/19, etc.).
-- [x] Decide OCPP schema strategy (`requirements.md` §19.7) and write the Validation Engine spec (`../docs/TYPEVALIDATION.md`).
-- [x] Standardise the repo to `../knowledge/project-standard.md` (full tree, files placed, governance files authored).
+- [x] SSOT consolidation (`requirements.md`), repo standardisation, OCPP schema strategy (§19.7), Validation Engine spec (`docs/TYPEVALIDATION.md`).
+- [x] Skill chain implemented (28 skills).
+- [x] **Validation Engine Phase 1 (L1–L3)** — spike (typed-ocpp browser bundle), build, `/review`+`/cso` (R1 fixed + 2 regression tests), `/qa` (788 real frames, 0 bugs). 25 tests; ESM+CJS+browser. PR pushed.
+- [x] Global `~/.claude/` streamlined — `operating-principles.md` + `project-standard.md` as canon, thin `CLAUDE.md`.
+- [x] **Parser revamp Phase 0** — Vite+TS scaffold, data model ported (§19.3), old parser archived (`archive/parser-v2026.05.14/`).
+- [x] Suite tracking established — `specs/roadmap.md` dashboard, journal caught up, `CLAUDE.md` status refreshed.
 
 ## Next
 
-- [ ] **Delete the leftover empty `OCPP Client Parser MD Collection/`** (locked CWD blocked auto-delete; git-ignored for now). Easy once VS Code is reopened on the P4 root.
-- [ ] Update the Deploy Workflow in `requirements.md` to the new source path (`src/app/…html`).
-- [ ] Validation Engine — **`typed-ocpp` browser-bundling spike** (`../docs/TYPEVALIDATION.md` §7), then `writing-plans`.
+- [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
+- [ ] **Parser revamp Phase 1** — core pipeline (`parse → correlate → group → processTransactions`) + golden-master fixture tests vs `data/samples/`.
 
 ## Later
 
-- [ ] Parser revamp — decompose the monolith into `src/` modules (< 2,000 lines each) + `tests/`.
-- [ ] Fold the L4 rule catalog ("laundry list") from `../scratchpad/drafts/Revamp Proposal.txt` + Protocol Compliance + L-001/2/3 into the Validation Engine.
-- [ ] CMS, Charger Emulator (SAP candidate), Training Emulator.
+- [ ] Parser revamp **Phases 2–5** — detection/health/protocol/ws → render/UI (19 sections) → repository/timeline/api-download → parity gate + deploy swap.
+- [ ] **Engine ↔ Parser integration** (after the revamp reaches parity).
+- [ ] **Validation Engine Phase 2** — L4 rule catalog (Protocol Compliance + diagnostics L-001/2/3 + OCPP 1.6J rules) into the `registerProtocolRules` extension point.
+- [ ] **CMS**, **Charger Emulator** (SAP candidate), **Training Emulator**.
+
+## Housekeeping
+
+- [ ] Delete the leftover empty `OCPP Client Parser MD Collection/` (git-ignored; locked CWD blocked auto-delete).
+- [ ] Remove the project-copy `operating-principles.md` / `project-standard.md` once the global `~/.claude/` canon is finalised.
