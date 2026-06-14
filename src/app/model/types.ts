@@ -65,16 +65,20 @@ export type InternalTxMap = Map<string, string>;
 export type TxStatus = 'Aborted' | 'Completed';
 
 /**
- * Canonical transaction object produced by `processTransactions`
- * (spec §19.3). `id` is the CMS transactionId taken from the StartTx
- * **responsePayload** (Bug Fix #1), not the request.
+ * Canonical transaction object produced by `processTransactions` (spec §19.3).
+ * `id` = the CMS transactionId from the StartTx **responsePayload** (Bug Fix #1).
+ *
+ * NOTE: field shapes mirror the v2026.05.14 tool exactly, for parity — including
+ * the `'N/A'` sentinels and the `toFixed(2)` string powers. Normalising these to
+ * uniform numeric/null types is a candidate optimization for a later phase, to be
+ * done only with rendered-UI parity verified. Stop-derived fields are optional
+ * because they are populated only when a matching StopTransaction is found — and
+ * only such (complete) transactions are returned.
  */
 export interface Transaction {
   id: number;
   startTime: string;
-  stopTime?: string;
   meterStart?: number; // Wh
-  meterStop?: number; // Wh
   connectorId?: number;
   idTag?: string;
   meterValues: ParsedMessage[]; // grouped MeterValues messages
@@ -82,36 +86,40 @@ export interface Transaction {
   // Section 15 — offline replay
   isOfflineReplay: boolean;
   recordedTimestamp?: string;
-  logTimestamp?: string;
-  replayDelayMs?: number;
+  logTimestamp: string;
+  replayDelayMs: number;
 
   // Section 16 — internal id mapping
-  internalTransactionId?: string;
+  internalTransactionId: string | null;
 
-  // StopTx transactionData
-  socBegin?: number;
-  socEnd?: number;
+  // --- populated on StopTransaction ---
+  stopTime?: string;
+  meterStop?: number; // Wh
+  stopReason?: string;
+
+  socBegin?: string; // 'N/A' or the sampled SoC value (string)
+  socEnd?: string;
   location?: string;
 
-  duration?: number; // minutes (stop − start)
-  totalEnergy?: number; // kWh ((meterStop − meterStart) / 1000)
+  duration?: number | 'N/A'; // minutes (stop − start)
+  totalEnergy?: number | 'N/A'; // kWh ((meterStop − meterStart) / 1000)
 
-  avgPower?: number; // kW (Power.Active.Import, W→kW)
-  peakPower?: number; // kW
+  avgPower?: string; // kW as toFixed(2) string, or 'N/A'
+  peakPower?: string;
 
-  maxTempInlet: number | null; // °C, null if none
-  maxTempOutlet: number | null;
-  maxTempBody: number | null;
+  maxTempInlet?: number | null; // °C, null if none
+  maxTempOutlet?: number | null;
+  maxTempBody?: number | null;
 
   // Section 10.4 — current delivery (Current.Import Outlet-vs-EV pairs)
   currentPairCount?: number;
-  avgCurrentOutlet?: number;
-  avgCurrentEV?: number;
+  avgCurrentOutlet?: number | null;
+  avgCurrentEV?: number | null;
 
   // Section 10.3 — start/stop meter continuity (per connector)
   startStopDiff?: number | null;
 
-  status: TxStatus;
+  status?: TxStatus;
 }
 
 /** Create an empty, fully-keyed `messageGroups` bucket. */
