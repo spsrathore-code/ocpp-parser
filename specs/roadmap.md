@@ -12,7 +12,7 @@
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
 | 1 | **Validation Engine** (L1–L3) | 🟢 Phase 1 built · PR open | Ship | `feat/validation-engine` (pushed; PR pending merge) | Merge PR → `main`; then L4 (Phase 2) |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 0 of 6) | Build | `feat/parser-revamp` | Phase 1 — core pipeline |
+| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 1 of 6 done) | Build | `feat/parser-revamp` | Phase 2 — detection/health/protocol/ws |
 | — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
 | 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
 | 4 | **Charger Emulator** | ⚪ Planned (adopt/fork SAP sim) | — | — | Evaluate SAP `e-mobility-charging-stations-simulator` |
@@ -37,7 +37,7 @@ Goal: rebuild the 9,813-line single-file parser as modular TS+Vite — exact fea
 parity with v2026.05.14, optimized, bugs fixed. Spec: `specs/requirements.md` (SSOT).
 
 - [x] **Phase 0 — Scaffold** (Vite+TS, ported data model §19.3, old parser archived to `archive/parser-v2026.05.14/`).
-- [ ] **Phase 1 — Core pipeline** (parse → correlate → group → processTransactions) + golden-master fixture tests vs sample logs.
+- [x] **Phase 1 — Core pipeline** (parse → correlate → group → processTransactions) — `src/app/parse/`, 25 tests incl. real-sample parity (2 tx).
 - [ ] **Phase 2 — Detection / health / protocol / ws** modules.
 - [ ] **Phase 3 — Render/UI** (19 sections, charts, export, theme).
 - [ ] **Phase 4 — Repository / timeline / api-download.**

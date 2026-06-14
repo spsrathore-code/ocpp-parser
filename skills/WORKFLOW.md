@@ -24,7 +24,7 @@ until parity proven (Phase 5). Build runs as phased sub-cycles (0–5).
 
 ### Build sub-phases
 - [x] **Phase 0 — Scaffold:** Vite+TS project, test harness, build-to-static, ported data model (§19.3 → `src/app/model/types.ts`). Old parser archived to `archive/parser-v2026.05.14/`.
-- [ ] **Phase 1 — Core pipeline:** parse → correlate → group → processTransactions + fixture tests vs sample logs.
+- [x] **Phase 1 — Core pipeline:** parse → correlate → group → processTransactions ported (`src/app/parse/`). 25 tests (synthetic + real-sample: 2 tx). config + Transaction type parity-revised.
 - [ ] **Phase 2 — Detection/health/protocol/ws** modules.
 - [ ] **Phase 3 — Render/UI** (19 sections, charts, export, theme).
 - [ ] **Phase 4 — Repository / timeline / api-download.**
