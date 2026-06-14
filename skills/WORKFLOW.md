@@ -25,7 +25,11 @@ until parity proven (Phase 5). Build runs as phased sub-cycles (0–5).
 ### Build sub-phases
 - [x] **Phase 0 — Scaffold:** Vite+TS project, test harness, build-to-static, ported data model (§19.3 → `src/app/model/types.ts`). Old parser archived to `archive/parser-v2026.05.14/`.
 - [x] **Phase 1 — Core pipeline:** parse → correlate → group → processTransactions ported (`src/app/parse/`). 25 tests (synthetic + real-sample: 2 tx). config + Transaction type parity-revised.
-- [ ] **Phase 2 — Detection/health/protocol/ws** modules.
+- [~] **Phase 2 — Detection/health/protocol/ws** modules (in progress).
+  - [x] **2a — Detection** (`src/app/detect/`): `downtimeConfig` (4 fault types), `detectDowntimes` (+ same-pass WS event harvest, returned not globalised), `missingSync` (Power-Restore + Emergency-Stop sync flags), `incompleteTransactions`. +12 tests (37 total).
+  - [x] **2b — WebSocket health** (`src/app/ws/`): `analyzeWebSocketHealth` (two-pointer PING↔PONG match, adaptive interval, stall + missed-PONG detection, Healthy/Warning/Critical status) consuming the harvested `wsEvents`. +4 tests (41 total). Render (`createWebSocketHealthSection`) deferred to Phase 3.
+  - [x] **2c — Protocol compliance** (`src/app/protocol/`): `runProtocolValidation` (5 groups / 21 system checks + 10-stage per-tx lifecycle + compliance summary) + `detectPhantomConnectionPattern` (L-001). internalTxMap + rawLogLines passed in, not globalised. +7 tests (48 total). *(Source has 21 checks, not the doc's 24 — doc drift, source canonical.)* Render deferred to Phase 3.
+  - [ ] **2d — Health aggregation** (§10 connector stats over `processTransactions`).
 - [ ] **Phase 3 — Render/UI** (19 sections, charts, export, theme).
 - [ ] **Phase 4 — Repository / timeline / api-download.**
 - [ ] **Phase 5 — Parity gate + deploy swap.**

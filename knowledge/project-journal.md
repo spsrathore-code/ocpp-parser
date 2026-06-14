@@ -214,3 +214,31 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
 - Resume **Parser revamp Phase 1** — core pipeline (`parse → correlate → group → processTransactions`) with golden-master fixture tests vs `data/samples/`.
 - Later: Parser Phases 2–5; then engine↔parser integration; then the L4 rule catalog.
+
+---
+
+## 2026-06-15 - code-review-graph MCP setup + Parser revamp Phase 2a (Detection), 2b (WebSocket health) & 2c (Protocol compliance)
+
+### Discussed
+- Setting up the `code-review-graph` MCP server (https://github.com/tirth8205/code-review-graph) for this project and globally for all projects.
+- Resuming Parser revamp Phase 2 after Phase 1 (core pipeline) completed.
+
+### Decided
+- Install `code-review-graph` via **pipx** (isolated venv) rather than global pip, for a clean `.exe` path and to keep the heavy Tree-sitter/embeddings deps off global Python.
+- Register the MCP server at **user scope** (`claude mcp add -s user`) so it is available in all projects (covers this one too); omit `--repo` so it auto-detects the active project. Set `PYTHONUTF8=1` for Windows.
+- Do NOT run `code-review-graph install` (it injects into CLAUDE.md + adds hooks/skills) - keep the curated setup; register manually instead.
+- Phase 2 runs as sub-phases 2a Detection -> 2b WS health -> 2c Protocol -> 2d Health aggregation (natural dependency order; detection harvests the WS events 2b needs).
+- Behaviour-preserving deviation: `detectDowntimes` RETURNS the WS PING/PONG/server-PING streams instead of writing `window._wsPingEvents` globals (same pattern as Phase 1's pass-in internalTxMap).
+
+### Implemented
+- **code-review-graph 2.3.6** installed (pipx); MCP server registered user-scope, status Connected; graph built for this repo (62 nodes / 479 edges, TS). Tool self-manages git hygiene via `.code-review-graph/.gitignore` (`*`) - DB never committed.
+- **Parser revamp Phase 2a - Detection** (`src/app/detect/`): `types.ts`, `downtimeConfig.ts` (4 fault types: Connection Lost / Power Failure / Input Under Voltage / Emergency Stop), `detectDowntimes.ts` (single-pass downtime engine + WS event harvest, returned not globalised), `missingSync.ts` (`detectMissingBootAfterPowerRestore` + `detectMissingStatusAfterEmergencyStop`), `incompleteTransactions.ts`. +12 tests (`detect.test.ts`, `detectFlags.test.ts`) -> **37 tests total**, typecheck clean.
+- Trackers refreshed at the sub-phase boundary: `skills/WORKFLOW.md`, `specs/roadmap.md`, `specs/tasks.md`.
+- **Parser revamp Phase 2b - WebSocket health** (`src/app/ws/`): `analyzeWebSocketHealth` ported (two-pointer O(n+m) PING<->PONG match, adaptive interval avg, stall = interval > 2x avg, missed-PONG via 10s timeout, Healthy/Warning/Critical status) consuming the harvested `wsEvents`. The DOM section (`createWebSocketHealthSection`, incl. 500-row cap) is deferred to Phase 3 render. +4 tests -> **41 tests total**, typecheck clean.
+- **Parser revamp Phase 2c - Protocol compliance** (`src/app/protocol/`): `runProtocolValidation` ported (5 groups BOOT/RESP/TXC/STATUS/MV = 21 system checks + 10-stage per-transaction lifecycle + compliance summary) + `detectPhantomConnectionPattern` (L-001). `internalTxMap` + `rawLogLines` passed in (not globalised). Render (`createProtocolValidationSection`) deferred to Phase 3. +7 tests -> **48 tests total**, typecheck clean.
+- **Discrepancy found**: source defines **21** system checks, but spec FR-142 says "24". Ported the source (canonical); FR-142 needs reconciling.
+
+### Next
+- Commit Phase 2a + 2b + 2c on `feat/parser-revamp` (not yet committed - per user).
+- **Phase 2d - Health aggregation** (Section 10 connector stats over `processTransactions`) - final Phase 2 sub-phase. Then Phase 2 closes; Phase 3 (Render/UI) begins.
+- Reconcile FR-142 check count (21 vs 24) in `specs/requirements.md`.

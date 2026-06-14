@@ -3,7 +3,7 @@
 > Living list of granular work. **Suite-level status is in `specs/roadmap.md`** (the
 > dashboard); this file is the finer-grained active task list. Done items also flow
 > to `knowledge/project-journal.md` and (for shipped parser changes) `CHANGELOG.md`.
-> **Last updated:** 2026-06-14
+> **Last updated:** 2026-06-15
 
 ## Done
 
@@ -13,15 +13,19 @@
 - [x] Global `~/.claude/` streamlined — `operating-principles.md` + `project-standard.md` as canon, thin `CLAUDE.md`.
 - [x] **Parser revamp Phase 0** — Vite+TS scaffold, data model ported (§19.3), old parser archived (`archive/parser-v2026.05.14/`).
 - [x] Suite tracking established — `specs/roadmap.md` dashboard, journal caught up, `CLAUDE.md` status refreshed.
+- [x] **Parser revamp Phase 1** — core pipeline (`parse → correlate → group → processTransactions`), 25 tests incl. real-sample parity.
+- [x] **Parser revamp Phase 2a — Detection** (`src/app/detect/`): downtime engine + 4 fault-type config + same-pass WS event harvest (returned, not globalised) + missing-sync (Power-Restore / Emergency-Stop) + incomplete-transactions. +12 tests.
+- [x] **Parser revamp Phase 2b — WebSocket health** (`src/app/ws/`): `analyzeWebSocketHealth` (two-pointer PING↔PONG match, adaptive interval, stall/missed-PONG, health status) over the harvested `wsEvents`. +4 tests.
+- [x] **Parser revamp Phase 2c — Protocol compliance** (`src/app/protocol/`): `runProtocolValidation` (5 groups / 21 system checks + 10-stage per-tx lifecycle + compliance summary) + `detectPhantomConnectionPattern` (L-001). internalTxMap + rawLogLines passed in. +7 tests (48 total); typecheck clean. *(Source = 21 checks; doc's "24" is drift — reconcile FR-142 later.)*
 
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 1** — core pipeline (`parse → correlate → group → processTransactions`) + golden-master fixture tests vs `data/samples/`.
+- [ ] **Parser revamp Phase 2d — Health aggregation** (§10 connector stats over `processTransactions`) — final Phase 2 sub-phase.
 
 ## Later
 
-- [ ] Parser revamp **Phases 2–5** — detection/health/protocol/ws → render/UI (19 sections) → repository/timeline/api-download → parity gate + deploy swap.
+- [ ] Parser revamp **Phases 3–5** — render/UI (19 sections) → repository/timeline/api-download → parity gate + deploy swap.
 - [ ] **Engine ↔ Parser integration** (after the revamp reaches parity).
 - [ ] **Validation Engine Phase 2** — L4 rule catalog (Protocol Compliance + diagnostics L-001/2/3 + OCPP 1.6J rules) into the `registerProtocolRules` extension point.
 - [ ] **CMS**, **Charger Emulator** (SAP candidate), **Training Emulator**.
