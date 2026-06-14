@@ -53,6 +53,30 @@ describe('ExchangeTracker — orphans (VAL-005)', () => {
   });
 });
 
+describe('ExchangeTracker — MessageId reuse (regression: R1)', () => {
+  it('treats a recycled MessageId as a fresh exchange (does not drop the second)', () => {
+    const t = new ExchangeTracker();
+    t.add(bootCall);     // a1 #1
+    t.add(bootResult);   // a1 #1 response
+    t.add(bootCall);     // a1 #2 (recycled id)
+    t.add(bootResult);   // a1 #2 response
+    const ex = t.finalize();
+    expect(ex).toHaveLength(2);
+    expect(ex.every(e => e.status === 'matched')).toBe(true);
+  });
+
+  it('flushes a still-pending Call as orphan-call when the same id is reused before a response', () => {
+    const t = new ExchangeTracker();
+    t.add(bootCall);     // a1 #1 — never answered
+    t.add(bootCall);     // a1 #2 — displaces #1
+    t.add(bootResult);   // answers #2
+    const ex = t.finalize();
+    expect(ex).toHaveLength(2);
+    expect(ex[0].status).toBe('orphan-call');
+    expect(ex[1].status).toBe('matched');
+  });
+});
+
 describe('ExchangeTracker — latency (VAL-006)', () => {
   it('computes latencyMs from the two timestamps', () => {
     const t = new ExchangeTracker();

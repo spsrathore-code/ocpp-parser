@@ -31,11 +31,16 @@ function computeLatency(callTs?: string, respTs?: string): number | undefined {
  * Correlates Calls with their responses over a stream of frames (L3).
  * Stateful: `add` each frame as it arrives, then `finalize` to resolve
  * remaining orphans and emit the exchange list.
+ *
+ * MessageId reuse: a Call is removed from the pending map the moment it is
+ * paired, so a recycled MessageId (normal over a long session under the OCPP
+ * synchronicity rule, J04 §4.1.1) starts a fresh exchange rather than being
+ * dropped. A second still-unresolved Call with the same id (a synchronicity
+ * violation) flushes the earlier one as an orphan-call.
  */
 export class ExchangeTracker {
-  private readonly calls = new Map<string, PendingCall>();
+  private readonly pendingCalls = new Map<string, PendingCall>();
   private readonly earlyResponses: PendingResponse[] = [];
-  private readonly resolved = new Set<string>();
   private readonly exchanges: ExchangeResult[] = [];
 
   add(frame: RawFrame, ts?: string): MessageResult {
@@ -44,21 +49,32 @@ export class ExchangeTracker {
     if (!id) return result; // un-correlatable (e.g. L1-invalid frame)
 
     if (result.kind === 'Call') {
-      this.calls.set(id, { messageId: id, action: result.action, ts, frame });
-      // A response may have arrived earlier (out of order) — resolve it now.
-      const pending = this.earlyResponses.find(r => r.messageId === id);
-      if (pending) this.resolvePair(this.calls.get(id)!, pending);
+      const call: PendingCall = { messageId: id, action: result.action, ts, frame };
+      // A response may have arrived earlier (out of order) — pair immediately.
+      const idx = this.earlyResponses.findIndex(r => r.messageId === id);
+      if (idx >= 0) {
+        const [resp] = this.earlyResponses.splice(idx, 1);
+        this.resolvePair(call, resp);
+      } else {
+        // A still-pending Call with the same id never got a response → orphan it.
+        const displaced = this.pendingCalls.get(id);
+        if (displaced) this.pushOrphanCall(displaced);
+        this.pendingCalls.set(id, call);
+      }
     } else if (result.kind === 'CallResult' || result.kind === 'CallError') {
-      const call = this.calls.get(id);
       const resp: PendingResponse = { messageId: id, kind: result.kind, frame, ts };
-      if (call && !this.resolved.has(id)) this.resolvePair(call, resp);
-      else this.earlyResponses.push(resp);
+      const call = this.pendingCalls.get(id);
+      if (call) {
+        this.pendingCalls.delete(id);
+        this.resolvePair(call, resp);
+      } else {
+        this.earlyResponses.push(resp);
+      }
     }
     return result;
   }
 
   private resolvePair(call: PendingCall, resp: PendingResponse): void {
-    this.resolved.add(call.messageId);
     const violations: Violation[] = [];
     let status: ExchangeStatus = 'matched';
 
@@ -85,10 +101,22 @@ export class ExchangeTracker {
     });
   }
 
+  private pushOrphanCall(call: PendingCall): void {
+    this.exchanges.push({
+      messageId: call.messageId,
+      action: call.action,
+      status: 'orphan-call',
+      violations: [{
+        layer: 'L3',
+        code: 'UNMATCHED_CALL',
+        message: `Call ${call.messageId} (${call.action ?? 'unknown'}) has no response`,
+      }],
+    });
+  }
+
   finalize(): ExchangeResult[] {
-    // Early responses that never found a Call → orphan-response.
+    // Responses that never found a Call → orphan-response.
     for (const resp of this.earlyResponses) {
-      if (this.resolved.has(resp.messageId)) continue;
       this.exchanges.push({
         messageId: resp.messageId,
         status: 'orphan-response',
@@ -100,18 +128,8 @@ export class ExchangeTracker {
       });
     }
     // Calls that never got a response → orphan-call.
-    for (const call of this.calls.values()) {
-      if (this.resolved.has(call.messageId)) continue;
-      this.exchanges.push({
-        messageId: call.messageId,
-        action: call.action,
-        status: 'orphan-call',
-        violations: [{
-          layer: 'L3',
-          code: 'UNMATCHED_CALL',
-          message: `Call ${call.messageId} (${call.action ?? 'unknown'}) has no response`,
-        }],
-      });
+    for (const call of this.pendingCalls.values()) {
+      this.pushOrphanCall(call);
     }
     return this.exchanges;
   }
