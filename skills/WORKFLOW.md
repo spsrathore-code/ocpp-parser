@@ -14,8 +14,8 @@
 | Plan    | /plan-eng-review                          | ✅ Complete | 2026-06-13 |
 | Build   | /build-complete (checkpoint, not impl.)   | ✅ Complete | 2026-06-14 |
 | Review  | /review + /cso                            | ✅ Complete | 2026-06-14 |
-| Test    | /qa                                       | ⏳ Active   |            |
-| Ship    | /ship + /document-release + /canary       | ⬜ Pending  |            |
+| Test    | /qa                                       | ✅ Complete | 2026-06-14 |
+| Ship    | /ship + /document-release + /canary       | ⏳ Active   |            |
 | Reflect | /retro + /learn                           | ⬜ Pending  |            |
 
 ### Key outputs
@@ -23,7 +23,7 @@
 - **Plan:** `docs/superpowers/plans/2026-06-13-validation-engine-phase1.md`
 - **Build:** branch `feat/validation-engine`; engine in `src/services/validation/` (25 tests passing, ESM+CJS+browser build green)
 - **Review:** /review — 1 bug found & fixed (R1: ExchangeTracker dropped exchanges on MessageId reuse) + 2 regression tests; 4 notes deferred. /cso — 0 engine fixes; security notes (consumer must render violations as textContent; `detail` may carry sensitive payload per J06) to be documented at /document-release. Deps pinned + lockfile; no secrets; no eval/innerHTML.
-- **Test:** [pass/fail summary, regression test path]
+- **Test:** /qa — 788 real frames (2 sample logs) through `validateBatch`: 0 crashes, 0 false violations, all exchanges matched (292 + 102), 0 orphans. 0 bugs. Regression baselines: `scratchpad/qa-validation-engine/QA-NOTES.md`. Unit+integration suite: 25 tests green.
 - **Ship:** [PR link]
 - **Reflect:** [journal entry date]
 
