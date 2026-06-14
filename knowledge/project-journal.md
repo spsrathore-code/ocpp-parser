@@ -187,3 +187,30 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - Invoke `writing-plans` skill to create implementation plan for building the skill system (28 SKILL.md files + 28 .claude/commands/ files + WORKFLOW.md + CHAIN.md + CLAUDE.md update + project-standard.md update)
 - Update `project-standard.md` to add `skills/` to the universal repo tree
 - Update `CLAUDE.md` to add the Skill Chain section
+
+---
+
+## 2026-06-13/14 — Validation Engine Phase 1 (spike→build→review→QA), global CLAUDE refactor, Parser revamp kickoff
+
+### Discussed
+- Suite status and next steps; the relationship between the project skill chain and the global AI Sherpa plugins (superpowers, fullstack-dev-skills, claude-mem, etc.) — surfaced real overlap (e.g. `/plan-eng-review` vs `superpowers:writing-plans`; `/review` vs `superpowers:requesting-code-review`).
+- How the Validation Engine will be used with the Parser (boundary: Parser parses logs → feeds frames → engine validates L1–L3; integration deferred to after the Parser revamp).
+- Progress-tracking gaps (roadmap/journal/CLAUDE.md all stale).
+
+### Decided
+- Build Validation Engine **Phase 1 (L1–L3)** as an isomorphic TS package (`@ador/ocpp-validation`), `typed-ocpp` npm-pinned.
+- **Streamline global `~/.claude/`**: thin `CLAUDE.md` that `@`-imports a global `operating-principles.md` (canon) + references `project-standard.md`; removes the stale duplicated principles. Project copies to be removed once finalised.
+- **Parser**: build a NEW **TS+Vite** parser with **exact feature/UI parity** to v2026.05.14 (`requirements.md` = SSOT), optimized + bug-fixed. Freeze the old parser as reference; engine integration later; old parser stays live until parity (Phase 5).
+- Suite tracking: `specs/roadmap.md` becomes the **living dashboard**; journal each session.
+
+### Implemented
+- **Validation Engine** (`feat/validation-engine`, PR pushed): `types`, `messageValidator` (L1+L2), `exchangeTracker` (L3), `protocolValidator` (L4 stub), `validateBatch`, public barrel. **25 tests**; ESM+CJS+browser build green. `/review`+`/cso` found & fixed **R1** (exchanges dropped on MessageId reuse) + 2 regression tests; security clean. `/qa`: **788 real frames** across 2 sample logs → 0 crashes, 0 false violations, all matched.
+- `docs/TYPEVALIDATION.md` updated with the spike result; plan at `docs/superpowers/plans/2026-06-13-validation-engine-phase1.md`.
+- **Global `~/.claude/`** streamlined (backup `CLAUDE.md.backup-2026-06-14` kept): created `operating-principles.md` + `project-standard.md`; thin `CLAUDE.md`.
+- **Parser revamp Phase 0** (`feat/parser-revamp`): Vite+TS scaffold, data model ported (`§19.3` → `src/app/model/types.ts`), old parser archived to `archive/parser-v2026.05.14/`. Build/test/typecheck green.
+- **Tracking**: `specs/roadmap.md` rewritten as the suite dashboard; `CLAUDE.md` status refreshed.
+
+### Next
+- **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
+- Resume **Parser revamp Phase 1** — core pipeline (`parse → correlate → group → processTransactions`) with golden-master fixture tests vs `data/samples/`.
+- Later: Parser Phases 2–5; then engine↔parser integration; then the L4 rule catalog.
