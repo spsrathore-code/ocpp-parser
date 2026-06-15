@@ -242,3 +242,20 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - Commit Phase 2a + 2b + 2c on `feat/parser-revamp` (not yet committed - per user).
 - **Phase 2d - Health aggregation** (Section 10 connector stats over `processTransactions`) - final Phase 2 sub-phase. Then Phase 2 closes; Phase 3 (Render/UI) begins.
 - Reconcile FR-142 check count (21 vs 24) in `specs/requirements.md`.
+
+## 2026-06-15 - Parser revamp Phase 2d (Health aggregation) — Phase 2 complete
+
+### Discussed
+- Resumed `feat/parser-revamp`. A test-first `tests/unit/health.test.ts` was already staged for Phase 2d but its implementation modules did not exist yet (suite failed to load). Baseline otherwise green at 48 tests.
+
+### Decided
+- Promote the health-flag thresholds to `src/app/model/config.ts` (`DEFAULT_ZERO_ENERGY_THRESHOLD_WH`, `METER_DIFF_THRESHOLD_WH`, `CURRENT_MISMATCH_FACTOR`, `ENERGY_DISPENSE_DIFF_PER_TX_WH`) rather than leaving them inline as in the source, while keeping the logic a faithful port. The zero-energy threshold (source: `localStorage`, default 500) is taken as a function parameter for testability.
+- Render layers (`createConnectorStatsSection` / `createEnergyDispenseSection`) deferred to Phase 3, consistent with how 2b/2c left their DOM sections.
+
+### Implemented
+- **Parser revamp Phase 2d - Health aggregation** (`src/app/health/`): `types.ts` (`ConnectorStatsRow`, `EnergyDispenseRow`, `ConnectorId = number | 'N/A'`), `connectorStats.ts` (`aggregateConnectorStats` — groups by connector, counts the 4 health flags zero-energy / temp-high / meter-diff / current-mismatch + numeric-only power avg/peak + normal remainder, FR-131), `energyDispense.ts` (`analyzeEnergyDispense` — per-connector recorded `max(stop)-min(start)` vs summed `Σ(stop-start)` reconciliation, non-numeric meter readings excluded, flag on `diffPerTx > 10 || diff < 0`, FR-127/128/129). +4 tests -> **52 tests total**, typecheck clean.
+- **Phase 2 (a/b/c/d) now complete.** Trackers refreshed at the phase boundary: `skills/WORKFLOW.md`, `specs/roadmap.md`, `specs/tasks.md`.
+
+### Next
+- **Phase 3 - Render/UI** (19 sections, charts, export, theme) — first user-visible parity surface; wire the Phase 1-2 analyzers into rendered DOM sections (incl. the deferred WS-health / protocol / connector-stats / energy-dispense renders).
+- Reconcile FR-142 check count (21 vs 24) in `specs/requirements.md`.
