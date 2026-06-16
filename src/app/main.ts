@@ -1,8 +1,40 @@
-// Vite entry point for the revamped OCPP Client Log Parser.
-// Phase 0 scaffold — the application shell is built up phase by phase
-// (parse → detect → health → protocol → ws → render → repository → …).
+// Vite entry point — wires the app shell to the analysis pipeline and renderer.
+// Multi-file upload: each file is read, parsed, and the parse outputs merged
+// before a single analyze() pass (parity with the legacy sequential read + one
+// displayResults). Reading is async to keep the UI responsive on large files.
 
-const app = document.querySelector<HTMLDivElement>('#app');
-if (app) {
-  app.textContent = 'OCPP Client Log Parser — revamp scaffold (Phase 0).';
+import { renderShell } from './render/shell';
+import { initTheme } from './render/theme';
+import { renderResults } from './render/renderResults';
+import { parseLines } from './parse/parseLines';
+import { analyze, mergeParsed } from './analyze';
+import type { ParsedLines } from './parse/parseLines';
+
+const root = document.querySelector<HTMLDivElement>('#app');
+if (root) {
+  const { fileInput, parseBtn, container } = renderShell(root);
+  initTheme();
+
+  parseBtn.addEventListener('click', async () => {
+    const files = Array.from(fileInput.files ?? []);
+    if (files.length === 0) return;
+    parseBtn.disabled = true;
+    parseBtn.textContent = 'Parsing…';
+    try {
+      const parts: ParsedLines[] = [];
+      const allLines: string[] = [];
+      const names: string[] = [];
+      for (const file of files) {
+        const lines = (await file.text()).split(/\r?\n/);
+        parts.push(parseLines(lines, file.name));
+        allLines.push(...lines);
+        names.push(file.name);
+      }
+      const result = analyze(mergeParsed(parts), allLines, names);
+      renderResults(container, result);
+    } finally {
+      parseBtn.textContent = 'Parse Files';
+      parseBtn.disabled = false;
+    }
+  });
 }
