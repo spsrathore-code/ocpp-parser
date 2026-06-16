@@ -259,3 +259,25 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Phase 3 - Render/UI** (19 sections, charts, export, theme) — first user-visible parity surface; wire the Phase 1-2 analyzers into rendered DOM sections (incl. the deferred WS-health / protocol / connector-stats / energy-dispense renders).
 - Reconcile FR-142 check count (21 vs 24) in `specs/requirements.md`.
+
+## 2026-06-16 - Parser revamp Phase 3 kickoff: brainstorm + spec + plan + Phase 3a (shell/render foundation)
+
+### Discussed
+- Proceeding to Phase 3 (Render/UI) — the biggest remaining chunk (app shell + orchestrator + 19 section renderers + charts + export + theme). Ran the brainstorming → spec → writing-plans → executing-plans skill chain.
+
+### Decided
+- **Sub-phase Phase 3** into 3a (shell+theme+orchestrator+DOM helper), 3b (static section renderers), 3c (charts), 3d (Excel export). Each lands green+committed like 2a-2d.
+- **npm-bundle chart.js + xlsx via Vite** (3c/3d); **Tailwind via Play CDN** for styling only — the legacy generates dynamic class names (`text-${colour}-600`) that a bundled/purged Tailwind would drop without a hand-maintained safelist; the Play CDN JITs them for free (zero parity risk).
+- **Thin typed DOM helper** (`el()` / `collapsibleSection()`) over plain createElement+innerHTML — identical output, less repetition, type-safe.
+- **`AnalysisResult` bundle** (`src/app/analyze.ts`) is the single typed seam: a headless `displayResults` that runs the whole Phase 1-2 pipeline; the render layer only draws. Keeps render DOM-free-testable.
+- Session Timeline modal + Log Repository (IndexedDB/Drive) stay **Phase 4**; parity gate + deploy swap stay **Phase 5**.
+
+### Implemented
+- Spec `docs/superpowers/specs/2026-06-15-parser-phase3-render-design.md` + plan `docs/superpowers/plans/2026-06-15-parser-phase3a-shell.md` (8 bite-sized TDD tasks).
+- **Phase 3a** (executed inline, TDD, 7 commits): `render/dom.ts` (typed helper + collapsible), `analyze.ts` (`AnalysisResult` + `analyze`/`analyzeLogLines`/`mergeParsed`), `render/theme.ts` (dark/light + localStorage), `render/shell.ts` (header/upload/container), `render/renderResults.ts` (19 §19.4 sections, placeholder bodies, fixed order), `main.ts` (upload→parse→merge→analyze→render), Tailwind Play CDN in `index.html`. jsdom added for render tests (per-file `@vitest-environment jsdom` pragma; global env stays node). **66 tests** (was 52: +13, +1 jsdom smoke replaced), `tsc --noEmit` + `vite build` clean.
+- **Deviations from plan:** (1) `WsHealth.connectionStatus`, not `.status` (plan assumed wrong field). (2) jsdom rebases `import.meta.url`, so the renderResults test loads the sample via `process.cwd()` instead of `fileURLToPath(new URL(...))`.
+
+### Next
+- **Manual browser check (user):** `npm run dev` → confirm Tailwind styling, theme toggle persistence, and that uploading the sample log renders 19 ordered collapsible sections.
+- **Phase 3b** — replace the 19 placeholder bodies with real section renderers (start with Transaction Summary + the Phase-2 deferred renders), jsdom-tested against fixtures. Then 3c (charts), 3d (export).
+- Reconcile FR-142 protocol check count (21 vs 24).

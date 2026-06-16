@@ -19,13 +19,16 @@
 - [x] **Parser revamp Phase 2c — Protocol compliance** (`src/app/protocol/`): `runProtocolValidation` (5 groups / 21 system checks + 10-stage per-tx lifecycle + compliance summary) + `detectPhantomConnectionPattern` (L-001). internalTxMap + rawLogLines passed in. +7 tests (48 total); typecheck clean. *(Source = 21 checks; doc's "24" is drift — reconcile FR-142 later.)*
 - [x] **Parser revamp Phase 2d — Health aggregation** (`src/app/health/`): `aggregateConnectorStats` (per-connector rollup of 4 health flags + numeric-only power avg/peak + normal remainder, FR-131) + `analyzeEnergyDispense` (recorded-vs-summed energy reconciliation per connector, non-numeric meter readings excluded, FR-127/128/129). Thresholds promoted to `model/config.ts`. +4 tests (52 total); typecheck clean. Render deferred to Phase 3. **Phase 2 complete.**
 
+- [x] **Parser revamp Phase 3a — Shell + theme + orchestrator + DOM helper** (`src/app/render/` + `src/app/analyze.ts`): typed DOM helper (`el`/`collapsibleSection`), `AnalysisResult` bundle (headless `displayResults`), dark/light theme, app shell (header/upload/container), `renderResults` rendering the 19 §19.4 sections as placeholders, `main.ts` upload→parse→merge→analyze→render, Tailwind Play CDN. +13 tests (66 total); `tsc` + `vite build` clean. Spec + plan under `docs/superpowers/`.
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3 — Render/UI** (19 sections, charts, export, theme) — first user-visible parity surface; wire the Phase 1–2 analyzers into rendered sections.
+- [ ] **Parser revamp Phase 3b — Static section renderers** — replace the 19 placeholder bodies with real table/text renderers (incl. the Phase-2 deferred renders: connector stats, energy dispense, protocol, WS health), one section at a time, jsdom-tested against fixtures.
 
 ## Later
 
+- [ ] Parser revamp **Phase 3c/3d** — Chart.js charts → SheetJS Excel export.
 - [ ] Parser revamp **Phases 4–5** — repository/timeline/api-download → parity gate + deploy swap.
 - [ ] **Engine ↔ Parser integration** (after the revamp reaches parity).
 - [ ] **Validation Engine Phase 2** — L4 rule catalog (Protocol Compliance + diagnostics L-001/2/3 + OCPP 1.6J rules) into the `registerProtocolRules` extension point.
