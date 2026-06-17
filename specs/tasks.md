@@ -21,13 +21,16 @@
 
 - [x] **Parser revamp Phase 3a — Shell + theme + orchestrator + DOM helper** (`src/app/render/` + `src/app/analyze.ts`): typed DOM helper (`el`/`collapsibleSection`), `AnalysisResult` bundle (headless `displayResults`), dark/light theme, app shell (header/upload/container), `renderResults` rendering the 19 §19.4 sections as placeholders, `main.ts` upload→parse→merge→analyze→render, Tailwind Play CDN. +13 tests (66 total); `tsc` + `vite build` clean. Spec + plan under `docs/superpowers/`.
 
+- [x] **Parser revamp Phase 3b-1 — generic table + 3 message-group sections**: `render/table.ts` (`dataTable`, port of `createCollapsibleSection`), `render/format.ts` (`fmtReplayDelay`), orchestrator refactor (per-section `render` fns + header count), and real renderers for Heartbeats / Start Transactions / Stop Transactions (offline-replay markers, SoC extraction, internal-id resolution, txId=0 marker). +13 tests (79 total); `tsc` + `vite build` clean.
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b — Static section renderers** — replace the 19 placeholder bodies with real table/text renderers (incl. the Phase-2 deferred renders: connector stats, energy dispense, protocol, WS health), one section at a time, jsdom-tested against fixtures.
+- [ ] **Parser revamp Phase 3b-2 — custom section renderers**: Debug Info (stats + IST timestamp formatting), Boot Notifications, Status Notifications. jsdom-tested.
 
 ## Later
 
+- [ ] Parser revamp **Phase 3b-3/3b-4** — tx-centric sections (Summary, Connector Stats, Meter Values, Events, Alerts) → analysis sections (Downtime, sync flags, Fault Status, Incomplete, Energy Dispense, Protocol, WS Health).
 - [ ] Parser revamp **Phase 3c/3d** — Chart.js charts → SheetJS Excel export.
 - [ ] Parser revamp **Phases 4–5** — repository/timeline/api-download → parity gate + deploy swap.
 - [ ] **Engine ↔ Parser integration** (after the revamp reaches parity).

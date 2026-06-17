@@ -281,3 +281,23 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - **Manual browser check (user):** `npm run dev` → confirm Tailwind styling, theme toggle persistence, and that uploading the sample log renders 19 ordered collapsible sections.
 - **Phase 3b** — replace the 19 placeholder bodies with real section renderers (start with Transaction Summary + the Phase-2 deferred renders), jsdom-tested against fixtures. Then 3c (charts), 3d (export).
 - Reconcile FR-142 protocol check count (21 vs 24).
+
+## 2026-06-17 - Parser revamp Phase 3b-1 (generic table + first 3 section renderers)
+
+### Discussed
+- Continuing Phase 3b (real section renderers). Phase 3b is 19 sections — too big for one plan, so batched by renderer type.
+
+### Decided
+- **Batch 3b by renderer type:** 3b-1 generic `dataTable` helper + the 3 sections that use it (Heartbeats, Start Tx, Stop Tx); 3b-2 custom renderers (Debug Info, Boot, Status); 3b-3 tx-centric; 3b-4 analysis sections.
+- **Generic `dataTable(headers, rows, tableId?)`** ports the table portion of the legacy `createCollapsibleSection` (HTML 5043): sticky S.No. col, optional File Name col (when row has `fileName`), `row[h] || 'N/A'` cells (faithful — renders 0/'' as 'N/A'). Stable `tableId` set for Phase 3d export targeting.
+- **Orchestrator refactor:** `SectionDef` now `{ title, emoji, count?, render }` — `render(r)` returns the body, `collapsibleSection` adds the card + `Title (N)` count header. Sections swap placeholder→real one batch at a time; ordering stays put.
+- Deferred (noted): per-section Export-to-Excel button → 3d; auto-collapse-when->10-rows → polish.
+
+### Implemented
+- Plan `docs/superpowers/plans/2026-06-16-parser-phase3b1-generic-tables.md` (7 tasks).
+- **Phase 3b-1** (executed inline, TDD): `render/format.ts` (`fmtReplayDelay`), `render/table.ts` (`dataTable`), orchestrator refactor, and real renderers `render/sections/{heartbeats,startTransactions,stopTransactions}.ts`. Start/Stop reproduce offline-replay detection (Δ > `OFFLINE_REPLAY_THRESHOLD_MS`, 📴/📡 markers, `fmtReplayDelay`), SoC begin/end + location extraction from `transactionData`, internal-id resolution via `internalTxMap`, and the StopTx `txId=0` "No CMS ID" marker. **79 tests** (was 66, +13); `tsc --noEmit` + `vite build` clean.
+
+### Next
+- **Manual browser check (user):** `npm run dev` → upload sample → confirm Heartbeats/Start/Stop show real tables (with counts in headers); other 16 still placeholders.
+- **Phase 3b-2** — custom renderers: Debug Info (stats + UTC/IST timestamp formatting + log duration), Boot Notifications (HTML 2632), Status Notifications (HTML 4144).
+- Reconcile FR-142 protocol check count (21 vs 24).
