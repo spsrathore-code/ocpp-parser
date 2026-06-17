@@ -5,8 +5,6 @@ import { join } from 'node:path';
 import { analyzeLogLines } from '../../src/app/analyze';
 import { renderResults, SECTION_ORDER } from '../../src/app/render/renderResults';
 
-// Resolve from the repo root (vitest cwd). The jsdom env rebases import.meta.url,
-// so the fileURLToPath(new URL(...)) trick used by node-env tests breaks here.
 function load(name: string): string[] {
   return readFileSync(join(process.cwd(), 'data', 'samples', name), 'utf8').split(/\r?\n/);
 }
@@ -32,6 +30,14 @@ describe('renderResults — 19 sections in §19.4 order', () => {
     expect(sections).toHaveLength(19);
     expect(sections[0].textContent).toContain('Debug Info');
     expect(sections[18].textContent).toContain('WebSocket Health');
+  });
+
+  it('shows a count in the header for sections that declare one', () => {
+    const container = document.createElement('div');
+    renderResults(container, result);
+    const heartbeats = [...container.querySelectorAll('section')].find((s) => s.textContent?.includes('Heartbeats'))!;
+    // "Heartbeats (N)" — the count comes from messageGroups.Heartbeat.length
+    expect(heartbeats.querySelector('button')!.textContent).toMatch(/Heartbeats \(\d+\)/);
   });
 
   it('clears prior content on re-render', () => {

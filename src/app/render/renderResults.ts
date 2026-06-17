@@ -1,46 +1,56 @@
 // Render orchestrator — the legacy displayResults() (HTML 2020-2624), headless
-// input. Appends the 19 sections in the §19.4 order. In Phase 3a every body is a
-// placeholder; Phase 3b swaps each `summary` for the real section renderer, one at
-// a time, without touching the ordering here.
+// input. Appends the 19 sections in §19.4 order. Each section declares a `render`
+// that returns its body; `collapsibleSection` provides the card + (optional) count
+// in the header. Sections are swapped from placeholder to real one batch at a time.
 
 import { el, clearChildren, collapsibleSection } from './dom';
 import type { AnalysisResult } from '../analyze';
+import { renderHeartbeats } from './sections/heartbeats';
+import { renderStartTransactions } from './sections/startTransactions';
+import { renderStopTransactions } from './sections/stopTransactions';
 
-interface SectionDef {
+export interface SectionDef {
   title: string;
   emoji: string;
-  /** Count/summary used by the 3a placeholder; 3b replaces with the real renderer. */
-  summary: (r: AnalysisResult) => string;
+  /** Optional count shown as `Title (N)` in the header (parity with the legacy "(N)" titles). */
+  count?: (r: AnalysisResult) => number;
+  /** Builds the section body. */
+  render: (r: AnalysisResult) => HTMLElement;
 }
 
-/** The §19.4 render order. Edited section-by-section in Phase 3b. */
+/** Placeholder body used until a section's real renderer lands. */
+function placeholder(text: string): (r: AnalysisResult) => HTMLElement {
+  return () => el('p', { className: 'text-sm text-gray-600 dark:text-gray-400', text });
+}
+
+/** The §19.4 render order. Real renderers replace placeholders batch by batch. */
 export const SECTION_ORDER: SectionDef[] = [
-  { title: 'Debug Info', emoji: '🐞', summary: (r) => `${r.messages.length} messages parsed` },
-  { title: 'Boot Notifications', emoji: '🔌', summary: (r) => `${r.messageGroups.BootNotification.length} boot notifications` },
-  { title: 'Heartbeats', emoji: '💓', summary: (r) => `${r.messageGroups.Heartbeat.length} heartbeats` },
-  { title: 'Status Notifications', emoji: '📋', summary: (r) => `${r.messageGroups.StatusNotification.length} status notifications` },
-  { title: 'Start Transactions', emoji: '▶️', summary: (r) => `${r.messageGroups.StartTransaction.length} start transactions` },
-  { title: 'Stop Transactions', emoji: '⏹️', summary: (r) => `${r.messageGroups.StopTransaction.length} stop transactions` },
-  { title: 'Transaction Summary', emoji: '📊', summary: (r) => `${r.transactions.length} complete transactions` },
-  { title: 'Connector Stats', emoji: '🔌', summary: (r) => `${r.connectorStats.length} connectors` },
-  { title: 'Transaction & Meter Values', emoji: '⚡', summary: (r) => `${r.transactions.length} transactions` },
-  { title: 'Events', emoji: '📅', summary: (r) => `${r.events.length} events` },
-  { title: 'Alerts', emoji: '🚨', summary: (r) => `${r.alerts.length} alerts` },
-  { title: 'Downtime Report', emoji: '📉', summary: (r) => `${r.downtimes.length} downtimes` },
-  { title: 'Power Restore Missing Sync', emoji: '🔄', summary: (r) => `${r.powerRestoreSync.length} flags` },
-  { title: 'Emergency Stop Release', emoji: '🛑', summary: (r) => `${r.emergencyStopSync.length} flags` },
-  { title: 'Fault Status Summary', emoji: '⚠️', summary: (r) => `${r.messageGroups.StatusNotification.length} status notifications scanned` },
-  { title: 'Incomplete Transactions', emoji: '🧩', summary: (r) => `${r.incompleteTransactions.length} incomplete` },
-  { title: 'Energy Dispense Check', emoji: '⚡', summary: (r) => `${r.energyDispense.length} connectors` },
-  { title: 'Protocol Compliance', emoji: '✅', summary: (r) => `${r.protocol.groups.length} check groups` },
-  { title: 'WebSocket Health', emoji: '🌐', summary: (r) => `status: ${r.wsHealth.connectionStatus}` },
+  { title: 'Debug Info', emoji: '🐞', render: placeholder('Debug info — pending Phase 3b') },
+  { title: 'Boot Notifications', emoji: '🔌', render: placeholder('Boot notifications — pending Phase 3b') },
+  { title: 'Heartbeats', emoji: '💓', count: (r) => r.messageGroups.Heartbeat.length, render: renderHeartbeats },
+  { title: 'Status Notifications', emoji: '📋', render: placeholder('Status notifications — pending Phase 3b') },
+  { title: 'Start Transactions', emoji: '▶️', count: (r) => r.messageGroups.StartTransaction.length, render: renderStartTransactions },
+  { title: 'Stop Transactions', emoji: '⏹️', count: (r) => r.messageGroups.StopTransaction.length, render: renderStopTransactions },
+  { title: 'Transaction Summary', emoji: '📊', render: placeholder('Transaction summary — pending Phase 3b') },
+  { title: 'Connector Stats', emoji: '🔌', render: placeholder('Connector stats — pending Phase 3b') },
+  { title: 'Transaction & Meter Values', emoji: '⚡', render: placeholder('Meter values — pending Phase 3b') },
+  { title: 'Events', emoji: '📅', render: placeholder('Events — pending Phase 3b') },
+  { title: 'Alerts', emoji: '🚨', render: placeholder('Alerts — pending Phase 3b') },
+  { title: 'Downtime Report', emoji: '📉', render: placeholder('Downtime report — pending Phase 3b') },
+  { title: 'Power Restore Missing Sync', emoji: '🔄', render: placeholder('Power-restore sync — pending Phase 3b') },
+  { title: 'Emergency Stop Release', emoji: '🛑', render: placeholder('Emergency-stop release — pending Phase 3b') },
+  { title: 'Fault Status Summary', emoji: '⚠️', render: placeholder('Fault status — pending Phase 3b') },
+  { title: 'Incomplete Transactions', emoji: '🧩', render: placeholder('Incomplete transactions — pending Phase 3b') },
+  { title: 'Energy Dispense Check', emoji: '⚡', render: placeholder('Energy dispense — pending Phase 3b') },
+  { title: 'Protocol Compliance', emoji: '✅', render: placeholder('Protocol compliance — pending Phase 3b') },
+  { title: 'WebSocket Health', emoji: '🌐', render: placeholder('WebSocket health — pending Phase 3b') },
 ];
 
 /** Render every section into `container` (clears prior content first). */
 export function renderResults(container: HTMLElement, result: AnalysisResult): void {
   clearChildren(container);
   for (const def of SECTION_ORDER) {
-    const body = el('p', { className: 'text-sm text-gray-600 dark:text-gray-400', text: def.summary(result) });
-    container.appendChild(collapsibleSection(def.title, def.emoji, body));
+    const title = def.count ? `${def.title} (${def.count(result)})` : def.title;
+    container.appendChild(collapsibleSection(title, def.emoji, def.render(result)));
   }
 }
