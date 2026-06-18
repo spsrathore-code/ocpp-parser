@@ -38,3 +38,19 @@ export function formatLogDuration(ms: number): string {
   const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
   return `${hours}h ${minutes}m`;
 }
+
+/** UTC ISO timestamp → "DD/MM/YYYY HH:MM:SS IST" (UTC+5:30) (HTML 1598). */
+export function convertToIST(utcTimestamp: string): string {
+  try {
+    const istDate = new Date(new Date(utcTimestamp).getTime() + 5.5 * 60 * 60 * 1000);
+    const year = istDate.getUTCFullYear();
+    const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(istDate.getUTCDate()).padStart(2, '0');
+    const hours = String(istDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(istDate.getUTCSeconds()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} IST`;
+  } catch {
+    return utcTimestamp;
+  }
+}

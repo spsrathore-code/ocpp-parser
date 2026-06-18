@@ -33,3 +33,11 @@ describe('formatLogDuration', () => {
     expect(formatLogDuration(2 * 3600000 + 35 * 60000)).toBe('2h 35m');
   });
 });
+
+import { convertToIST } from '../../src/app/render/format';
+
+describe('convertToIST', () => {
+  it('formats a UTC ISO timestamp as DD/MM/YYYY HH:MM:SS IST', () => {
+    expect(convertToIST('2025-08-22T00:00:00.000Z')).toBe('22/08/2025 05:30:00 IST');
+  });
+});
