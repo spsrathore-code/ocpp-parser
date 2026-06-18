@@ -5,6 +5,7 @@ import type { AnalysisResult } from '../../src/app/analyze';
 import { renderHeartbeats } from '../../src/app/render/sections/heartbeats';
 import { renderStartTransactions } from '../../src/app/render/sections/startTransactions';
 import { renderStopTransactions } from '../../src/app/render/sections/stopTransactions';
+import { renderBootNotifications } from '../../src/app/render/sections/bootNotifications';
 
 function msg(over: Partial<ParsedMessage> & { message: unknown[] }): ParsedMessage {
   return { timestamp: '2025-08-22T00:00:00.000Z', direction: 'received', lineNumber: 1, fileName: 'log.txt', ...over } as ParsedMessage;
@@ -85,5 +86,21 @@ describe('renderStopTransactions', () => {
     const r = bundle({ messageGroups: { ...bundle({}).messageGroups, StopTransaction: [stop] }, internalTxMap: new Map() });
     const cells = [...renderStopTransactions(r).querySelectorAll('tbody tr td')].map((td) => td.textContent);
     expect(cells[4]).toContain('txId=0'); // Internal TX ID marker
+  });
+});
+
+describe('renderBootNotifications', () => {
+  it('renders vendor/model/firmware + response status', () => {
+    const boot = msg({
+      timestamp: '2025-08-22T00:00:00.000Z',
+      message: [2, 'bn-1', 'BootNotification', { chargePointVendor: 'Ador', chargePointModel: 'DC60', firmwareVersion: '1.2.3' }],
+      responsePayload: { status: 'Accepted' },
+    });
+    const r = bundle({ messageGroups: { ...bundle({}).messageGroups, BootNotification: [boot] } });
+    const body = renderBootNotifications(r);
+    const headers = [...body.querySelectorAll('thead th')].map((th) => th.textContent);
+    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Message ID', 'Charge Point Vendor', 'Charge Point Model', 'Firmware Version', 'Response Status']);
+    const cells = [...body.querySelectorAll('tbody tr td')].map((td) => td.textContent);
+    expect(cells).toEqual(['1', 'log.txt', '2025-08-22T00:00:00.000Z', 'bn-1', 'Ador', 'DC60', '1.2.3', 'Accepted']);
   });
 });
