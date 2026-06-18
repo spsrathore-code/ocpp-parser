@@ -320,3 +320,21 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - **Manual browser check (user):** Debug Info stat cards + UTC/IST duration; Boot table. 5/19 sections real.
 - **Phase 3b-3 — Status Notifications** (full parity): table + status distribution + faulted/error counts + session-flow (HTML 4144+).
 - Reconcile FR-142 protocol check count (21 vs 24).
+
+## 2026-06-18 - Parser revamp Phase 3b-3a (Status Notifications: table + analytics)
+
+### Discussed
+- Status Notifications turned out to be a 770-line mega-section (HTML 4144-4913): table + status distribution + session-flow + a heavy Repeated-RemoteStart auth-contention diagnostic (raw-line scan + multi-event correlation).
+
+### Decided (user)
+- **Split Status:** 3b-3a = table + distribution + session-flow + error-code rollup + filter bar (the everyday Status view); **3b-3b = the Repeated-RemoteStart diagnostic** (own analysis module + UI). Analytics computed in a pure function, render stays thin.
+- **Process deviation (mine, noted):** for this mega-port executed inline, I implemented 3b-3a directly in TDD commits instead of first writing a ~1000-line plan doc — marginal value of the plan artifact is low when I'm executing immediately. Same rigor (test-first compute, faithful port to specific legacy lines, small green commits).
+
+### Implemented
+- **Phase 3b-3a** `render/sections/statusNotifications.ts`: pure `computeStatusAnalytics(messages)` — rows (10 fields + sessionFlow), summary counts (total/unique/faulted/error/connectors), status distribution (canonical-order sort + max), per-connector session-flow classification (Preparing → Charging/Finishing/Available/Faulted, tagging both rows), error-code frequency rollup. `renderStatusNotifications`: 5 summary cards, distribution bars, session-flow cards + per-connector table, error-code table, filter bar (Connector/Status/Error/Vendor ID/Vendor Error/Info + Session Flow + Clear + live count), filterable 10-col main table with Faulted row highlight. **92 tests** (was 86, +6); `tsc` + `vite build` clean.
+- Deferred to 3b-3b: ⚠ Repeat-RemoteStart summary card, per-row "N× RS" pill + amber highlight, threshold problem-session panel.
+
+### Next
+- **Manual browser check (user):** Status section — summary cards, distribution bars, session-flow cards, error-code table, working filters, main table.
+- **Phase 3b-3b** — Repeated-RemoteStart diagnostic (raw-line scan + RemoteStart/Authorize correlation). 6/19 sections now real.
+- Reconcile FR-142 (21 vs 24).

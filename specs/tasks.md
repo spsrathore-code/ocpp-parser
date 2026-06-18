@@ -25,10 +25,12 @@
 
 - [x] **Parser revamp Phase 3b-2 — Debug Info + Boot Notifications**: `debugInfo.ts` (pure `computeDebugStats` — counts / chips / alert-code rollup / UTC+IST log span + `renderDebugInfo`) + `bootNotifications.ts` (via `dataTable`); `formatUtcIst` + `formatLogDuration` in `format.ts`. +6 tests (86 total). Boot Preview/Download deferred to the context-viewer sub-phase (2026-06-17 decision).
 
+- [x] **Parser revamp Phase 3b-3a — Status Notifications** (table + distribution + session-flow + error-code rollup + filter bar): pure `computeStatusAnalytics` + `renderStatusNotifications`. +6 tests (92 total). RemoteStart diagnostic split to 3b-3b.
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b-3 — Status Notifications** (own sub-phase, full parity): table + status distribution + faulted/error counts + session-flow analysis. jsdom-tested.
+- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ Repeat-RemoteStart card + per-row "N× RS" pill/amber highlight + threshold problem-session panel. Likely a dedicated analysis module.
 
 ## Later
 
