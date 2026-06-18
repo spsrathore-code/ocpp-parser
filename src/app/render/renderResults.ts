@@ -10,6 +10,8 @@ import { renderBootNotifications } from './sections/bootNotifications';
 import { renderStatusNotifications } from './sections/statusNotifications';
 import { renderConnectorStats } from './sections/connectorStats';
 import { renderTransactionSummary } from './sections/transactionSummary';
+import { renderEvents } from './sections/events';
+import { renderAlerts } from './sections/alerts';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -39,8 +41,8 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Transaction Summary', emoji: '📊', count: (r) => r.transactions.length, render: renderTransactionSummary },
   { title: 'Connector Stats', emoji: '🔌', count: (r) => r.connectorStats.length, render: renderConnectorStats },
   { title: 'Transaction & Meter Values', emoji: '⚡', render: placeholder('Meter values — pending Phase 3b') },
-  { title: 'Events', emoji: '📅', render: placeholder('Events — pending Phase 3b') },
-  { title: 'Alerts', emoji: '🚨', render: placeholder('Alerts — pending Phase 3b') },
+  { title: 'Events', emoji: '📅', count: (r) => r.events.length, render: renderEvents },
+  { title: 'Alerts', emoji: '🚨', count: (r) => r.alerts.length, render: renderAlerts },
   { title: 'Downtime Report', emoji: '📉', render: placeholder('Downtime report — pending Phase 3b') },
   { title: 'Power Restore Missing Sync', emoji: '🔄', render: placeholder('Power-restore sync — pending Phase 3b') },
   { title: 'Emergency Stop Release', emoji: '🛑', render: placeholder('Emergency-stop release — pending Phase 3b') },
