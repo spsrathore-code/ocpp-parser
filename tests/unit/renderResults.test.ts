@@ -35,7 +35,9 @@ describe('renderResults — 19 sections in §19.4 order', () => {
   it('shows a count in the header for sections that declare one', () => {
     const container = document.createElement('div');
     renderResults(container, result);
-    const heartbeats = [...container.querySelectorAll('section')].find((s) => s.textContent?.includes('Heartbeats'))!;
+    // Match on the section header button (Debug Info's body also contains the word
+    // "Heartbeats" as a stat-card label, so match the header, not the whole section).
+    const heartbeats = [...container.querySelectorAll('section')].find((s) => s.querySelector('button')?.textContent?.includes('Heartbeats'))!;
     // "Heartbeats (N)" — the count comes from messageGroups.Heartbeat.length
     expect(heartbeats.querySelector('button')!.textContent).toMatch(/Heartbeats \(\d+\)/);
   });
