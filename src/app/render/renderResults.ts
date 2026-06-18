@@ -7,6 +7,7 @@ import { el, clearChildren, collapsibleSection } from './dom';
 import type { AnalysisResult } from '../analyze';
 import { renderDebugInfo } from './sections/debugInfo';
 import { renderBootNotifications } from './sections/bootNotifications';
+import { renderStatusNotifications } from './sections/statusNotifications';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -30,7 +31,7 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Debug Info', emoji: '🐞', render: renderDebugInfo },
   { title: 'Boot Notifications', emoji: '🔌', count: (r) => r.messageGroups.BootNotification.length, render: renderBootNotifications },
   { title: 'Heartbeats', emoji: '💓', count: (r) => r.messageGroups.Heartbeat.length, render: renderHeartbeats },
-  { title: 'Status Notifications', emoji: '📋', render: placeholder('Status notifications — pending Phase 3b') },
+  { title: 'Status Notifications', emoji: '📋', count: (r) => r.messageGroups.StatusNotification.length, render: renderStatusNotifications },
   { title: 'Start Transactions', emoji: '▶️', count: (r) => r.messageGroups.StartTransaction.length, render: renderStartTransactions },
   { title: 'Stop Transactions', emoji: '⏹️', count: (r) => r.messageGroups.StopTransaction.length, render: renderStopTransactions },
   { title: 'Transaction Summary', emoji: '📊', render: placeholder('Transaction summary — pending Phase 3b') },
