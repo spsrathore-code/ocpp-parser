@@ -33,10 +33,13 @@
 
 - [x] **Parser revamp Phase 3b-4c — Transaction & Meter Values**: selector → pivoted 33-col meter-values table + Date/Tx-ID filters; pure `pivotMeterValues` + `buildTxInfo`. Summary-card population, ZUC option, Analysis Graphs deferred to 3c. +5 tests (108 total). **3b-4 (tx-centric) complete.**
 
+- [x] **Parser revamp Phase 3b-5a — Energy Dispense + Incomplete + Fault Status**: render-only over existing analyzers; pure `computeFaultSummary`. +6 tests (114 total).
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b-5 — analysis section renderers** (8 sections): Downtime Report, Power-Restore Missing Sync, Emergency-Stop Release, Fault Status Summary, Incomplete Transactions, Energy Dispense Check, Protocol Compliance, WebSocket Health. Most analyzers already exist in `analyze.ts`; this is render-only. jsdom-tested.
+- [ ] **Parser revamp Phase 3b-5b — Downtime Report + Power-Restore Missing Sync + Emergency-Stop Release** (Downtime's per-row Preview/Download → context-viewer). jsdom-tested.
+- [ ] **Parser revamp Phase 3b-5c — Protocol Compliance + WebSocket Health** renderers (over existing `r.protocol` / `r.wsHealth`).
 - [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + problem-session panel. Likely a dedicated analysis module.
 
 ## Later

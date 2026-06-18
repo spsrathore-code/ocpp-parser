@@ -372,3 +372,16 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Meter Values — selector → View → pivoted table + Date/Tx-ID filters.
 - **3b-5 — analysis sections (8):** Downtime Report, Power-Restore Missing Sync, Emergency-Stop Release, Fault Status Summary, Incomplete Transactions, Energy Dispense Check, Protocol Compliance, WebSocket Health. Analyzers already in `analyze.ts` → render-only. Then 3b-3b (RemoteStart diagnostic) + context-viewer close out 3b.
+
+## 2026-06-19 - Parser revamp Phase 3b-5a (Energy Dispense + Incomplete + Fault Status)
+
+### Implemented
+- First 3 of the 8 analysis-section renderers (render-only — analyzers already in `analyze.ts`):
+  - **Energy Dispense Check** (`sections/energyDispense.ts`): summary cards + 9-col table over `r.energyDispense` with Meter-Anomaly/Discrepancy/Normal status badges + empty state.
+  - **Incomplete Transactions** (`sections/incompleteTransactions.ts`): cards (total / log-boundary / between) + 7-col badge table over `r.incompleteTransactions`, IST ref time, green all-complete empty state.
+  - **Fault Status Summary** (`sections/faultStatusSummary.ts`): pure `computeFaultSummary` (filter Faulted StatusNotifications, group by connector‖info‖vendorErrorCode) + cards + grouped table; "No faults" empty state.
+- +6 tests (114 total); `tsc` + `vite build` clean. **14/19 sections real.**
+
+### Next
+- **Manual browser check (user):** Energy Dispense, Incomplete, Fault Status sections.
+- **3b-5b** Downtime Report + Power-Restore Missing Sync + Emergency-Stop Release (Downtime's Preview/Download → context-viewer) → **3b-5c** Protocol Compliance + WebSocket Health. Then 3b-3b (RemoteStart) + context-viewer close 3b.
