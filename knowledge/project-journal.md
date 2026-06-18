@@ -301,3 +301,22 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - **Manual browser check (user):** `npm run dev` → upload sample → confirm Heartbeats/Start/Stop show real tables (with counts in headers); other 16 still placeholders.
 - **Phase 3b-2** — custom renderers: Debug Info (stats + UTC/IST timestamp formatting + log duration), Boot Notifications (HTML 2632), Status Notifications (HTML 4144).
 - Reconcile FR-142 protocol check count (21 vs 24).
+
+## 2026-06-18 - Parser revamp Phase 3b-2 (Debug Info + Boot Notifications)
+
+### Discussed
+- Continuing Phase 3b. While planning 3b-2 (originally Debug + Boot + Status), two cross-cutting scope forks surfaced.
+
+### Decided (user)
+- **Preview/Download "log context" buttons** (Boot, Events, Alerts, Downtime) → **dedicated context-viewer sub-phase** (shared modal + download, retro-fit later). Tables render now without those columns.
+- **Status Notifications** → **its own sub-phase, full parity** (it carries analytics + session-flow, not just a table). So 3b-2 = Debug Info + Boot only. Re-batched: 3b-3 Status · 3b-4 tx-centric · 3b-5 analysis · context-viewer cross-cutting.
+
+### Implemented
+- Plan `docs/superpowers/plans/2026-06-18-parser-phase3b2-debug-boot.md` (5 tasks).
+- **Phase 3b-2** (executed inline, TDD): `format.ts` += `formatUtcIst` (UTC + IST/UTC+5:30) + `formatLogDuration`; `render/sections/debugInfo.ts` (pure `computeDebugStats`: group counts, tx-id chips [faithful request-payload quirk preserved], unique event types, alert-code rollup with descriptions, log span across message/event/alert + raw-line timestamps; `renderDebugInfo` builds the stat-card panel + alert-code table + UTC/IST duration block); `render/sections/bootNotifications.ts` (vendor/model/firmware/response-status via `dataTable`, missing→'N/A' vs legacy 'undefined'). Wired both into the orchestrator. **86 tests** (was 79, +7); `tsc` + `vite build` clean.
+- Test-fragility fix: the renderResults count test now matches the section header button (Debug Info's body legitimately contains "Heartbeats" as a stat-card label).
+
+### Next
+- **Manual browser check (user):** Debug Info stat cards + UTC/IST duration; Boot table. 5/19 sections real.
+- **Phase 3b-3 — Status Notifications** (full parity): table + status distribution + faulted/error counts + session-flow (HTML 4144+).
+- Reconcile FR-142 protocol check count (21 vs 24).
