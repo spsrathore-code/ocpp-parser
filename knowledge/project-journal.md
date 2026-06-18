@@ -361,3 +361,14 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Events + Alerts tables with working column filters.
 - **3b-4c** Transaction & Meter Values (last tx-centric section) → then 3b-5 analysis sections, 3b-3b RemoteStart diagnostic, context-viewer. **10/19 sections real.**
+
+## 2026-06-19 - Parser revamp Phase 3b-4c (Transaction & Meter Values) — 3b-4 complete
+
+### Implemented
+- **Transaction & Meter Values** (`render/sections/meterValues.ts`): port of HTML 2388-2575 + the pivot in `updateMeterValuesTable` (HTML 8200-8318). Transaction selector (All + per-tx, labels from `buildTxInfo`) → "View Meter Values" populates a pivoted **33-column** table (one row per reading timestamp; columns per `measurand/unit/location[/phase]`; the duplicate `Temperature/Celsius/Outlet` → `Outlet#2`; offline-replay markers per reading) with Date / Transaction-ID filter selects + Apply/Clear. Pure `pivotMeterValues` + `buildTxInfo`. +5 tests (108 total); `tsc` + `vite build` clean.
+- Deferred to 3c (chart/stats-coupled): summary-card *population*, detailed-stats table, the ZUC ("Energy < 1 kWh") option, and the Transaction Analysis Graphs.
+- **3b-4 (all transaction-centric sections) complete. 11/19 sections real.**
+
+### Next
+- **Manual browser check (user):** Meter Values — selector → View → pivoted table + Date/Tx-ID filters.
+- **3b-5 — analysis sections (8):** Downtime Report, Power-Restore Missing Sync, Emergency-Stop Release, Fault Status Summary, Incomplete Transactions, Energy Dispense Check, Protocol Compliance, WebSocket Health. Analyzers already in `analyze.ts` → render-only. Then 3b-3b (RemoteStart diagnostic) + context-viewer close out 3b.
