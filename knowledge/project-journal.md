@@ -338,3 +338,15 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - **Manual browser check (user):** Status section — summary cards, distribution bars, session-flow cards, error-code table, working filters, main table.
 - **Phase 3b-3b** — Repeated-RemoteStart diagnostic (raw-line scan + RemoteStart/Authorize correlation). 6/19 sections now real.
 - Reconcile FR-142 (21 vs 24).
+
+## 2026-06-18 - Parser revamp Phase 3b-4a (Connector Stats + Transaction Summary)
+
+### Implemented
+- **Connector Stats** (`render/sections/connectorStats.ts`): draws the Phase-2d `r.connectorStats` aggregation as the 10-col table with "N (P%)" coloured flag cells; Overlap column placeholder. +2 tests.
+- **Transaction Summary** (`render/sections/transactionSummary.ts`): faithful port of HTML 3676-4054 — 8 summary cards, localStorage-persisted zero-energy threshold control (live recompute of flags + cards + rows), row filter (all/offline/online/issues/zero-energy/temp-high/meter-diff/current-mismatch/normal), 26-col per-tx table with meter-diff / current-mismatch / temp cell formatting + offline-replay badges + status badges + row colour priority. `computeTxFlags` pure (reuses the Phase-2d threshold constants). `convertToIST` (DD/MM/YYYY HH:MM:SS IST) added to `format.ts`. +5 tests.
+- Deferred: the per-row View Chart (3c) + Timeline (Phase 4) buttons + modal → trailing "Chart" column omitted for now (26 cols vs 27); export → 3d.
+- **99 tests** (was 92, +7); `tsc` + `vite build` clean. **8/19 sections real.**
+
+### Next
+- **Manual browser check (user):** Connector Stats table; Transaction Summary cards + threshold + filter + wide table.
+- **3b-4b** Events + Alerts (context buttons deferred) → **3b-4c** Transaction & Meter Values → then 3b-5 analysis sections + 3b-3b RemoteStart diagnostic + context-viewer.

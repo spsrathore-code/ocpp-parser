@@ -27,10 +27,14 @@
 
 - [x] **Parser revamp Phase 3b-3a — Status Notifications** (table + distribution + session-flow + error-code rollup + filter bar): pure `computeStatusAnalytics` + `renderStatusNotifications`. +6 tests (92 total). RemoteStart diagnostic split to 3b-3b.
 
+- [x] **Parser revamp Phase 3b-4a — Connector Stats + Transaction Summary**: `connectorStats.ts` (draws Phase-2d aggregation, 'N (P%)' flag cells) + `transactionSummary.ts` (8 cards, live zero-energy threshold, filter, 26-col table, `computeTxFlags` pure, `convertToIST`). +7 tests (99 total). Chart/Timeline col → 3c/Phase 4, export → 3d.
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ Repeat-RemoteStart card + per-row "N× RS" pill/amber highlight + threshold problem-session panel. Likely a dedicated analysis module.
+- [ ] **Parser revamp Phase 3b-4b — Events + Alerts** renderers (context Preview/Download buttons deferred to context-viewer). jsdom-tested.
+- [ ] **Parser revamp Phase 3b-4c — Transaction & Meter Values** renderer.
+- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + problem-session panel. Likely a dedicated analysis module.
 
 ## Later
 
