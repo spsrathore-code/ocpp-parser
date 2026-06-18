@@ -12,6 +12,7 @@ import { renderConnectorStats } from './sections/connectorStats';
 import { renderTransactionSummary } from './sections/transactionSummary';
 import { renderEvents } from './sections/events';
 import { renderAlerts } from './sections/alerts';
+import { renderMeterValues } from './sections/meterValues';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -40,7 +41,7 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Stop Transactions', emoji: '⏹️', count: (r) => r.messageGroups.StopTransaction.length, render: renderStopTransactions },
   { title: 'Transaction Summary', emoji: '📊', count: (r) => r.transactions.length, render: renderTransactionSummary },
   { title: 'Connector Stats', emoji: '🔌', count: (r) => r.connectorStats.length, render: renderConnectorStats },
-  { title: 'Transaction & Meter Values', emoji: '⚡', render: placeholder('Meter values — pending Phase 3b') },
+  { title: 'Transaction & Meter Values', emoji: '⚡', count: (r) => r.messageGroups.MeterValues.length, render: renderMeterValues },
   { title: 'Events', emoji: '📅', count: (r) => r.events.length, render: renderEvents },
   { title: 'Alerts', emoji: '🚨', count: (r) => r.alerts.length, render: renderAlerts },
   { title: 'Downtime Report', emoji: '📉', render: placeholder('Downtime report — pending Phase 3b') },
