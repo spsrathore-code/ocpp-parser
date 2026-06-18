@@ -350,3 +350,14 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Connector Stats table; Transaction Summary cards + threshold + filter + wide table.
 - **3b-4b** Events + Alerts (context buttons deferred) → **3b-4c** Transaction & Meter Values → then 3b-5 analysis sections + 3b-3b RemoteStart diagnostic + context-viewer.
+
+## 2026-06-19 - Parser revamp Phase 3b-4b (Events + Alerts)
+
+### Implemented
+- **Events** (`render/sections/events.ts`) and **Alerts** (`render/sections/alerts.ts`): faithful ports of HTML 2726-3043 — filterable tables with per-column text filter inputs (Events: Type + Outlet; Alerts: Outlet + Code + Message), substring/case-insensitive row hiding + a live "X of N shown" count, JSON payload cell (Events), missing fields → 'N/A'. +4 tests (103 total); `tsc` + `vite build` clean.
+- Deferred (per 2026-06-17 decision): the per-row "Download Context" buttons + the trailing "Context Analysis" column → context-viewer sub-phase. Minor deviation: filtering is immediate (legacy 150 ms debounce dropped — perf nicety, not needed for parity/testability).
+- Also committed earlier this session: living `docs/parser-revamp-comparison.md` (legacy-vs-revamp snapshot, finalized at the Phase 5 parity gate).
+
+### Next
+- **Manual browser check (user):** Events + Alerts tables with working column filters.
+- **3b-4c** Transaction & Meter Values (last tx-centric section) → then 3b-5 analysis sections, 3b-3b RemoteStart diagnostic, context-viewer. **10/19 sections real.**

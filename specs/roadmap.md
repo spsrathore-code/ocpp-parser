@@ -12,7 +12,7 @@
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
 | 1 | **Validation Engine** (L1–L3) | 🟢 Phase 1 built · PR open | Ship | `feat/validation-engine` (pushed; PR pending merge) | Merge PR → `main`; then L4 (Phase 2) |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3b: 8/19 sections) | Build | `feat/parser-revamp` | Phase 3b-4b — Events + Alerts renderers |
+| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3b: 10/19 sections) | Build | `feat/parser-revamp` | Phase 3b-4c — Transaction & Meter Values |
 | — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
 | 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
 | 4 | **Charger Emulator** | ⚪ Planned (adopt/fork SAP sim) | — | — | Evaluate SAP `e-mobility-charging-stations-simulator` |
@@ -45,7 +45,7 @@ parity with v2026.05.14, optimized, bugs fixed. Spec: `specs/requirements.md` (S
   - [x] 2d Health aggregation (§10) — `src/app/health/` (`aggregateConnectorStats` FR-131 + `analyzeEnergyDispense` FR-127/128/129). 52 tests total; render deferred to Phase 3.
 - [~] **Phase 3 — Render/UI** (19 sections, charts, export, theme) — sub-phased; spec `docs/superpowers/specs/2026-06-15-parser-phase3-render-design.md`.
   - [x] 3a Shell + theme + orchestrator + DOM helper — `src/app/render/` + `analyze.ts`; 19 §19.4 sections render as placeholders; upload→parse→render round-trip works. 66 tests.
-  - [~] 3b Static section renderers (batched, 8/19 done): [x] 3b-1 `dataTable` + Heartbeats/Start/Stop · [x] 3b-2 Debug Info + Boot · [x] 3b-3a Status (table+distribution+flow+errors) · [x] 3b-4a Connector Stats + Transaction Summary (99 tests) · [ ] 3b-3b RemoteStart diagnostic · [ ] 3b-4b Events+Alerts · [ ] 3b-4c Meter Values · [ ] 3b-5 analysis · [ ] context-viewer.
+  - [~] 3b Static section renderers (batched, 10/19 done): [x] 3b-1 `dataTable` + Heartbeats/Start/Stop · [x] 3b-2 Debug Info + Boot · [x] 3b-3a Status · [x] 3b-4a Connector Stats + Transaction Summary · [x] 3b-4b Events + Alerts (103 tests) · [ ] 3b-3b RemoteStart diagnostic · [ ] 3b-4c Meter Values · [ ] 3b-5 analysis · [ ] context-viewer.
   - [ ] 3c Charts (Chart.js) · [ ] 3d Excel export (SheetJS).
 - [ ] **Phase 4 — Repository / timeline / api-download.**
 - [ ] **Phase 5 — Parity gate + deploy swap** (point GitHub Pages at the new build).
