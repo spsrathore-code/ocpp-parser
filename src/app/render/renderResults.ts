@@ -13,6 +13,9 @@ import { renderTransactionSummary } from './sections/transactionSummary';
 import { renderEvents } from './sections/events';
 import { renderAlerts } from './sections/alerts';
 import { renderMeterValues } from './sections/meterValues';
+import { renderFaultStatusSummary } from './sections/faultStatusSummary';
+import { renderIncompleteTransactions } from './sections/incompleteTransactions';
+import { renderEnergyDispense } from './sections/energyDispense';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -47,9 +50,9 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Downtime Report', emoji: '📉', render: placeholder('Downtime report — pending Phase 3b') },
   { title: 'Power Restore Missing Sync', emoji: '🔄', render: placeholder('Power-restore sync — pending Phase 3b') },
   { title: 'Emergency Stop Release', emoji: '🛑', render: placeholder('Emergency-stop release — pending Phase 3b') },
-  { title: 'Fault Status Summary', emoji: '⚠️', render: placeholder('Fault status — pending Phase 3b') },
-  { title: 'Incomplete Transactions', emoji: '🧩', render: placeholder('Incomplete transactions — pending Phase 3b') },
-  { title: 'Energy Dispense Check', emoji: '⚡', render: placeholder('Energy dispense — pending Phase 3b') },
+  { title: 'Fault Status Summary', emoji: '⚠️', render: renderFaultStatusSummary },
+  { title: 'Incomplete Transactions', emoji: '🧩', count: (r) => r.incompleteTransactions.length, render: renderIncompleteTransactions },
+  { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, render: renderEnergyDispense },
   { title: 'Protocol Compliance', emoji: '✅', render: placeholder('Protocol compliance — pending Phase 3b') },
   { title: 'WebSocket Health', emoji: '🌐', render: placeholder('WebSocket health — pending Phase 3b') },
 ];
