@@ -40,7 +40,11 @@
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + threshold problem-session panel (Status section). Likely a dedicated analysis module. **Last 3b parity item.**
+- [ ] **Parser revamp Phase 3c — Charts (Chart.js)**: per-tx "View Chart" (Transaction Summary), Meter Values "Transaction Analysis Graphs" + ZUC selector option, Status ⚠ Repeat-RemoteStart summary card placeholder. `npm install chart.js`. Pure chart-data-shaping unit-tested; canvas render manual-verified.
+
+## Parked
+
+- ⏸️ **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic** (PARKED 2026-06-19, user decision). Status section's auth-contention analysis (⚠ Repeat-RemoteStart card + per-row "N× RS" pill + threshold problem-session panel). Full resume notes: `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`.
 - [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + problem-session panel. Likely a dedicated analysis module.
 
 ## Later

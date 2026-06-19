@@ -425,3 +425,12 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** click Preview/Download on Boot/Events/Alerts/Downtime/sync rows → modal shows ±25 surrounding log lines; Download saves a .txt.
 - **3b-3b** Repeated-RemoteStart diagnostic — the **last** Phase 3b parity item. Then 3c charts → 3d Excel export.
+
+## 2026-06-19 - Decision: park Repeated-RemoteStart diagnostic; proceed to 3c charts
+
+### Decided (user)
+- **Park 3b-3b** (Repeated-RemoteStart auth-contention diagnostic in the Status section). Documented for clean later resumption in `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md` (legacy line ranges 4256-4720 + 4849-4857, algorithm, data contract, recommended revamp architecture as a `detect/remoteStartContention.ts` module surfaced on AnalysisResult + Status render additions). Marked ⏸️ PARKED in WORKFLOW/roadmap/tasks.
+- **Next: Phase 3c — charts (Chart.js).**
+
+### Next
+- 3c charts: per-tx View Chart (Transaction Summary), Meter Values Analysis Graphs + ZUC option, Status RemoteStart card placeholder. npm install chart.js; pure data-shaping unit-tested, canvas render manual-verified.
