@@ -446,3 +446,18 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Transaction Summary → View Chart (modal SoC+Power); Meter Values → select a tx → View → 6 analysis graphs; ZUC option.
 - **Phase 3d — Excel export (SheetJS)**: per-section Export buttons. Last Phase 3 item (modulo parked 3b-3b). Then Phase 4 (repository/timeline/api-download) + Phase 5 (parity gate + deploy).
+
+## 2026-06-19 - Fix: faithful Meter Values graphs + Enlarge/Download (user-reported)
+
+### Issue (user)
+- My first Meter Values graphs (3c-b) were a **lossy port** — I used a "compact shared chart builder" and dropped per-graph fidelity: no hover tooltips (missing `interaction:{mode:'nearest',intersect:false}` with `pointRadius:0` → nothing to hover), no dashed "Present" lines, wrong Graph 3 (made dual-axis instead of SoC x-axis), no per-unit tooltips. User also flagged the Enlarge/Download buttons shouldn't have been deferred.
+
+### Fix (3c-c)
+- Re-read the full legacy chart configs (HTML 8885-9444) and re-ported all 6 graphs **faithfully**: `interaction` hover, `pointHitRadius:15` + hover-point styling, `borderDash:[5,5]`/`borderWidth:3` Present series, per-unit tooltip callbacks, black/white axis theming, Graph 3 SoC x-axis, Graph 6 dual y-axes (y-left Power/Voltage, y-right Current). Added per-graph 🔍 Enlarge modal (clones config, maintainAspectRatio:false, re-attaches tooltip callbacks after JSON-clone) + 📥 PNG download (HTML 9447/9536). 132 tests; tsc + vite build clean.
+
+### Lesson (recurring — codify)
+- **Faithful-parity work must not be "compacted."** Twice now (Meter Values cards, then graphs) I over-trimmed and lost user-visible features. For parity ports, reproduce the legacy config in full; only refactor *after* parity is verified. A shared helper is fine only if it preserves every per-instance property (dash, hover, tooltips, axes).
+
+### Next
+- **Manual browser check (user):** Meter Values → select a tx → View → graphs now show hover tooltips, dashed Present lines, Enlarge + Download.
+- **Phase 3d — Excel export (SheetJS)** = last Phase 3 item (modulo parked 3b-3b).
