@@ -101,13 +101,101 @@ export function buildTxInfo(transactions: Transaction[], meterValues: ParsedMess
   });
 }
 
+export interface TxMetrics { durationMin: number | null; energy: number | null; }
+
+/** Per-tx duration (Transaction.Begin→End) + energy (Σ Energy.Active.Import.Interval/Outlet) (HTML 8163). */
+export function getTransactionMetrics(txId: string | number, meterValues: ParsedMessage[]): TxMetrics {
+  const forTx = meterValues.filter((mv) => String(mvPayload(mv).transactionId) === String(txId));
+  let begin: MeterValueReading | null = null;
+  let end: MeterValueReading | null = null;
+  let total = 0;
+  let found = false;
+  for (const mv of forTx) {
+    for (const reading of mvPayload(mv).meterValue ?? []) {
+      const ctx = reading.sampledValue[0]?.context;
+      const t = new Date(reading.timestamp);
+      if (ctx === 'Transaction.Begin' && (!begin || t < new Date(begin.timestamp))) begin = reading;
+      if (ctx === 'Transaction.End' && (!end || t > new Date(end.timestamp))) end = reading;
+      const interval = reading.sampledValue.find((sv) => sv.measurand === 'Energy.Active.Import.Interval' && sv.location === 'Outlet');
+      if (interval && interval.value) { total += parseFloat(interval.value); found = true; }
+    }
+  }
+  const durationMin = begin && end ? (new Date(end.timestamp).getTime() - new Date(begin.timestamp).getTime()) / 60000 : null;
+  return { durationMin, energy: found ? total : null };
+}
+
+/** ZUC = "Zero Useful Charge" — sessions whose dispensed energy is < 1 kWh (HTML 8717). */
+export function identifyZUCSessions(allTxIds: number[], meterValues: ParsedMessage[]): number[] {
+  return allTxIds.filter((id) => { const m = getTransactionMetrics(id, meterValues); return m.energy !== null && m.energy < 1000; });
+}
+
+export interface MinMax { max: string; min: string; }
+export interface TxStats {
+  currentOutlet: MinMax; currentEV: MinMax; voltageOutlet: MinMax; voltageEV: MinMax;
+  tempBody: MinMax; tempInlet: MinMax; tempOutlet: MinMax; tempOutlet2: MinMax;
+  powerFactor: MinMax; powerOutlet: MinMax; soc: { start: string; end: string };
+}
+
+/** Per-measurand max/min (+ SoC start/end) over a transaction's pivoted rows (HTML 8672). */
+export function calculateTransactionStats(txId: string | number, rows: MvRow[]): TxStats | null {
+  const txData = rows.filter((row) => row['Transaction ID'] === String(txId));
+  if (txData.length === 0) return null;
+  const maxMin = (key: string): MinMax => {
+    const values = txData.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v) && v > 0);
+    return values.length === 0 ? { max: 'N/A', min: 'N/A' } : { max: Math.max(...values).toFixed(2), min: Math.min(...values).toFixed(2) };
+  };
+  const startEnd = (key: string): { start: string; end: string } => {
+    const values = txData.map((row) => ({ value: parseFloat(row[key]), ts: row['UTC Time Stamp'] }))
+      .filter((v) => !isNaN(v.value) && v.value > 0)
+      .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    return values.length === 0 ? { start: 'N/A', end: 'N/A' } : { start: values[0].value.toFixed(2), end: values[values.length - 1].value.toFixed(2) };
+  };
+  return {
+    currentOutlet: maxMin('Current.Import/A/Outlet'), currentEV: maxMin('Current.Import/A/EV'),
+    voltageOutlet: maxMin('Voltage/V/Outlet'), voltageEV: maxMin('Voltage/V/EV'),
+    tempBody: maxMin('Temperature/Celsius/Body'), tempInlet: maxMin('Temperature/Celsius/Inlet'),
+    tempOutlet: maxMin('Temperature/Celsius/Outlet'), tempOutlet2: maxMin('Temperature/Celsius/Outlet#2'),
+    powerFactor: maxMin('Power.Factor/Percent/Inlet'), powerOutlet: maxMin('Power.Active.Import/W/Outlet'),
+    soc: startEnd('SoC/Percent/EV'),
+  };
+}
+
+/** Detailed-statistics table HTML for a single transaction (HTML 8061-8157). */
+function statsTableHtml(s: TxStats): string {
+  const mm = (label: string, v: MinMax): string => `<tr><td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">${label}</td><td class="px-4 py-2 text-gray-700 dark:text-gray-300">${v.max}</td><td class="px-4 py-2 text-gray-700 dark:text-gray-300">${v.min}</td><td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td><td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td></tr>`;
+  const se = (label: string, v: { start: string; end: string }): string => `<tr><td class="px-4 py-2 font-medium text-gray-900 dark:text-gray-100">${label}</td><td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td><td class="px-4 py-2 text-gray-500 dark:text-gray-400">-</td><td class="px-4 py-2 text-gray-700 dark:text-gray-300">${v.start}</td><td class="px-4 py-2 text-gray-700 dark:text-gray-300">${v.end}</td></tr>`;
+  return `<div class="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+    <h4 class="text-md font-semibold text-gray-800 dark:text-gray-200 mb-3">📊 Detailed Statistics</h4>
+    <div class="overflow-x-auto"><table class="min-w-full text-sm">
+      <thead class="bg-gray-50 dark:bg-gray-700"><tr>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Parameter</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Max Value</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Min Value</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Start Value</th>
+        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">End Value</th>
+      </tr></thead>
+      <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+        ${mm('Target Current (A) — EV Demand', s.currentEV)}
+        ${mm('Present Current (A) — Charger Output', s.currentOutlet)}
+        ${mm('Target Voltage (V) — EV Demand', s.voltageEV)}
+        ${mm('Present Voltage (V) — Charger Output', s.voltageOutlet)}
+        ${mm('Temperature Body (°C)', s.tempBody)}
+        ${mm('Temperature Inlet (°C)', s.tempInlet)}
+        ${mm('Temperature Outlet (°C)', s.tempOutlet)}
+        ${mm('Temperature Outlet#2 (°C)', s.tempOutlet2)}
+        ${mm('Power Factor (%)', s.powerFactor)}
+        ${mm('Power Outlet (W)', s.powerOutlet)}
+        ${se('SoC EV (%)', s.soc)}
+      </tbody></table></div></div>`;
+}
+
 const TH = 'px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider';
 const SELECT = 'mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-800 dark:border-gray-600';
 
 function summaryCard(id: string, label: string, color: string): HTMLElement {
   return el('div', { className: `text-center p-3 bg-${color}-50 dark:bg-${color}-900/20 rounded-lg` }, [
     el('div', { className: `text-2xl font-bold text-${color}-600 dark:text-${color}-400`, text: '-', attrs: { id: `${id}-value` } }),
-    el('div', { className: `text-xs text-${color}-600 dark:text-${color}-400`, text: label }),
+    el('div', { className: `text-xs text-${color}-600 dark:text-${color}-400`, text: label, attrs: { id: `${id}-label` } }),
   ]);
 }
 
@@ -126,6 +214,44 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
     summaryCard('summary-card-3', 'Energy (Wh)', 'purple'),
     summaryCard('summary-card-4', 'Duration (min)', 'orange'),
   ]);
+  const banner = el('div', { className: 'mt-3 text-sm', attrs: { id: 'internal-tx-id-banner' } });
+  const statsContainer = el('div', { className: 'mt-4', attrs: { id: 'detailed-stats-container' } });
+
+  const setCard = (n: number, label: string, value: string): void => {
+    cards.querySelector(`#summary-card-${n}-label`)!.textContent = label;
+    cards.querySelector(`#summary-card-${n}-value`)!.textContent = value;
+  };
+
+  // Populate the 4 summary cards + internal-tx banner + detailed stats (no charts — those are 3c).
+  const updateSummary = (sel: string): void => {
+    if (sel === 'all') {
+      const allIds = txInfo.map((i) => i.id);
+      const completed = r.transactions.filter((t) => typeof t.duration === 'number' && typeof t.totalEnergy === 'number');
+      const totalEnergyKwh = completed.reduce((s, t) => s + (t.totalEnergy as number), 0);
+      const totalDur = completed.reduce((s, t) => s + (t.duration as number), 0);
+      const zuc = identifyZUCSessions(allIds, meterValues);
+      setCard(1, 'Total Transactions', String(allIds.length));
+      setCard(2, 'Total Energy (kWh)', totalEnergyKwh.toFixed(2));
+      setCard(3, 'Avg Duration/Tx (min)', completed.length > 0 ? (totalDur / completed.length).toFixed(2) : 'N/A');
+      setCard(4, 'ZUC Sessions', `${zuc.length} (${allIds.length > 0 ? ((zuc.length / allIds.length) * 100).toFixed(1) : '0.0'}%)`);
+      banner.innerHTML = '';
+      statsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 italic mt-2">Detailed Statistics are available for individual transactions only. Please select a specific transaction.</p>';
+      return;
+    }
+    setCard(1, 'Transaction ID', sel);
+    const forTx = meterValues.filter((mv) => String(mvPayload(mv).transactionId) === sel);
+    const readings = forTx.reduce((acc, mv) => acc + (mvPayload(mv).meterValue?.length ?? 0), 0);
+    setCard(2, 'Meter Readings', String(readings));
+    const m = getTransactionMetrics(sel, meterValues);
+    setCard(3, 'Energy (Wh)', m.energy !== null ? m.energy.toFixed(2) : 'N/A');
+    setCard(4, 'Duration (min)', m.durationMin !== null ? m.durationMin.toFixed(2) : 'N/A');
+    const itx = r.internalTxMap.get(String(sel));
+    banner.innerHTML = itx
+      ? `<span class="text-gray-500 dark:text-gray-400">Internal TX ID: </span><span class="font-mono text-indigo-700 dark:text-indigo-300 font-semibold">${itx}</span>`
+      : `<span class="text-gray-400 dark:text-gray-500 italic">Internal TX ID: — (not found in log)</span>`;
+    const stats = calculateTransactionStats(sel, pivotedRows);
+    statsContainer.innerHTML = stats ? statsTableHtml(stats) : '';
+  };
 
   // Filters.
   const dateFilter = el('select', { className: SELECT, attrs: { id: 'filter-date' }, html: '<option>All Dates</option>' });
@@ -167,6 +293,7 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
     (dateFilter as HTMLElement).innerHTML = '<option>All Dates</option>' + dates.map((x) => `<option>${x}</option>`).join('');
     (txIdFilter as HTMLElement).innerHTML = '<option>All Transactions</option>' + txIds.map((x) => `<option>${x}</option>`).join('');
     renderRows(pivotedRows);
+    updateSummary(sel);
   };
 
   selector.addEventListener('change', () => { (viewBtn as HTMLButtonElement).disabled = !(selector as HTMLSelectElement).value; });
@@ -182,7 +309,7 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
         viewBtn,
       ]),
     ]),
-    el('div', { className: 'mb-6' }, [el('h3', { className: 'text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3', text: 'Transaction Summary' }), cards]),
+    el('div', { className: 'mb-6' }, [el('h3', { className: 'text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3', text: 'Transaction Summary' }), cards, banner, statsContainer]),
     el('div', { className: 'mb-4' }, [
       el('div', { className: 'p-4 bg-gray-50 dark:bg-gray-700 rounded-lg mb-4 border border-gray-200 dark:border-gray-600' }, [
         el('h4', { className: 'text-md font-semibold text-gray-800 dark:text-gray-200 mb-3', text: 'Column Filters' }),
