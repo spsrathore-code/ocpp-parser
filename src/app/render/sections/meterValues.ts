@@ -8,6 +8,7 @@
 // Transaction Analysis Graphs. Export → 3d.
 
 import { el } from '../dom';
+import { renderTransactionGraphs } from '../charts/meterValueGraphs';
 import { fmtReplayDelay } from '../format';
 import { OFFLINE_REPLAY_THRESHOLD_MS } from '../../model/config';
 import type { ParsedMessage, Transaction } from '../../model/types';
@@ -203,9 +204,10 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
   const meterValues = r.messageGroups.MeterValues;
   const txInfo = buildTxInfo(r.transactions, meterValues);
 
-  // Transaction selector + View button. (ZUC option deferred to 3c.)
+  // Transaction selector + View button.
   const selector = el('select', { className: 'block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm', attrs: { id: 'transaction-selector' },
-    html: `<option value="">Select a Transaction</option><option value="all">All Transactions</option>` + txInfo.map((i) => `<option value="${i.id}">${i.text}</option>`).join('') });
+    html: `<option value="">Select a Transaction</option><option value="all">All Transactions</option><option value="zuc">ZUC Sessions (Energy &lt; 1 kWh)</option>` + txInfo.map((i) => `<option value="${i.id}">${i.text}</option>`).join('') });
+  const graphsContainer = el('div', { className: 'grid grid-cols-1 lg:grid-cols-2 gap-4', attrs: { id: 'transaction-graphs-container' } });
   const viewBtn = el('button', { className: 'bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed', text: 'View Meter Values', attrs: { id: 'view-meter-values-btn', disabled: '' } });
 
   const cards = el('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-4' }, [
@@ -236,6 +238,24 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
       setCard(4, 'ZUC Sessions', `${zuc.length} (${allIds.length > 0 ? ((zuc.length / allIds.length) * 100).toFixed(1) : '0.0'}%)`);
       banner.innerHTML = '';
       statsContainer.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 italic mt-2">Detailed Statistics are available for individual transactions only. Please select a specific transaction.</p>';
+      return;
+    }
+    if (sel === 'zuc') {
+      const zuc = identifyZUCSessions(txInfo.map((i) => i.id), meterValues);
+      let totalEnergy = 0;
+      let totalDuration = 0;
+      let withMetrics = 0;
+      for (const id of zuc) {
+        const m = getTransactionMetrics(id, meterValues);
+        if (m.energy !== null) totalEnergy += m.energy;
+        if (m.durationMin !== null) { totalDuration += m.durationMin; withMetrics++; }
+      }
+      setCard(1, 'ZUC Sessions', String(zuc.length));
+      setCard(2, 'Total Energy (Wh)', totalEnergy.toFixed(2));
+      setCard(3, 'Avg Duration (min)', withMetrics > 0 ? (totalDuration / withMetrics).toFixed(2) : 'N/A');
+      setCard(4, 'Avg Energy (Wh)', zuc.length > 0 ? (totalEnergy / zuc.length).toFixed(2) : 'N/A');
+      banner.innerHTML = '';
+      statsContainer.innerHTML = '';
       return;
     }
     setCard(1, 'Transaction ID', sel);
@@ -286,7 +306,12 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
   const view = (): void => {
     const sel = (selector as HTMLSelectElement).value;
     if (!sel) return;
-    const filtered = sel === 'all' ? meterValues : meterValues.filter((mv) => String(mvPayload(mv).transactionId) === sel);
+    let filtered: ParsedMessage[];
+    if (sel === 'all') filtered = meterValues;
+    else if (sel === 'zuc') {
+      const zucIds = new Set(identifyZUCSessions(txInfo.map((i) => i.id), meterValues).map(String));
+      filtered = meterValues.filter((mv) => zucIds.has(String(mvPayload(mv).transactionId)));
+    } else filtered = meterValues.filter((mv) => String(mvPayload(mv).transactionId) === sel);
     pivotedRows = pivotMeterValues(filtered);
     const dates = [...new Set(pivotedRows.map((row) => new Date(row['UTC Time Stamp']).toLocaleDateString()))].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
     const txIds = [...new Set(pivotedRows.map((row) => row['Transaction ID']))].sort();
@@ -294,6 +319,12 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
     (txIdFilter as HTMLElement).innerHTML = '<option>All Transactions</option>' + txIds.map((x) => `<option>${x}</option>`).join('');
     renderRows(pivotedRows);
     updateSummary(sel);
+    // Analysis graphs render for a specific transaction only (aggregate views show a hint).
+    if (sel !== 'all' && sel !== 'zuc') {
+      void renderTransactionGraphs(graphsContainer, pivotedRows, sel);
+    } else {
+      graphsContainer.replaceChildren(el('div', { className: 'col-span-2 text-center text-gray-500 dark:text-gray-400 py-8', text: 'Select a specific transaction to view analysis graphs.' }));
+    }
   };
 
   selector.addEventListener('change', () => { (viewBtn as HTMLButtonElement).disabled = !(selector as HTMLSelectElement).value; });
@@ -310,6 +341,7 @@ export function renderMeterValues(r: AnalysisResult): HTMLElement {
       ]),
     ]),
     el('div', { className: 'mb-6' }, [el('h3', { className: 'text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3', text: 'Transaction Summary' }), cards, banner, statsContainer]),
+    el('div', { className: 'mb-6' }, [el('h3', { className: 'text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3', text: '📈 Transaction Analysis Graphs' }), graphsContainer]),
     el('div', { className: 'mb-4' }, [
       el('div', { className: 'p-4 bg-gray-50 dark:bg-gray-700 rounded-lg mb-4 border border-gray-200 dark:border-gray-600' }, [
         el('h4', { className: 'text-md font-semibold text-gray-800 dark:text-gray-200 mb-3', text: 'Column Filters' }),
