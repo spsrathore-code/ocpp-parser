@@ -5,6 +5,7 @@
 
 import { clearChildren, collapsibleSection } from './dom';
 import { wireContextButtons } from './contextViewer';
+import { exportButton } from '../export/exportToExcel';
 import type { AnalysisResult } from '../analyze';
 import { renderDebugInfo } from './sections/debugInfo';
 import { renderBootNotifications } from './sections/bootNotifications';
@@ -30,6 +31,8 @@ export interface SectionDef {
   emoji: string;
   /** Optional count shown as `Title (N)` in the header (parity with the legacy "(N)" titles). */
   count?: (r: AnalysisResult) => number;
+  /** Optional "Export to Excel" header button targeting a rendered table by id. */
+  exportTable?: { id: string; file: string };
   /** Builds the section body. */
   render: (r: AnalysisResult) => HTMLElement;
 }
@@ -37,24 +40,24 @@ export interface SectionDef {
 /** The §19.4 render order — all 19 sections now have real renderers. */
 export const SECTION_ORDER: SectionDef[] = [
   { title: 'Debug Info', emoji: '🐞', render: renderDebugInfo },
-  { title: 'Boot Notifications', emoji: '🔌', count: (r) => r.messageGroups.BootNotification.length, render: renderBootNotifications },
-  { title: 'Heartbeats', emoji: '💓', count: (r) => r.messageGroups.Heartbeat.length, render: renderHeartbeats },
-  { title: 'Status Notifications', emoji: '📋', count: (r) => r.messageGroups.StatusNotification.length, render: renderStatusNotifications },
-  { title: 'Start Transactions', emoji: '▶️', count: (r) => r.messageGroups.StartTransaction.length, render: renderStartTransactions },
-  { title: 'Stop Transactions', emoji: '⏹️', count: (r) => r.messageGroups.StopTransaction.length, render: renderStopTransactions },
-  { title: 'Transaction Summary', emoji: '📊', count: (r) => r.transactions.length, render: renderTransactionSummary },
-  { title: 'Connector Stats', emoji: '🔌', count: (r) => r.connectorStats.length, render: renderConnectorStats },
-  { title: 'Transaction & Meter Values', emoji: '⚡', count: (r) => r.messageGroups.MeterValues.length, render: renderMeterValues },
-  { title: 'Events', emoji: '📅', count: (r) => r.events.length, render: renderEvents },
-  { title: 'Alerts', emoji: '🚨', count: (r) => r.alerts.length, render: renderAlerts },
-  { title: 'Downtime Report', emoji: '📉', count: (r) => r.downtimes.length, render: renderDowntimeReport },
-  { title: 'Power Restore Missing Sync', emoji: '🔄', count: (r) => r.powerRestoreSync.length, render: renderPowerRestoreSync },
-  { title: 'Emergency Stop Release', emoji: '🛑', count: (r) => r.emergencyStopSync.length, render: renderEmergencyStopRelease },
-  { title: 'Fault Status Summary', emoji: '⚠️', render: renderFaultStatusSummary },
-  { title: 'Incomplete Transactions', emoji: '🧩', count: (r) => r.incompleteTransactions.length, render: renderIncompleteTransactions },
-  { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, render: renderEnergyDispense },
+  { title: 'Boot Notifications', emoji: '🔌', count: (r) => r.messageGroups.BootNotification.length, exportTable: { id: 'boot-notifications-table', file: 'Boot_Notifications.xlsx' }, render: renderBootNotifications },
+  { title: 'Heartbeats', emoji: '💓', count: (r) => r.messageGroups.Heartbeat.length, exportTable: { id: 'heartbeats-table', file: 'Heartbeats.xlsx' }, render: renderHeartbeats },
+  { title: 'Status Notifications', emoji: '📋', count: (r) => r.messageGroups.StatusNotification.length, exportTable: { id: 'status-notifications-table', file: 'Status_Notifications.xlsx' }, render: renderStatusNotifications },
+  { title: 'Start Transactions', emoji: '▶️', count: (r) => r.messageGroups.StartTransaction.length, exportTable: { id: 'start-transactions-table', file: 'Start_Transactions.xlsx' }, render: renderStartTransactions },
+  { title: 'Stop Transactions', emoji: '⏹️', count: (r) => r.messageGroups.StopTransaction.length, exportTable: { id: 'stop-transactions-table', file: 'Stop_Transactions.xlsx' }, render: renderStopTransactions },
+  { title: 'Transaction Summary', emoji: '📊', count: (r) => r.transactions.length, exportTable: { id: 'transaction-summary-table', file: 'Transaction_Summary.xlsx' }, render: renderTransactionSummary },
+  { title: 'Connector Stats', emoji: '🔌', count: (r) => r.connectorStats.length, exportTable: { id: 'connector-stats-table', file: 'Connector_Stats.xlsx' }, render: renderConnectorStats },
+  { title: 'Transaction & Meter Values', emoji: '⚡', count: (r) => r.messageGroups.MeterValues.length, exportTable: { id: 'meter-values-table', file: 'Meter_Values.xlsx' }, render: renderMeterValues },
+  { title: 'Events', emoji: '📅', count: (r) => r.events.length, exportTable: { id: 'events-table', file: 'Events.xlsx' }, render: renderEvents },
+  { title: 'Alerts', emoji: '🚨', count: (r) => r.alerts.length, exportTable: { id: 'alerts-table', file: 'Alerts.xlsx' }, render: renderAlerts },
+  { title: 'Downtime Report', emoji: '📉', count: (r) => r.downtimes.length, exportTable: { id: 'downtime-report-table', file: 'Downtime_Report.xlsx' }, render: renderDowntimeReport },
+  { title: 'Power Restore Missing Sync', emoji: '🔄', count: (r) => r.powerRestoreSync.length, exportTable: { id: 'power-restore-missing-sync-table', file: 'Power_Restore_Missing_Sync.xlsx' }, render: renderPowerRestoreSync },
+  { title: 'Emergency Stop Release', emoji: '🛑', count: (r) => r.emergencyStopSync.length, exportTable: { id: 'emergency-stop-missing-status-table', file: 'Emergency_Stop_Missing_Status.xlsx' }, render: renderEmergencyStopRelease },
+  { title: 'Fault Status Summary', emoji: '⚠️', exportTable: { id: 'fault-status-summary-table', file: 'Fault_Status_Summary.xlsx' }, render: renderFaultStatusSummary },
+  { title: 'Incomplete Transactions', emoji: '🧩', count: (r) => r.incompleteTransactions.length, exportTable: { id: 'incomplete-transactions-table', file: 'Incomplete_Transactions.xlsx' }, render: renderIncompleteTransactions },
+  { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, exportTable: { id: 'energy-dispense-table', file: 'Energy_Dispense_Check.xlsx' }, render: renderEnergyDispense },
   { title: 'Protocol Compliance', emoji: '✅', render: renderProtocolCompliance },
-  { title: 'WebSocket Health', emoji: '🌐', count: (r) => r.wsHealth.pingCount, render: renderWebSocketHealth },
+  { title: 'WebSocket Health', emoji: '🌐', count: (r) => r.wsHealth.pingCount, exportTable: { id: 'ws-health-table', file: 'WebSocket_Health.xlsx' }, render: renderWebSocketHealth },
 ];
 
 /** Render every section into `container` (clears prior content first). */
@@ -62,7 +65,8 @@ export function renderResults(container: HTMLElement, result: AnalysisResult): v
   clearChildren(container);
   for (const def of SECTION_ORDER) {
     const title = def.count ? `${def.title} (${def.count(result)})` : def.title;
-    container.appendChild(collapsibleSection(title, def.emoji, def.render(result)));
+    const headerAction = def.exportTable ? exportButton(def.exportTable.id, def.exportTable.file) : undefined;
+    container.appendChild(collapsibleSection(title, def.emoji, def.render(result), { headerAction }));
   }
   // One delegated handler powers every section's Preview/Download "log context" button.
   wireContextButtons(container, result.rawLogLines);

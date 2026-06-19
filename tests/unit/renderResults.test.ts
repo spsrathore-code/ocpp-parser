@@ -42,6 +42,15 @@ describe('renderResults — 19 sections in §19.4 order', () => {
     expect(heartbeats.querySelector('button')!.textContent).toMatch(/Heartbeats \(\d+\)/);
   });
 
+  it('puts an "Export to Excel" button on the 17 table sections (not Debug Info / Protocol)', () => {
+    const container = document.createElement('div');
+    renderResults(container, result);
+    const exportBtns = [...container.querySelectorAll('button')].filter((b) => b.textContent === 'Export to Excel');
+    expect(exportBtns).toHaveLength(17);
+    const debug = [...container.querySelectorAll('section')].find((s) => s.querySelector('button')?.textContent?.includes('Debug Info'))!;
+    expect([...debug.querySelectorAll('button')].some((b) => b.textContent === 'Export to Excel')).toBe(false);
+  });
+
   it('clears prior content on re-render', () => {
     const container = document.createElement('div');
     renderResults(container, result);
