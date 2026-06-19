@@ -99,8 +99,9 @@ describe('renderBootNotifications', () => {
     const r = bundle({ messageGroups: { ...bundle({}).messageGroups, BootNotification: [boot] } });
     const body = renderBootNotifications(r);
     const headers = [...body.querySelectorAll('thead th')].map((th) => th.textContent);
-    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Message ID', 'Charge Point Vendor', 'Charge Point Model', 'Firmware Version', 'Response Status']);
-    const cells = [...body.querySelectorAll('tbody tr td')].map((td) => td.textContent);
+    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Message ID', 'Charge Point Vendor', 'Charge Point Model', 'Firmware Version', 'Response Status', 'Preview', 'Download']);
+    const cells = [...body.querySelectorAll('tbody tr td')].slice(0, 8).map((td) => td.textContent);
     expect(cells).toEqual(['1', 'log.txt', '2025-08-22T00:00:00.000Z', 'bn-1', 'Ador', 'DC60', '1.2.3', 'Accepted']);
+    expect(body.querySelectorAll('button[data-ctx-action]')).toHaveLength(2); // Preview + Download
   });
 });

@@ -4,6 +4,7 @@
 // in the header.
 
 import { clearChildren, collapsibleSection } from './dom';
+import { wireContextButtons } from './contextViewer';
 import type { AnalysisResult } from '../analyze';
 import { renderDebugInfo } from './sections/debugInfo';
 import { renderBootNotifications } from './sections/bootNotifications';
@@ -63,4 +64,6 @@ export function renderResults(container: HTMLElement, result: AnalysisResult): v
     const title = def.count ? `${def.title} (${def.count(result)})` : def.title;
     container.appendChild(collapsibleSection(title, def.emoji, def.render(result)));
   }
+  // One delegated handler powers every section's Preview/Download "log context" button.
+  wireContextButtons(container, result.rawLogLines);
 }

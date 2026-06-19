@@ -16,8 +16,9 @@ describe('renderEvents', () => {
 
   it('renders 7 columns (Context Analysis deferred) and one row per event', () => {
     const headers = [...body.querySelectorAll('#events-table thead th')].map((th) => th.textContent);
-    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Type', 'Charger ID', 'Outlet', 'Payload']);
+    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Type', 'Charger ID', 'Outlet', 'Payload', 'Context Analysis']);
     expect(body.querySelectorAll('#events-table tbody tr')).toHaveLength(2);
+    expect(body.querySelectorAll('button[data-ctx-action="download"]')).toHaveLength(2);
   });
 
   it('filters rows by type substring', () => {
@@ -36,7 +37,7 @@ describe('renderAlerts', () => {
 
   it('renders 8 columns (Context Analysis deferred) and one row per alert', () => {
     const headers = [...body.querySelectorAll('#alerts-table thead th')].map((th) => th.textContent);
-    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Charger ID', 'Outlet', 'Code', 'Message', 'Session']);
+    expect(headers).toEqual(['S.No.', 'File Name', 'Time Stamp', 'Charger ID', 'Outlet', 'Code', 'Message', 'Session', 'Context Analysis']);
     expect(body.querySelectorAll('#alerts-table tbody tr')).toHaveLength(2);
   });
 

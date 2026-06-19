@@ -5,6 +5,7 @@
 // dropped for simplicity/testability).
 
 import { el } from '../dom';
+import { singleContextButtons } from '../contextViewer';
 import type { AnalysisResult } from '../../analyze';
 
 const TH = 'px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10';
@@ -36,6 +37,7 @@ export function renderAlerts(r: AnalysisResult): HTMLElement {
         el('td', { className: TD, text: al.code ?? 'N/A' }),
         el('td', { className: 'px-6 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-md', text: al.message, attrs: { title: al.message } }),
         el('td', { className: TD, text: al.session ?? 'N/A' }),
+        el('td', { className: 'px-6 py-4 whitespace-nowrap text-sm', html: singleContextButtons('Alert', al.lineNumber, i, { preview: false }).download }),
       ])));
 
   const countLabel = el('span', { className: 'text-xs text-gray-400 dark:text-gray-500' });
@@ -67,6 +69,7 @@ export function renderAlerts(r: AnalysisResult): HTMLElement {
         el('th', { className: TH }, [el('div', { className: 'mb-1', text: 'Code' }), codeFilter]),
         el('th', { className: TH }, [el('div', { className: 'mb-1', text: 'Message' }), messageFilter]),
         el('th', { className: TH, text: 'Session' }),
+        el('th', { className: TH, text: 'Context Analysis' }),
       ]),
     ]),
     tbody,

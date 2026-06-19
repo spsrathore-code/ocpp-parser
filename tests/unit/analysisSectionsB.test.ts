@@ -13,9 +13,9 @@ const flag = (over: Partial<MissingSyncFlag>): MissingSyncFlag =>
 describe('renderDowntimeReport', () => {
   const body = renderDowntimeReport({ downtimes: [dt({ reason: 'Power Failure' }), dt({ reason: 'Connection Lost' })] } as unknown as AnalysisResult);
 
-  it('renders 9 columns (Preview/Download deferred) and maps reason display names', () => {
+  it('renders 11 columns (incl. Preview/Download) and maps reason display names', () => {
     const headers = [...body.querySelectorAll('#downtime-report-table thead th')].map((th) => th.textContent);
-    expect(headers).toEqual(['S.No.', 'Downtime Reason', 'Issue Occurred (IST)', 'Resolved Time (IST)', 'Issue Duration (HH:MM:SS)', 'Error Code (OCPP)', 'CPO Error Code', 'Vendor Error Code', 'Info']);
+    expect(headers).toEqual(['S.No.', 'Downtime Reason', 'Issue Occurred (IST)', 'Resolved Time (IST)', 'Issue Duration (HH:MM:SS)', 'Error Code (OCPP)', 'CPO Error Code', 'Vendor Error Code', 'Info', 'Preview', 'Download']);
     expect(body.textContent).toContain('PowerLoss'); // 'Power Failure' → 'PowerLoss'
     expect(body.textContent).toContain('Websocket Disconnected'); // 'Connection Lost'
   });
@@ -34,16 +34,16 @@ describe('renderPowerRestoreSync', () => {
     const body = renderPowerRestoreSync({ powerRestoreSync: [flag({ missingBoot: true, missingStatus: false, recoveryStatusPerConnector: [{ connectorId: 1, status: 'Available' }] })] } as unknown as AnalysisResult);
     const headers = [...body.querySelectorAll('#power-restore-missing-sync-table thead th')].map((th) => th.textContent);
     expect(headers).toContain('Missing BootNotification');
-    expect(headers).toHaveLength(11);
+    expect(headers).toHaveLength(13); // + Preview + Download
     expect(body.textContent).toContain('C1:');
   });
 });
 
 describe('renderEmergencyStopRelease', () => {
-  it('renders cards + 10-col table', () => {
+  it('renders cards + 12-col table (incl. Preview/Download)', () => {
     const body = renderEmergencyStopRelease({ emergencyStopSync: [flag({ missingStatus: true })] } as unknown as AnalysisResult);
     const headers = [...body.querySelectorAll('#emergency-stop-missing-status-table thead th')].map((th) => th.textContent);
-    expect(headers).toHaveLength(10);
-    expect(headers).not.toContain('Preview');
+    expect(headers).toHaveLength(12);
+    expect(headers).toContain('Preview');
   });
 });

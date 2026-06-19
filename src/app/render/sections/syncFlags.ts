@@ -6,6 +6,7 @@
 
 import { el } from '../dom';
 import { convertToIST } from '../format';
+import { downtimeContextButtons } from '../contextViewer';
 import type { AnalysisResult } from '../../analyze';
 import type { MissingSyncFlag, RecoveryConnectorStatus } from '../../detect/types';
 
@@ -42,9 +43,10 @@ export function renderPowerRestoreSync(r: AnalysisResult): HTMLElement {
     card('Missing StatusNotification', flags.filter((f) => f.missingStatus).length, 'orange') +
     card('Both Missing', flags.filter((f) => f.missingBoot && f.missingStatus).length, 'rose') });
 
-  const HEADERS = ['S.No.', 'PowerLoss Timestamp (UTC)', 'PowerLoss Start (IST)', 'Power Restored (IST)', 'Duration (HH:MM:SS)', 'Missing BootNotification', 'Missing StatusNotification', 'StatusNotification Status Received', 'OCPP Error Code', 'Vendor Error Code', 'Details'];
-  const rows = flags.map((f: MissingSyncFlag, i) =>
-    el('tr', { className: 'bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/30', html: `
+  const HEADERS = ['S.No.', 'PowerLoss Timestamp (UTC)', 'PowerLoss Start (IST)', 'Power Restored (IST)', 'Duration (HH:MM:SS)', 'Missing BootNotification', 'Missing StatusNotification', 'StatusNotification Status Received', 'OCPP Error Code', 'Vendor Error Code', 'Details', 'Preview', 'Download'];
+  const rows = flags.map((f: MissingSyncFlag, i) => {
+    const btns = downtimeContextButtons(f.startLineNumber, f.endLineNumber, i, f.duration || 'N/A');
+    return el('tr', { className: 'bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/30', html: `
       <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">${i + 1}</td>
       <td class="px-4 py-4 whitespace-nowrap text-sm font-mono text-blue-700 dark:text-blue-400 select-all">${f.startTime || 'N/A'}</td>
       <td class="${TD}">${convertToIST(f.startTime)}</td>
@@ -55,7 +57,10 @@ export function renderPowerRestoreSync(r: AnalysisResult): HTMLElement {
       <td class="px-4 py-4 text-sm">${statusReceivedCell(f.recoveryStatusPerConnector)}</td>
       <td class="${TD}">${f.ocppErrorCode || 'N/A'}</td>
       <td class="${TD}">${f.vendorErrorCode || 'N/A'}</td>
-      <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-xs" title="${f.info || 'N/A'}">${f.info || 'N/A'}</td>` }));
+      <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-xs" title="${f.info || 'N/A'}">${f.info || 'N/A'}</td>
+      <td class="px-4 py-4 whitespace-nowrap text-sm">${btns.preview}</td>
+      <td class="px-4 py-4 whitespace-nowrap text-sm">${btns.download}</td>` });
+  });
 
   return el('div', {}, [cards, table('power-restore-missing-sync-table', HEADERS, rows)]);
 }
@@ -67,9 +72,10 @@ export function renderEmergencyStopRelease(r: AnalysisResult): HTMLElement {
     card('StatusNotification Received', flags.filter((f) => !f.missingStatus).length, 'green') +
     card('Missing StatusNotification', flags.filter((f) => f.missingStatus).length, 'orange') });
 
-  const HEADERS = ['S.No.', 'EmergencyStop Timestamp (UTC)', 'EmergencyStop Start (IST)', 'Emergency Released (IST)', 'Duration (HH:MM:SS)', 'Missing StatusNotification', 'StatusNotification Status Received', 'OCPP Error Code', 'Vendor Error Code', 'Details'];
-  const rows = flags.map((f: MissingSyncFlag, i) =>
-    el('tr', { className: f.missingStatus ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/30', html: `
+  const HEADERS = ['S.No.', 'EmergencyStop Timestamp (UTC)', 'EmergencyStop Start (IST)', 'Emergency Released (IST)', 'Duration (HH:MM:SS)', 'Missing StatusNotification', 'StatusNotification Status Received', 'OCPP Error Code', 'Vendor Error Code', 'Details', 'Preview', 'Download'];
+  const rows = flags.map((f: MissingSyncFlag, i) => {
+    const btns = downtimeContextButtons(f.startLineNumber, f.endLineNumber, i, f.duration || 'N/A');
+    return el('tr', { className: f.missingStatus ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30' : 'bg-green-50 dark:bg-green-900/10 hover:bg-green-100 dark:hover:bg-green-900/30', html: `
       <td class="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">${i + 1}</td>
       <td class="px-4 py-4 whitespace-nowrap text-sm font-mono text-blue-700 dark:text-blue-400 select-all">${f.startTime || 'N/A'}</td>
       <td class="${TD}">${convertToIST(f.startTime)}</td>
@@ -79,7 +85,10 @@ export function renderEmergencyStopRelease(r: AnalysisResult): HTMLElement {
       <td class="px-4 py-4 text-sm">${statusReceivedCell(f.recoveryStatusPerConnector)}</td>
       <td class="${TD}">${f.ocppErrorCode || 'N/A'}</td>
       <td class="${TD}">${f.vendorErrorCode || 'N/A'}</td>
-      <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-xs" title="${f.info || 'N/A'}">${f.info || 'N/A'}</td>` }));
+      <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-xs" title="${f.info || 'N/A'}">${f.info || 'N/A'}</td>
+      <td class="px-4 py-4 whitespace-nowrap text-sm">${btns.preview}</td>
+      <td class="px-4 py-4 whitespace-nowrap text-sm">${btns.download}</td>` });
+  });
 
   return el('div', {}, [cards, table('emergency-stop-missing-status-table', HEADERS, rows)]);
 }

@@ -5,6 +5,7 @@
 
 import { el } from '../dom';
 import { convertToIST } from '../format';
+import { downtimeContextButtons } from '../contextViewer';
 import type { AnalysisResult } from '../../analyze';
 import type { Downtime } from '../../detect/types';
 
@@ -34,7 +35,7 @@ function formatDateDMY(utc: string): string {
   } catch { return 'N/A'; }
 }
 
-const HEADERS = ['S.No.', 'Downtime Reason', 'Issue Occurred (IST)', 'Resolved Time (IST)', 'Issue Duration (HH:MM:SS)', 'Error Code (OCPP)', 'CPO Error Code', 'Vendor Error Code', 'Info'];
+const HEADERS = ['S.No.', 'Downtime Reason', 'Issue Occurred (IST)', 'Resolved Time (IST)', 'Issue Duration (HH:MM:SS)', 'Error Code (OCPP)', 'CPO Error Code', 'Vendor Error Code', 'Info', 'Preview', 'Download'];
 const TH = 'px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sticky top-0 bg-gray-50 dark:bg-gray-700 z-10';
 const TD = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100';
 
@@ -93,8 +94,9 @@ export function renderDowntimeReport(r: AnalysisResult): HTMLElement {
     el('label', { className: 'text-sm font-medium text-gray-700 dark:text-gray-300', text: 'Filter by Reason:' }), filterSelect,
   ]);
 
-  const row = (d: Downtime, index: number): HTMLElement =>
-    el('tr', { attrs: { 'data-reason': d.reason }, html: `
+  const row = (d: Downtime, index: number): HTMLElement => {
+    const btns = downtimeContextButtons(d.startLineNumber, d.endLineNumber, index, d.duration || 'N/A');
+    return el('tr', { attrs: { 'data-reason': d.reason }, html: `
       <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">${index + 1}</td>
       <td class="${TD}">${getDisplayName(d.reason)}</td>
       <td class="${TD}">${convertToIST(d.startTime)}</td>
@@ -103,7 +105,10 @@ export function renderDowntimeReport(r: AnalysisResult): HTMLElement {
       <td class="${TD}">${d.ocppErrorCode || 'N/A'}</td>
       <td class="${TD}">${d.cpoErrorCode || 'N/A'}</td>
       <td class="${TD}">${d.vendorErrorCode || 'N/A'}</td>
-      <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-md" title="${d.info || 'N/A'}">${d.info || 'N/A'}</td>` });
+      <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 break-words max-w-md" title="${d.info || 'N/A'}">${d.info || 'N/A'}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm">${btns.preview}</td>
+      <td class="px-6 py-4 whitespace-nowrap text-sm">${btns.download}</td>` });
+  };
 
   const tbody = el('tbody', { className: 'bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700' }, downtimes.map(row));
   filterSelect.addEventListener('change', () => {

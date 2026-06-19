@@ -18,7 +18,7 @@ function cellText(value: unknown): string {
   return String((value as string | number | undefined) || 'N/A');
 }
 
-export function dataTable(headers: string[], rows: Row[], tableId?: string): HTMLElement {
+export function dataTable(headers: string[], rows: Row[], tableId?: string, htmlColumns: readonly string[] = []): HTMLElement {
   const hasFileName = rows.length > 0 && Object.prototype.hasOwnProperty.call(rows[0], 'fileName');
 
   const headRow = el('tr', {}, [
@@ -31,7 +31,9 @@ export function dataTable(headers: string[], rows: Row[], tableId?: string): HTM
     el('tr', {}, [
       el('td', { className: TD_SNO, text: String(i + 1) }),
       ...(hasFileName ? [el('td', { className: TD, text: cellText(row.fileName), attrs: { title: cellText(row.fileName) } })] : []),
-      ...headers.map((h) => el('td', { className: TD, text: cellText(row[h]) })),
+      ...headers.map((h) => htmlColumns.includes(h)
+        ? el('td', { className: TD, html: String(row[h] ?? '') })
+        : el('td', { className: TD, text: cellText(row[h]) })),
     ]),
   );
 
