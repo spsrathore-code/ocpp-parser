@@ -7,6 +7,7 @@
 // "Chart" column is omitted here and restored when charts land. Export → 3d.
 
 import { el } from '../dom';
+import { renderTransactionChart } from '../charts/txChart';
 import { fmtReplayDelay, convertToIST } from '../format';
 import { TEMP_THRESHOLDS, DEFAULT_ZERO_ENERGY_THRESHOLD_WH, METER_DIFF_THRESHOLD_WH, CURRENT_MISMATCH_FACTOR } from '../../model/config';
 import type { Transaction } from '../../model/types';
@@ -30,7 +31,7 @@ const HEADERS = ['S.No.', 'Tx ID', 'Internal TX ID', 'Start Time (IST)', 'End Ti
   'Connector ID', 'ID Tag', 'Meter Start (kWh)', 'Meter Stop (kWh)', 'Total Energy (kWh)',
   'Start/Stop Diff (Wh)', 'Avg Power (kW)', 'Peak Power (kW)', 'Avg Current Outlet (A)', 'Avg Current EV (A)',
   'Max Temp Inlet (°C)', 'Max Temp Outlet (°C)', 'Max Temp Body (°C)', 'Start SoC (%)', 'End SoC (%)',
-  'Stop Reason', 'Tx Type', 'Replay Delay', 'Offline Replay', 'Status'];
+  'Stop Reason', 'Tx Type', 'Replay Delay', 'Offline Replay', 'Status', 'Chart'];
 const TD = 'px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100';
 const NA = '<span class="text-gray-400 dark:text-gray-500">N/A</span>';
 const DASH = '<span class="text-gray-400 dark:text-gray-500">—</span>';
@@ -179,7 +180,8 @@ export function renderTransactionSummary(r: AnalysisResult): HTMLElement {
           <td class="px-4 py-3 whitespace-nowrap text-sm">${txTypeBadge}</td>
           <td class="${TD}">${tx.isOfflineReplay ? fmtReplayDelay(tx.replayDelayMs) : DASH}</td>
           <td class="px-4 py-3 whitespace-nowrap text-sm">${offlineReplayCell}</td>
-          <td class="px-4 py-3 whitespace-nowrap text-sm">${statusBadge}</td>`,
+          <td class="px-4 py-3 whitespace-nowrap text-sm">${statusBadge}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-sm"><button type="button" class="view-chart-btn bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-xs" data-txid="${tx.id}">View Chart</button></td>`,
       });
     });
     tbody.replaceChildren(...trs);
@@ -224,5 +226,34 @@ export function renderTransactionSummary(r: AnalysisResult): HTMLElement {
     tbody,
   ]);
 
-  return el('div', {}, [controls, cards, filterBar, el('div', { className: 'overflow-x-auto max-h-[500px]' }, [table])]);
+  // Chart modal (hidden until a "View Chart" button is clicked).
+  const canvas = el('canvas', { attrs: { style: 'height:400px;' } }) as HTMLCanvasElement;
+  const modal = el('div', { className: 'fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50' }, [
+    el('div', { className: 'bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl p-6' }, [
+      el('div', { className: 'flex justify-between items-center mb-4' }, [
+        el('h3', { className: 'text-xl font-semibold text-gray-900 dark:text-gray-100', text: 'Transaction Chart' }),
+        el('button', { className: 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200', text: '✕', attrs: { 'data-chart-close': '' } }),
+      ]),
+      canvas,
+    ]),
+  ]);
+  const closeModal = (): void => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+  modal.addEventListener('click', (e) => { if (e.target === modal || (e.target as HTMLElement).hasAttribute('data-chart-close')) closeModal(); });
+
+  const root = el('div', {}, [controls, cards, filterBar, el('div', { className: 'overflow-x-auto max-h-[500px]' }, [table]), modal]);
+
+  // Delegated "View Chart" → open modal + render (Chart.js reads canvas size after layout).
+  root.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.view-chart-btn') as HTMLElement | null;
+    if (!btn || !root.contains(btn)) return;
+    const txId = Number(btn.getAttribute('data-txid'));
+    const txData = transactions.find((t) => t.id === txId);
+    if (!txData) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    requestAnimationFrame(() => { void renderTransactionChart(canvas, txData); });
+  });
+
+  return root;
 }
+

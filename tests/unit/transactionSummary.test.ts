@@ -41,12 +41,13 @@ describe('renderTransactionSummary', () => {
   ];
   const body = renderTransactionSummary(bundle(txs));
 
-  it('renders the 26 columns (Chart column deferred to 3c)', () => {
+  it('renders the 27 columns incl. Chart', () => {
     const headers = [...body.querySelectorAll('#transaction-summary-table thead th')].map((th) => th.textContent);
-    expect(headers).toHaveLength(26);
+    expect(headers).toHaveLength(27);
     expect(headers[0]).toBe('S.No.');
     expect(headers[25]).toBe('Status');
-    expect(headers).not.toContain('Chart');
+    expect(headers[26]).toBe('Chart');
+    expect(body.querySelectorAll('.view-chart-btn')).toHaveLength(2); // one per tx
   });
 
   it('renders one row per transaction and IST times', () => {
