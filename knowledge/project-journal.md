@@ -401,3 +401,15 @@ Chronological record of significant decisions and sessions. Detailed change hist
 - **Manual browser check (user):** full run — all 19 sections should render with real data + their filters/tabs.
 - **3b-3b** Repeated-RemoteStart diagnostic (Status) + **context-viewer** (shared Preview/Download) finish Phase 3b parity. Then **3c** charts (incl. deferred View-Chart / Analysis Graphs / ZUC / RemoteStart card) → **3d** Excel export.
 - Reconcile FR-142 (21 vs 24).
+
+## 2026-06-19 - Fix: Meter Values summary cards + Detailed Statistics (user-reported gap)
+
+### Issue
+- User browser-check found the Transaction & Meter Values "Transaction Summary" cards showing "-" and no "Detailed Statistics". Root cause: in 3b-4c I **over-deferred** — I lumped the summary-card population + detailed-stats with the Chart.js Analysis Graphs and deferred all of it to 3c. But cards + detailed stats are pure computation, not chart-coupled.
+
+### Fix
+- Ported `getTransactionMetrics` (energy from Energy.Active.Import.Interval/Outlet, duration from Transaction.Begin/End), `identifyZUCSessions` (energy < 1 kWh), `calculateTransactionStats` (per-measurand max/min + SoC start/end over pivoted rows), and the card/banner/detailed-stats population (HTML 7944-8160) into the Meter Values View flow. 'all' view → Total Transactions / Total Energy / Avg Duration / ZUC Sessions; specific tx → ID / Meter Readings / Energy / Duration + internal-tx banner + Detailed Statistics table.
+- **Only the Chart.js Analysis Graphs (and the ZUC selector *option*) remain deferred to 3c.** +2 tests (124 total); `tsc` + `vite build` clean.
+
+### Lesson
+- When deferring chart work, separate the *pure analytics* (cards/stats/tables) from the *chart rendering* — defer only the latter. Don't let "coupled in the legacy" justify deferring computable, user-visible numbers.
