@@ -413,3 +413,15 @@ Chronological record of significant decisions and sessions. Detailed change hist
 
 ### Lesson
 - When deferring chart work, separate the *pure analytics* (cards/stats/tables) from the *chart rendering* — defer only the latter. Don't let "coupled in the legacy" justify deferring computable, user-visible numbers.
+
+## 2026-06-19 - Parser revamp context-viewer (shared Preview/Download log context)
+
+### Implemented
+- `render/contextViewer.ts`: faithful port of the legacy context helpers (HTML 8369-8669). Pure builders `extractContext` (±25 lines), `buildSingleReport` (Boot/Events/Alerts), `buildDowntimeReport` (start+end merged windows); side-effect `showContextModal` + `downloadTextFile`; and `wireContextButtons` — ONE delegated, idempotent click handler on the results container that reads `data-ctx-*` button attributes (no per-section listeners; no global onclick).
+- `dataTable` gained an `htmlColumns` parameter (cells rendered as HTML) so Boot can carry button markup.
+- Retrofit the deferred buttons: Boot (Preview+Download), Events + Alerts (Download only, as in legacy), Downtime + Power-Restore Sync + Emergency-Stop Release (Preview+Download, range/start-end). `renderResults` wires the handler once with `result.rawLogLines`.
+- +5 tests (129 total); `tsc` + `vite build` clean.
+
+### Next
+- **Manual browser check (user):** click Preview/Download on Boot/Events/Alerts/Downtime/sync rows → modal shows ±25 surrounding log lines; Download saves a .txt.
+- **3b-3b** Repeated-RemoteStart diagnostic — the **last** Phase 3b parity item. Then 3c charts → 3d Excel export.

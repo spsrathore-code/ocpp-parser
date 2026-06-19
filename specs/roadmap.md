@@ -12,7 +12,7 @@
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
 | 1 | **Validation Engine** (L1–L3) | 🟢 Phase 1 built · PR open | Ship | `feat/validation-engine` (pushed; PR pending merge) | Merge PR → `main`; then L4 (Phase 2) |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3b: 19/19 sections rendered) | Build | `feat/parser-revamp` | 3b-3b RemoteStart diagnostic + context-viewer; then 3c charts |
+| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3b: 19/19 sections + context-viewer) | Build | `feat/parser-revamp` | 3b-3b RemoteStart diagnostic; then 3c charts, 3d export |
 | — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
 | 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
 | 4 | **Charger Emulator** | ⚪ Planned (adopt/fork SAP sim) | — | — | Evaluate SAP `e-mobility-charging-stations-simulator` |
@@ -45,7 +45,7 @@ parity with v2026.05.14, optimized, bugs fixed. Spec: `specs/requirements.md` (S
   - [x] 2d Health aggregation (§10) — `src/app/health/` (`aggregateConnectorStats` FR-131 + `analyzeEnergyDispense` FR-127/128/129). 52 tests total; render deferred to Phase 3.
 - [~] **Phase 3 — Render/UI** (19 sections, charts, export, theme) — sub-phased; spec `docs/superpowers/specs/2026-06-15-parser-phase3-render-design.md`.
   - [x] 3a Shell + theme + orchestrator + DOM helper — `src/app/render/` + `analyze.ts`; 19 §19.4 sections render as placeholders; upload→parse→render round-trip works. 66 tests.
-  - [x] 3b Static section renderers — **all 19 §19.4 sections rendered** (3b-1 generic tables · 3b-2 Debug/Boot · 3b-3a Status · 3b-4 tx-centric · 3b-5 analysis: Energy Dispense, Incomplete, Fault Status, Downtime, Power-Restore Sync, Emergency-Stop Release, Protocol, WS Health). 122 tests. Remaining 3b parity: [ ] 3b-3b RemoteStart diagnostic · [ ] context-viewer (Preview/Download).
+  - [x] 3b Static section renderers — **all 19 §19.4 sections rendered** (3b-1 generic tables · 3b-2 Debug/Boot · 3b-3a Status · 3b-4 tx-centric · 3b-5 analysis: Energy Dispense, Incomplete, Fault Status, Downtime, Power-Restore Sync, Emergency-Stop Release, Protocol, WS Health). 122 tests. Remaining 3b parity: [x] context-viewer (Preview/Download, 129 tests) · [ ] 3b-3b RemoteStart diagnostic.
   - [ ] 3c Charts (Chart.js) · [ ] 3d Excel export (SheetJS).
 - [ ] **Phase 4 — Repository / timeline / api-download.**
 - [ ] **Phase 5 — Parity gate + deploy swap** (point GitHub Pages at the new build).

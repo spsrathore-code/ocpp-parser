@@ -35,11 +35,12 @@
 
 - [x] **Parser revamp Phase 3b-5 — analysis section renderers (8)**: Energy Dispense, Incomplete, Fault Status (5a) · Downtime Report, Power-Restore Sync, Emergency-Stop Release (5b) · Protocol Compliance, WebSocket Health (5c). All render-only over existing analyzers; pure `computeFaultSummary`. **All 19 §19.4 sections now rendered.** 122 tests; `tsc` + `vite build` clean.
 
+- [x] **Parser revamp context-viewer** (`render/contextViewer.ts`): shared ±25-line log-context Preview/Download — one delegated handler; retrofit into Boot/Events/Alerts/Downtime/Power-Restore/Emergency-Stop; `dataTable` html-column support. +5 tests (129 total).
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + threshold problem-session panel (Status section). Likely a dedicated analysis module.
-- [ ] **Parser revamp context-viewer**: shared Preview/Download "log context" modal + download; retro-fit into Boot/Events/Alerts/Downtime/sync sections.
+- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + threshold problem-session panel (Status section). Likely a dedicated analysis module. **Last 3b parity item.**
 - [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + problem-session panel. Likely a dedicated analysis module.
 
 ## Later
