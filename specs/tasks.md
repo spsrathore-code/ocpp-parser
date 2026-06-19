@@ -33,19 +33,18 @@
 
 - [x] **Parser revamp Phase 3b-4c — Transaction & Meter Values**: selector → pivoted 33-col meter-values table + Date/Tx-ID filters; pure `pivotMeterValues` + `buildTxInfo`. Summary-card population, ZUC option, Analysis Graphs deferred to 3c. +5 tests (108 total). **3b-4 (tx-centric) complete.**
 
-- [x] **Parser revamp Phase 3b-5a — Energy Dispense + Incomplete + Fault Status**: render-only over existing analyzers; pure `computeFaultSummary`. +6 tests (114 total).
+- [x] **Parser revamp Phase 3b-5 — analysis section renderers (8)**: Energy Dispense, Incomplete, Fault Status (5a) · Downtime Report, Power-Restore Sync, Emergency-Stop Release (5b) · Protocol Compliance, WebSocket Health (5c). All render-only over existing analyzers; pure `computeFaultSummary`. **All 19 §19.4 sections now rendered.** 122 tests; `tsc` + `vite build` clean.
 
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3b-5b — Downtime Report + Power-Restore Missing Sync + Emergency-Stop Release** (Downtime's per-row Preview/Download → context-viewer). jsdom-tested.
-- [ ] **Parser revamp Phase 3b-5c — Protocol Compliance + WebSocket Health** renderers (over existing `r.protocol` / `r.wsHealth`).
+- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + threshold problem-session panel (Status section). Likely a dedicated analysis module.
+- [ ] **Parser revamp context-viewer**: shared Preview/Download "log context" modal + download; retro-fit into Boot/Events/Alerts/Downtime/sync sections.
 - [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + problem-session panel. Likely a dedicated analysis module.
 
 ## Later
 
-- [ ] Parser revamp **context-viewer** — shared Preview/Download "log context" modal + download; retro-fit into Boot/Events/Alerts/Downtime.
-- [ ] Parser revamp **Phase 3c/3d** — Chart.js charts → SheetJS Excel export.
+- [ ] Parser revamp **Phase 3c/3d** — Chart.js charts (incl. the deferred Transaction Summary "View Chart", Meter Values Analysis Graphs + ZUC, Status RemoteStart card) → SheetJS Excel export (per-section buttons).
 - [ ] Parser revamp **Phases 4–5** — repository/timeline/api-download → parity gate + deploy swap.
 - [ ] **Engine ↔ Parser integration** (after the revamp reaches parity).
 - [ ] **Validation Engine Phase 2** — L4 rule catalog (Protocol Compliance + diagnostics L-001/2/3 + OCPP 1.6J rules) into the `registerProtocolRules` extension point.

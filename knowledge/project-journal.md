@@ -385,3 +385,19 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Energy Dispense, Incomplete, Fault Status sections.
 - **3b-5b** Downtime Report + Power-Restore Missing Sync + Emergency-Stop Release (Downtime's Preview/Download → context-viewer) → **3b-5c** Protocol Compliance + WebSocket Health. Then 3b-3b (RemoteStart) + context-viewer close 3b.
+
+## 2026-06-19 - Parser revamp Phase 3b-5b + 5c — ALL 19 sections rendered
+
+### Implemented
+- **3b-5b** (`render/sections/downtimeReport.ts`, `syncFlags.ts`): Downtime Report (summary cards + per-fault-type summary cards + reason filter + 9-col table, reason display-name mapping) + Power-Restore Missing Sync + Emergency-Stop Release (cards + badge tables + per-connector recovery status). +4 tests.
+- **3b-5c** (`render/sections/webSocketHealth.ts`, `protocolCompliance.ts`): WebSocket Health (status badge + 5 cards + 8-col detail table with 500-row cap + anomaly prioritisation) + Protocol Compliance (compliance badge + 5 cards + System-Checks/Transaction-Lifecycle tabs with collapsible groups + 10-stage flow visualisation). +4 tests.
+- Removed the now-unused `placeholder` helper from `renderResults.ts` (surgical orphan cleanup). **All 19 §19.4 sections now have real renderers.** 122 tests; `tsc` + `vite build` clean.
+- Deferred per prior decisions: per-row Preview/Download "context" buttons (Downtime + sync sections) → context-viewer sub-phase.
+
+### Milestone
+- **Phase 3b static renders COMPLETE** — the parser now renders every section end-to-end (upload → analyze → 19 rendered sections).
+
+### Next
+- **Manual browser check (user):** full run — all 19 sections should render with real data + their filters/tabs.
+- **3b-3b** Repeated-RemoteStart diagnostic (Status) + **context-viewer** (shared Preview/Download) finish Phase 3b parity. Then **3c** charts (incl. deferred View-Chart / Analysis Graphs / ZUC / RemoteStart card) → **3d** Excel export.
+- Reconcile FR-142 (21 vs 24).
