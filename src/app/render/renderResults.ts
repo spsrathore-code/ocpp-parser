@@ -16,6 +16,8 @@ import { renderMeterValues } from './sections/meterValues';
 import { renderFaultStatusSummary } from './sections/faultStatusSummary';
 import { renderIncompleteTransactions } from './sections/incompleteTransactions';
 import { renderEnergyDispense } from './sections/energyDispense';
+import { renderDowntimeReport } from './sections/downtimeReport';
+import { renderPowerRestoreSync, renderEmergencyStopRelease } from './sections/syncFlags';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -47,9 +49,9 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Transaction & Meter Values', emoji: '⚡', count: (r) => r.messageGroups.MeterValues.length, render: renderMeterValues },
   { title: 'Events', emoji: '📅', count: (r) => r.events.length, render: renderEvents },
   { title: 'Alerts', emoji: '🚨', count: (r) => r.alerts.length, render: renderAlerts },
-  { title: 'Downtime Report', emoji: '📉', render: placeholder('Downtime report — pending Phase 3b') },
-  { title: 'Power Restore Missing Sync', emoji: '🔄', render: placeholder('Power-restore sync — pending Phase 3b') },
-  { title: 'Emergency Stop Release', emoji: '🛑', render: placeholder('Emergency-stop release — pending Phase 3b') },
+  { title: 'Downtime Report', emoji: '📉', count: (r) => r.downtimes.length, render: renderDowntimeReport },
+  { title: 'Power Restore Missing Sync', emoji: '🔄', count: (r) => r.powerRestoreSync.length, render: renderPowerRestoreSync },
+  { title: 'Emergency Stop Release', emoji: '🛑', count: (r) => r.emergencyStopSync.length, render: renderEmergencyStopRelease },
   { title: 'Fault Status Summary', emoji: '⚠️', render: renderFaultStatusSummary },
   { title: 'Incomplete Transactions', emoji: '🧩', count: (r) => r.incompleteTransactions.length, render: renderIncompleteTransactions },
   { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, render: renderEnergyDispense },
