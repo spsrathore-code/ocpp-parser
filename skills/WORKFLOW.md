@@ -43,7 +43,8 @@ until parity proven (Phase 5). Build runs as phased sub-cycles (0–5).
 - **3b static renders COMPLETE.**
     - [x] **context-viewer** (`render/contextViewer.ts`): shared ±25-line log-context Preview/Download — one delegated `data-ctx-*` click handler wired on the container; retrofit into Boot (Preview+Download), Events/Alerts (Download), Downtime + Power-Restore + Emergency-Stop (Preview+Download range). `dataTable` gained html-column support. 129 tests.
 - **3b-3b Repeated-RemoteStart diagnostic — ⏸️ PARKED 2026-06-19** (user decision; resume later). Full resume notes (legacy line ranges + algorithm + recommended architecture): `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`. The rest of Status is done.
-- Deferred to later sub-phases: **3c charts**, **3d Excel export**, and the chart-coupled bits (Transaction Summary View-Chart, Meter Values Analysis Graphs + ZUC option, Status RemoteStart card).
+- [x] **Phase 3c — Charts (Chart.js)** complete: `npm i chart.js@4` (lazy-imported → code-split chunk). `render/charts/txChart.ts` (per-tx SoC+Power dual-axis, Transaction Summary "View Chart" modal restored — Chart col back to 27) + `render/charts/meterValueGraphs.ts` (6 line graphs + ZUC selector option/branch in Meter Values). 132 tests. *Deferred (noted): per-graph Enlarge/PNG-download buttons; Status RemoteStart card rides with parked 3b-3b.*
+- Remaining for Phase 3: **3d Excel export** (SheetJS per-section buttons). Then Phase 4 (repository/timeline/api-download) + Phase 5 (parity gate + deploy swap).
     - [ ] **(cross-cutting) context-viewer** sub-phase: shared Preview/Download "log context" modal + download, retro-fit into Boot/Events/Alerts/Downtime (deferred per 2026-06-17 decision).
   - [ ] **3c — Charts** (Chart.js per-tx + in-section).
   - [ ] **3d — Excel export** (SheetJS per-section buttons).

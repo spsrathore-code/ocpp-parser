@@ -434,3 +434,15 @@ Chronological record of significant decisions and sessions. Detailed change hist
 
 ### Next
 - 3c charts: per-tx View Chart (Transaction Summary), Meter Values Analysis Graphs + ZUC option, Status RemoteStart card placeholder. npm install chart.js; pure data-shaping unit-tested, canvas render manual-verified.
+
+## 2026-06-19 - Parser revamp Phase 3c (charts) complete
+
+### Implemented
+- **3c-a** `render/charts/txChart.ts`: pure `buildTxChartData` (SoC% + Power kW per MeterValues msg) + `renderTransactionChart` (lazy-imports `chart.js/auto` → code-split). Restored Transaction Summary "View Chart" column (27 cols) + modal + delegated handler (rAF before draw). chart.js@4 installed.
+- **3c-b** `render/charts/meterValueGraphs.ts`: pure `extractGraphData` (6 per-series arrays from a tx's pivoted rows) + `renderTransactionGraphs` (6 dark-theme line charts via a compact shared builder, lazy Chart.js). Wired the Meter Values ZUC selector option (+ zuc filtering + summary-card branch) and the "Transaction Analysis Graphs" subsection (renders on View for a specific tx).
+- **132 tests**; `tsc` + `vite build` clean; Chart.js confirmed code-split into its own chunk (loads only when a chart is opened).
+- Deferred (noted): per-graph 🔍 Enlarge modal + 📥 PNG-download buttons. Status RemoteStart card rides with parked 3b-3b.
+
+### Next
+- **Manual browser check (user):** Transaction Summary → View Chart (modal SoC+Power); Meter Values → select a tx → View → 6 analysis graphs; ZUC option.
+- **Phase 3d — Excel export (SheetJS)**: per-section Export buttons. Last Phase 3 item (modulo parked 3b-3b). Then Phase 4 (repository/timeline/api-download) + Phase 5 (parity gate + deploy).

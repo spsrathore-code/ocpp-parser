@@ -36,16 +36,16 @@
 - [x] **Parser revamp Phase 3b-5 — analysis section renderers (8)**: Energy Dispense, Incomplete, Fault Status (5a) · Downtime Report, Power-Restore Sync, Emergency-Stop Release (5b) · Protocol Compliance, WebSocket Health (5c). All render-only over existing analyzers; pure `computeFaultSummary`. **All 19 §19.4 sections now rendered.** 122 tests; `tsc` + `vite build` clean.
 
 - [x] **Parser revamp context-viewer** (`render/contextViewer.ts`): shared ±25-line log-context Preview/Download — one delegated handler; retrofit into Boot/Events/Alerts/Downtime/Power-Restore/Emergency-Stop; `dataTable` html-column support. +5 tests (129 total).
+- [x] **Parser revamp Phase 3c — Charts (Chart.js)**: per-tx "View Chart" modal (Transaction Summary) + Meter Values "Transaction Analysis Graphs" (6) + ZUC selector option. `chart.js@4` lazy-imported (code-split). Pure `buildTxChartData`/`extractGraphData` unit-tested. +3 tests (132 total). Per-graph Enlarge/PNG-download deferred.
 
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3c — Charts (Chart.js)**: per-tx "View Chart" (Transaction Summary), Meter Values "Transaction Analysis Graphs" + ZUC selector option, Status ⚠ Repeat-RemoteStart summary card placeholder. `npm install chart.js`. Pure chart-data-shaping unit-tested; canvas render manual-verified.
+- [ ] **Parser revamp Phase 3d — Excel export (SheetJS)**: per-section "Export to Excel" buttons across the table sections. `npm install xlsx`. Then Phase 3 is complete (modulo parked 3b-3b).
 
 ## Parked
 
 - ⏸️ **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic** (PARKED 2026-06-19, user decision). Status section's auth-contention analysis (⚠ Repeat-RemoteStart card + per-row "N× RS" pill + threshold problem-session panel). Full resume notes: `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`.
-- [ ] **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic**: raw-line scan + RemoteStart↔Authorize↔runtime-block↔OpenAPI correlation → ⚠ card + per-row "N× RS" pill + problem-session panel. Likely a dedicated analysis module.
 
 ## Later
 
