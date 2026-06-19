@@ -1,9 +1,9 @@
 // Render orchestrator — the legacy displayResults() (HTML 2020-2624), headless
 // input. Appends the 19 sections in §19.4 order. Each section declares a `render`
 // that returns its body; `collapsibleSection` provides the card + (optional) count
-// in the header. Sections are swapped from placeholder to real one batch at a time.
+// in the header.
 
-import { el, clearChildren, collapsibleSection } from './dom';
+import { clearChildren, collapsibleSection } from './dom';
 import type { AnalysisResult } from '../analyze';
 import { renderDebugInfo } from './sections/debugInfo';
 import { renderBootNotifications } from './sections/bootNotifications';
@@ -18,6 +18,8 @@ import { renderIncompleteTransactions } from './sections/incompleteTransactions'
 import { renderEnergyDispense } from './sections/energyDispense';
 import { renderDowntimeReport } from './sections/downtimeReport';
 import { renderPowerRestoreSync, renderEmergencyStopRelease } from './sections/syncFlags';
+import { renderProtocolCompliance } from './sections/protocolCompliance';
+import { renderWebSocketHealth } from './sections/webSocketHealth';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -31,12 +33,7 @@ export interface SectionDef {
   render: (r: AnalysisResult) => HTMLElement;
 }
 
-/** Placeholder body used until a section's real renderer lands. */
-function placeholder(text: string): (r: AnalysisResult) => HTMLElement {
-  return () => el('p', { className: 'text-sm text-gray-600 dark:text-gray-400', text });
-}
-
-/** The §19.4 render order. Real renderers replace placeholders batch by batch. */
+/** The §19.4 render order — all 19 sections now have real renderers. */
 export const SECTION_ORDER: SectionDef[] = [
   { title: 'Debug Info', emoji: '🐞', render: renderDebugInfo },
   { title: 'Boot Notifications', emoji: '🔌', count: (r) => r.messageGroups.BootNotification.length, render: renderBootNotifications },
@@ -55,8 +52,8 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Fault Status Summary', emoji: '⚠️', render: renderFaultStatusSummary },
   { title: 'Incomplete Transactions', emoji: '🧩', count: (r) => r.incompleteTransactions.length, render: renderIncompleteTransactions },
   { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, render: renderEnergyDispense },
-  { title: 'Protocol Compliance', emoji: '✅', render: placeholder('Protocol compliance — pending Phase 3b') },
-  { title: 'WebSocket Health', emoji: '🌐', render: placeholder('WebSocket health — pending Phase 3b') },
+  { title: 'Protocol Compliance', emoji: '✅', render: renderProtocolCompliance },
+  { title: 'WebSocket Health', emoji: '🌐', count: (r) => r.wsHealth.pingCount, render: renderWebSocketHealth },
 ];
 
 /** Render every section into `container` (clears prior content first). */
