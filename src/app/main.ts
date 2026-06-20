@@ -9,7 +9,8 @@ import { renderResults } from './render/renderResults';
 import { parseLines } from './parse/parseLines';
 import { analyze, mergeParsed } from './analyze';
 import type { ParsedLines } from './parse/parseLines';
-import { autoSaveUploadedFile } from './repository/autoSave';
+// autoSaveUploadedFile (./repository/autoSave) is the headless path — kept for tests; production uses UX wrapper below.
+import { autoSaveWithUx } from './render/repository/autoSaveUx';
 import { initLogRepository } from './render/repository/panel';
 import { loadAndAnalyzeFromRepo } from './render/repository/loadAnalyze';
 
@@ -37,7 +38,7 @@ if (root) {
         parts.push(parseLines(lines, file.name));
         allLines.push(...lines);
         names.push(file.name);
-        void autoSaveUploadedFile(file.name, text);
+        void autoSaveWithUx(file.name, text);
       }
       const result = analyze(mergeParsed(parts), allLines, names);
       renderResults(container, result);

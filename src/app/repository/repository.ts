@@ -4,7 +4,7 @@
 // an injected callback (FR-183). UI prompts live in Phase 4b; the service is headless.
 
 import { compressText, decompressToText } from './compress';
-import { putEntry, getEntry, getAllMeta, findByFilename, deleteEntry } from './db';
+import { putEntry, getEntry, getAllMeta, findByFilename, deleteEntry, patchEntry } from './db';
 import type { RepoEntry, RepoMeta, SaveInput } from './types';
 
 export type DuplicateChoice = 'overwrite' | 'new-version' | 'cancel';
@@ -80,8 +80,11 @@ export async function listRepoMeta(): Promise<RepoMeta[]> {
 }
 
 /** Replace an entry's tags in place (content untouched). */
-export async function updateEntryTags(id: number, tags: string[]): Promise<void> {
-  const entry = await getEntry(id);
-  if (!entry) return;
-  await putEntry({ ...entry, tags });
+export function updateEntryTags(id: number, tags: string[]): Promise<void> {
+  return patchEntry(id, (e) => ({ ...e, tags }));
+}
+
+/** Replace an entry's siteName in place (content untouched). */
+export function updateEntrySiteName(id: number, siteName: string): Promise<void> {
+  return patchEntry(id, (e) => ({ ...e, siteName }));
 }

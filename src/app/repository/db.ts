@@ -94,3 +94,28 @@ export function findByFilename(filename: string): Promise<RepoMeta[]> {
 export function deleteEntry(id: number): Promise<void> {
   return tx<undefined>('readwrite', (s) => s.delete(id));
 }
+
+/**
+ * Read-modify-write in a single readwrite transaction.
+ * Avoids the two-hop get+put race condition in tests and production.
+ * `patch` receives the stored entry and returns the updated version to write.
+ * No-ops if the entry does not exist.
+ */
+export function patchEntry(id: number, patch: (entry: RepoEntry) => RepoEntry): Promise<void> {
+  return openRepoDb().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const t = db.transaction(STORE, 'readwrite');
+        const store = t.objectStore(STORE);
+        const getReq = store.get(id);
+        getReq.onsuccess = () => {
+          const entry: RepoEntry | undefined = getReq.result;
+          if (!entry) { resolve(); return; }
+          const putReq = store.put(patch(entry));
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        };
+        getReq.onerror = () => reject(getReq.error);
+      }),
+  );
+}
