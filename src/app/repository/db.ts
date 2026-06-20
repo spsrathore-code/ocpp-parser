@@ -9,8 +9,15 @@ export const DB_NAME = 'ocpp-log-repository';
 export const STORE = 'logs';
 const VERSION = 1;
 
+// Cached connection singleton — opened once and reused for the app's lifetime.
+// Cleared by onversionchange / onclose so deleteDatabase (e.g. in tests) can
+// proceed without deadlocking.
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 export function openRepoDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+
+  dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -24,9 +31,26 @@ export function openRepoDb(): Promise<IDBDatabase> {
         store.createIndex('tags', 'tags', { unique: false, multiEntry: true });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Another tab (or test beforeEach) deleted / upgraded the DB — close and
+      // clear the cache so the next call opens a fresh connection.
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      db.onclose = () => {
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error);
+    };
   });
+
+  return dbPromise;
 }
 
 function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
@@ -35,7 +59,7 @@ function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequ
     const request = run(t.objectStore(STORE));
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
-    t.oncomplete = () => db.close();
+    // Connection is now reused — do not close it on transaction complete.
   }));
 }
 
@@ -63,10 +87,10 @@ export function findByFilename(filename: string): Promise<RepoMeta[]> {
     const req = t.objectStore(STORE).index('filename').getAll(filename);
     req.onsuccess = () => resolve((req.result as RepoEntry[]).map(stripContent));
     req.onerror = () => reject(req.error);
-    t.oncomplete = () => db.close();
+    // Connection is now reused — do not close it on transaction complete.
   }));
 }
 
 export function deleteEntry(id: number): Promise<void> {
-  return tx<undefined>('readwrite', (s) => s.delete(id)).then(() => undefined);
+  return tx<undefined>('readwrite', (s) => s.delete(id));
 }

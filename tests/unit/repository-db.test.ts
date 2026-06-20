@@ -49,4 +49,8 @@ describe('repository IndexedDB layer', () => {
     await deleteEntry(id);
     expect(await getEntry(id)).toBeUndefined();
   });
+
+  it('deleteEntry on a non-existent id resolves without throwing', async () => {
+    await expect(deleteEntry(99999)).resolves.toBeUndefined();
+  });
 });
