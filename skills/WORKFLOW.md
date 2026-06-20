@@ -56,6 +56,7 @@ until parity proven (Phase 5). Build runs as phased sub-cycles (0–5).
   - [ ] **Phase 4d — Session Timeline** (per-tx 4-tab modal). FR-207–234.
   - [ ] **Phase 4e — API download** (EVSE folder-save + progress). §18.4, A.1.
 - [ ] **Phase 5 — Parity gate + deploy swap** (+ wire 4c Drive sync once hosted).
+- [ ] **Phase 6 — Validation Engine integration** (post-parity). Revamped Parser consumes `@ador/ocpp-validation` (L1 frame · L2 schema · L3 correlation) over already-parsed message arrays; runtime schema validation → typed-ocpp bundled schemas (56 local `.json` → reference/CI diff-check, `requirements.md §19.7`); renders `ValidationReport`. Prereqs: engine PR merged to `main` + Parser at parity. L4 protocol/state = engine Phase 2 (deferred), seeded by Parser's Protocol Compliance Report + L-001/2/3. Spec: `docs/TYPEVALIDATION.md`.
 
 ### Key outputs
 - **Think:** `specs/requirements.md` (1,860-line SSOT) + §19 architecture

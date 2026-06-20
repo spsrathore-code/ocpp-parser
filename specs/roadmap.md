@@ -28,7 +28,7 @@ Legend: 🟢 done/live · 🟡 in progress · ⚪ not started.
   - `/qa`: 788 real frames across 2 sample logs → 0 crashes, 0 false violations, all matched.
   - 25 tests green; ESM+CJS+browser build green. Package: `@ador/ocpp-validation`.
 - **Phase 2** (L4 protocol/state rule catalog) — ⏳ deferred; extension point (`registerProtocolRules`) stubbed.
-- **Parser integration** — ⏳ scheduled after the Parser revamp.
+- **Parser integration** — ⏳ scheduled after the Parser revamp = **Parser Phase 6** (see Parser revamp phase tracker below for the full integration scope).
 - Spec: `docs/TYPEVALIDATION.md` · Plan: `docs/superpowers/plans/2026-06-13-validation-engine-phase1.md`.
 
 ## Parser revamp — phase tracker
@@ -55,6 +55,7 @@ parity with v2026.05.14, optimized, bugs fixed. Spec: `specs/requirements.md` (S
   - [ ] 4d **Session Timeline** per-tx 4-tab modal. FR-207–234.
   - [ ] 4e **API download** (EVSE folder-save + progress). §18.4, A.1.
 - [ ] **Phase 5 — Parity gate + deploy swap** (point GitHub Pages at the new build; wire 4c Drive sync once hosted).
+- [ ] **Phase 6 — Validation Engine integration** (post-parity; new capability, layered on the modular TS app — kept out of Phases 0–5 to preserve the parity comparison). The revamped Parser consumes the `@ador/ocpp-validation` package (L1 frame · L2 schema · L3 correlation) over the **already-parsed** message arrays from its `parse → analyze` pipeline (engine does no file parsing — `TYPEVALIDATION.md §2`), and renders the returned `ValidationReport`. Runtime schema validation switches to typed-ocpp's bundled OCA schemas; the 56 local `.json` become the reference / CI diff-check set (`requirements.md §19.7`). **Prereqs:** Validation Engine PR merged to `main` **and** Parser at parity (Phase 5). **L4** (protocol/state) is the engine's deferred Phase 2 — seeded *from* the Parser's Protocol Compliance Report + diagnostics L-001/2/3 (`TYPEVALIDATION.md §9`), so the relationship is bidirectional: L1–L3 flow engine→parser, L4 heuristics flow parser→engine.
 
 ## Planned features (Parser — from `requirements.md`)
 
