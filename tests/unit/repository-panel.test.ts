@@ -38,5 +38,7 @@ describe('createLogRepositoryPanel (FR-184/185)', () => {
     // table + filter slots exist for later tasks
     expect(panel.querySelector('[data-repo-tbody]')).not.toBeNull();
     expect(panel.querySelector('[data-repo-filter]')).not.toBeNull();
+    // panel is open by default (FR-184)
+    expect(panel.querySelector('[data-collapsible-body]')?.classList.contains('hidden')).toBe(false);
   });
 });
