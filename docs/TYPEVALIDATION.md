@@ -1,7 +1,7 @@
 # OCPP Validation Engine — Design Spec (Type-Aware Validation)
 
-**Status**: Design / brainstorm output — not yet implemented
-**Version**: 0.1 (draft) · **Date**: 6 June 2026
+**Status**: Design complete · browser-bundling spike ✅ confirmed (13 Jun 2026) · implementation not started
+**Version**: 0.2 · **Date**: 6 June 2026 (spike addendum 13 June 2026)
 **Author**: Ador Digatron Engineering
 **Scope of this doc**: the shared **OCPP Validation Engine** only. Multi-format parsing and L4 protocol/state validation are explicitly deferred (see §2, §9).
 
@@ -11,13 +11,13 @@
 
 This engine is the **shared core** of a planned OCPP tool suite (built as one mega-repo). The five tools are independent products but share OCPP types, schemas, and validation:
 
-| Tool | Role | Build/adopt | Notes |
-|---|---|---|---|
-| **OCPP Validation Engine** | Type-aware message validation (this doc) | **Build** on `typed-ocpp` | Shared core; consumed by all others |
-| **Parser** | Log analysis / diagnostics | Existing tool → revamp | `src/app/OCPP_Parser_Complete_…html`; will consume this engine |
-| **CMS (CSMS)** | Central system / server | Build (own) | Node server; consumes engine to validate incoming charger traffic |
-| **Charger Emulator** | Simulated charge point(s) | **Candidate: adopt/fork SAP simulator** | See below |
-| **Training Emulator** | Teaching tool | Build, likely on the emulator | Demonstrates correct vs. incorrect OCPP flows |
+| Tool                       | Role                                     | Build/adopt                             | Notes                                                             |
+| -------------------------- | ---------------------------------------- | --------------------------------------- | ----------------------------------------------------------------- |
+| **OCPP Validation Engine** | Type-aware message validation (this doc) | **Build** on `typed-ocpp`               | Shared core; consumed by all others                               |
+| **Parser**                 | Log analysis / diagnostics               | Existing tool → revamp                  | `src/app/OCPP_Parser_Complete_…html`; will consume this engine    |
+| **CMS (CSMS)**             | Central system / server                  | Build (own)                             | Node server; consumes engine to validate incoming charger traffic |
+| **Charger Emulator**       | Simulated charge point(s)                | **Candidate: adopt/fork SAP simulator** | See below                                                         |
+| **Training Emulator**      | Teaching tool                            | Build, likely on the emulator           | Demonstrates correct vs. incorrect OCPP flows                     |
 
 > **Recorded find — Emulator box:** [SAP `e-mobility-charging-stations-simulator`](https://github.com/SAP/e-mobility-charging-stations-simulator) — a mature (217★, 93 forks, ~211 releases, last release 2 Jun 2026), Apache-2.0, TypeScript/Node charge-point simulator supporting OCPP 1.6 + 2.0.1. It is a **leading candidate to adopt/fork for the Charger Emulator**, not for this validation engine (its validation is internal, not a reusable library). It acts as a charge point (client) and needs a CSMS to talk to — pairs naturally with the suite's own CMS. It also has an `ocpp-server@v4.8.0` release tag worth checking for a mock-server component relevant to the CMS. Even if not adopted, it is a high-quality **reference architecture** for isomorphic OCPP 1.6/2.0.1 handling.
 
@@ -62,7 +62,7 @@ L4 is where the Parser's existing **Protocol Compliance Report** and diagnostic 
 - Type guards `isCall()` / `isCallResult()` / `isCallError()` + full TypeScript types.
 - Bundles the **official OCA JSON Schemas**, **Ajv** under the hood. MIT license.
 
-**Caveat:** small project (~7★, 1 fork). For a *foundational* dependency this is a real risk → mitigated by vendoring (§11).
+**Caveat:** small project (~7★, 1 fork). For a *foundational* dependency this is a real risk → mitigated by vendoring (§11). *(Spike 13 Jun 2026: installed **v1.5.6** — pure ESM, actively maintained, deps Ajv + ajv-formats + date-fns. Public API matches §3 exactly; healthier than this snapshot suggested.)*
 
 **Alternative evaluated — SAP simulator:** set aside *for validation* because its validation is **internal to the simulator, not exposed as a library** (you cannot import it). Recorded instead as the Emulator-box candidate (§0).
 
@@ -183,7 +183,7 @@ function registerProtocolRules(rules: ProtocolRule[]): void;
 
 - **Isomorphic TypeScript package** (e.g. `@ador/ocpp-validation`), built to **ESM + CJS** for Node (CMS) and a **browser bundle** for the Parser/emulator UIs.
 - Each consumer imports the same package; no duplicated validation logic across tools.
-- ⚠️ **Unverified:** typed-ocpp's browser bundleability and module format (ESM/CJS) were **not documented**. The **first implementation task is a spike** to confirm it bundles and runs in-browser (Ajv does; typed-ocpp's packaging is the unknown). If it doesn't bundle cleanly, options: vendor + adjust, or run validation as a Node service the browser calls (fallback).
+- ✅ **Verified (spike, 13 Jun 2026):** typed-ocpp v1.5.6 is **pure ESM** and **bundles cleanly for the browser** with esbuild (`--platform=browser`, 822 kb, 0 errors/warnings, **no Node built-ins** to polyfill). The bundled output executes correctly (validate + checkCallResult). The **isomorphic design is confirmed; the Node-service fallback is no longer needed.** Reproduce: `scratchpad/spike-typed-ocpp/` (see `FINDINGS.md`).
 
 ---
 
@@ -229,7 +229,7 @@ L4 = "is this message legal given current state?" — the OCPP state machine (co
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | `typed-ocpp` is small (~7★) — abandonment / breaking release | Medium | npm-pin + lockfile now; **vendor** the validation modules (MIT) for the core |
-| typed-ocpp browser bundleability unverified | Medium | **Spike first** (§7); fallback = Node validation service |
+| typed-ocpp browser bundleability | ✅ Resolved | **Spike 13 Jun 2026: bundles cleanly** (esbuild, browser, 0 errors, no Node built-ins, 822 kb; bundled output runs). Fallback dropped. |
 | Two schema sources drift (typed-ocpp vs our 56) | Low | CI diff-check test (§6, §10) |
 | OCA schema edge-cases / Ajv config differences | Low | typed-ocpp states schemas are "tweaked for Ajv compat"; pin Ajv version |
 
@@ -245,9 +245,10 @@ L4 = "is this message legal given current state?" — the OCPP state machine (co
 | Canonical schemas | typed-ocpp bundled = runtime source; 56 local `.json` = reference + diff-check | 6 Jun 2026 |
 | Dependency model | npm-pinned + lockfile → plan to **vendor** | 6 Jun 2026 |
 | Emulator box (suite) | SAP simulator = leading candidate (not for validation) | 6 Jun 2026 |
+| Browser-bundling spike | ✅ **Passed** — typed-ocpp v1.5.6 bundles & runs in browser; isomorphic path locked in, Node-service fallback dropped | 13 Jun 2026 |
 
 ---
 
 ## Next Step
 
-Per the brainstorming → planning flow, the next step **when you're ready to build** is to turn this spec into an implementation plan (writing-plans). Implementation is deferred until the suite tooling is greenlit. **Open first task when building: the browser-bundling spike for `typed-ocpp` (§7).**
+~~Per the brainstorming → planning flow, the next step is to turn this spec into an implementation plan.~~ ✅ **Done.** The browser-bundling spike passed (§7, §11) and the Phase 1 implementation plan is written: **`docs/superpowers/plans/2026-06-13-validation-engine-phase1.md`**. Next action: execute that plan (build L1–L3 in `src/services/` with tests).
