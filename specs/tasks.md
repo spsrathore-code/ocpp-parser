@@ -38,10 +38,12 @@
 - [x] **Parser revamp context-viewer** (`render/contextViewer.ts`): shared ±25-line log-context Preview/Download — one delegated handler; retrofit into Boot/Events/Alerts/Downtime/Power-Restore/Emergency-Stop; `dataTable` html-column support. +5 tests (129 total).
 - [x] **Parser revamp Phase 3c — Charts (Chart.js)**: per-tx "View Chart" modal (Transaction Summary) + Meter Values "Transaction Analysis Graphs" (6) + ZUC selector option. `chart.js@4` lazy-imported (code-split). Pure `buildTxChartData`/`extractGraphData` unit-tested. +3 tests (132 total). Per-graph Enlarge/PNG-download deferred.
 
+- [x] **Parser revamp Phase 3d — Excel export (SheetJS)**: `export/exportToExcel.ts` (`xlsx` lazy/code-split) + `exportButton`; `collapsibleSection` `headerAction` slot; "Export to Excel" on 17 table sections via `SECTION_ORDER.exportTable`. +4 tests (135 total). **🎉 Phase 3 complete (modulo parked 3b-3b).**
+
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 3d — Excel export (SheetJS)**: per-section "Export to Excel" buttons across the table sections. `npm install xlsx`. Then Phase 3 is complete (modulo parked 3b-3b).
+- [ ] **Parser revamp Phase 4 — Repository / Timeline / API-download**: Log Repository (IndexedDB + Google Drive), Session Timeline per-tx modal (4-tab charts), API log download. (Biggest remaining feature area; brainstorm/spec before building.)
 
 ## Parked
 
@@ -49,7 +51,6 @@
 
 ## Later
 
-- [ ] Parser revamp **Phase 3c/3d** — Chart.js charts (incl. the deferred Transaction Summary "View Chart", Meter Values Analysis Graphs + ZUC, Status RemoteStart card) → SheetJS Excel export (per-section buttons).
 - [ ] Parser revamp **Phases 4–5** — repository/timeline/api-download → parity gate + deploy swap.
 - [ ] **Engine ↔ Parser integration** (after the revamp reaches parity).
 - [ ] **Validation Engine Phase 2** — L4 rule catalog (Protocol Compliance + diagnostics L-001/2/3 + OCPP 1.6J rules) into the `registerProtocolRules` extension point.

@@ -461,3 +461,16 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Meter Values → select a tx → View → graphs now show hover tooltips, dashed Present lines, Enlarge + Download.
 - **Phase 3d — Excel export (SheetJS)** = last Phase 3 item (modulo parked 3b-3b).
+
+## 2026-06-20 - 🎉 Parser revamp Phase 3 COMPLETE (3d Excel export)
+
+### Implemented
+- **Phase 3d** `export/exportToExcel.ts`: `exportTableToExcel` (faithful port of legacy HTML 7933 — `XLSX.utils.table_to_book` → `writeFile`) with `xlsx@0.18.5` lazy-imported (code-split chunk, loads only on export) + `exportButton` helper. `collapsibleSection` gained a `headerAction` slot (title remains its own toggle button — no nested buttons; existing tests preserved). `SECTION_ORDER` declares each table's `{id, file}`; the orchestrator renders an "Export to Excel" header button on the **17 table sections** (not Debug Info / Protocol Compliance, per legacy). +4 tests (135 total); `tsc` + `vite build` clean (xlsx + chart.js both code-split).
+
+### Milestone
+- **PHASE 3 (Render/UI) COMPLETE** — modulo ⏸️ parked 3b-3b. The revamp now reproduces the live tool end-to-end: upload → 19 rendered sections (tables/filters/cards/analytics), per-tx + meter-value charts (faithful, with enlarge/PNG-download), per-section Excel export, log-context preview/download, dark/light theme.
+- Snapshot: 1 file/9,813 lines → ~50 modules/5,414 TS lines, 0 → 135 tests. `docs/parser-revamp-comparison.md` updated.
+
+### Next
+- **Manual browser check (user):** click "Export to Excel" on a few sections → .xlsx downloads with the table data.
+- **Phase 4 — Repository / Timeline / API-download** (brainstorm/spec first; biggest remaining feature area) → **Phase 5** parity gate + deploy swap. Plus parked 3b-3b whenever prioritised.
