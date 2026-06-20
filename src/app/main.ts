@@ -10,11 +10,16 @@ import { parseLines } from './parse/parseLines';
 import { analyze, mergeParsed } from './analyze';
 import type { ParsedLines } from './parse/parseLines';
 import { autoSaveUploadedFile } from './repository/autoSave';
+import { initLogRepository } from './render/repository/panel';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (root) {
-  const { fileInput, parseBtn, container } = renderShell(root);
+  const { fileInput, parseBtn, container, repoMount } = renderShell(root);
   initTheme();
+
+  // Mount the Log Repository panel above the upload card (FR-184).
+  // onLoadAnalyze stub — Task 4 replaces this with the real loadAndAnalyzeFromRepo call.
+  void initLogRepository(repoMount, { onLoadAnalyze: () => {} });
 
   parseBtn.addEventListener('click', async () => {
     const files = Array.from(fileInput.files ?? []);

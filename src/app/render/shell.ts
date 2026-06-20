@@ -9,6 +9,7 @@ export interface ShellRefs {
   fileInput: HTMLInputElement;
   parseBtn: HTMLButtonElement;
   container: HTMLDivElement;
+  repoMount: HTMLDivElement;
 }
 
 export function renderShell(root: HTMLElement): ShellRefs {
@@ -54,6 +55,9 @@ export function renderShell(root: HTMLElement): ShellRefs {
 
   const container = el('div', { attrs: { id: 'parsed-data-container' } });
 
-  root.append(header, uploadCard, container);
-  return { fileInput, parseBtn, container };
+  // Log Repository panel mount (Phase 4b, FR-184) — sits above the upload card.
+  const repoMount = el('div', { attrs: { id: 'log-repository-mount' } });
+
+  root.append(header, repoMount, uploadCard, container);
+  return { fileInput, parseBtn, container, repoMount };
 }
