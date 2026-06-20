@@ -55,11 +55,15 @@ function buildRowActions(): RepoRowActions {
     // panelDeps is guaranteed set after createLogRepositoryPanel (not optional-chained).
     onLoadAnalyze: (id) => panelDeps!.onLoadAnalyze(id),
     onTag: async (id) => {
-      const entry = (await listRepoMeta()).find((m) => m.id === id);
-      openTagEditor(id, entry?.tags ?? [], async (tags) => {
-        await updateEntryTags(id, tags);
-        await refreshRepository();
-      });
+      try {
+        const entry = (await listRepoMeta()).find((m) => m.id === id);
+        openTagEditor(id, entry?.tags ?? [], async (tags) => {
+          await updateEntryTags(id, tags);
+          await refreshRepository();
+        });
+      } catch (err) {
+        console.warn('Tag edit failed (non-blocking):', err);
+      }
     },
     onDelete: (id) => {
       selectedIds.delete(id);
