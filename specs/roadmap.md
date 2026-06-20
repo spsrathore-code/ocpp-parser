@@ -12,7 +12,7 @@
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
 | 1 | **Validation Engine** (L1–L3) | 🟢 Phase 1 built · PR open | Ship | `feat/validation-engine` (pushed; PR pending merge) | Merge PR → `main`; then L4 (Phase 2) |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3 done; 4a done; 3b-3b + 4c Drive parked) | Build | `feat/parser-revamp` | Phase 4b — repository panel UI (then 4d timeline, 4e api-download) |
+| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3 + 4a + 4b done; 3b-3b + 4c Drive parked) | Build | `feat/parser-revamp` | Phase 4d — Session Timeline (then 4e api-download) |
 | — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
 | 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
 | 4 | **Charger Emulator** | ⚪ Planned (adopt/fork SAP sim) | — | — | Evaluate SAP `e-mobility-charging-stations-simulator` |
@@ -50,7 +50,7 @@ parity with v2026.05.14, optimized, bugs fixed. Spec: `specs/requirements.md` (S
   - [x] 3d Excel export (SheetJS): per-section "Export to Excel" header buttons on 17 table sections (xlsx lazy/code-split). 135 tests.
 - [~] **Phase 4 — Repository / timeline / api-download.**
   - [x] 4a Log Repository **core** (local, headless) — `src/app/repository/`: gzip compress (FR-174), IndexedDB CRUD + 6 indexes (FR-178), save/load/delete/list + `_v2` versioning (FR-183), storage estimate/persist (FR-175/176/177), failure-isolated auto-save wired into `main.ts` (FR-179). +25 tests (160). Plan `docs/superpowers/plans/2026-06-20-parser-phase4a-repository-core.md`.
-  - [ ] 4b Repository **panel UI** (search/tags, bulk-select, Load&Analyze, delete/site-name prompts + toast). FR-180/182/184–196, 353–355.
+  - [x] 4b Repository **panel UI** (local) — `src/app/render/repository/`: collapsible panel above upload (FR-184), header stats + disabled Drive badge (FR-185), search/filter bar (FR-186/195), 9-col stored-logs table (FR-187), Load&Analyze via existing pipeline (FR-189), delete + bulk select/delete/clear-all (FR-191/353/355), tag editor modal 7 presets+custom (FR-193/194/356), auto-save UX: site-name banner + toast + duplicate prompt (FR-180/182/357). +26 tests (186). Drive sync (4c) stays parked. Plan `docs/superpowers/plans/2026-06-20-parser-phase4b-repository-panel.md`.
   - [ ] 4c Google **Drive sync** — ⏸️ **PARKED** → Phase 5 hosted deploy (needs https + OAuth). FR-197–206.
   - [ ] 4d **Session Timeline** per-tx 4-tab modal. FR-207–234.
   - [ ] 4e **API download** (EVSE folder-save + progress). §18.4, A.1.

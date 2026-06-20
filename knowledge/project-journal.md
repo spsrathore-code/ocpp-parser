@@ -494,3 +494,20 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** upload a log → reload → confirm it auto-saved (DevTools ▸ Application ▸ IndexedDB ▸ `ocpp-log-repository`). No UI panel yet — that's 4b.
 - **Phase 4b** repository panel UI (search/tags, bulk-select, Load&Analyze, prompts/toast), then 4d Session Timeline, 4e API-download. 4c Drive + 3b-3b RemoteStart remain parked.
+
+## 2026-06-21 — Parser revamp Phase 4b: Log Repository panel UI (local)
+
+### Decided
+- Faithful-parity UX (user): non-blocking site-name pop-in banner, toast, Overwrite/Save-as-new-version prompt, all 8 table columns, IST formatting.
+- Drive badge/Connect rendered **disabled** with tooltip "Cloud sync arrives with the hosted deploy" (FR-197 file:// state); all Drive sync stays parked in 4c.
+- Added an explicit **Phase 6 — Validation Engine integration** to the Parser phase tracker (was only an engine-side footnote); see roadmap + WORKFLOW.
+
+### Implemented (via subagent-driven-development, per-task implement→review→fix)
+- New `src/app/render/repository/` module: `panel.ts` (collapsible panel above upload + header stats + disabled Drive badge), `repoTable.ts` (9-col stored-logs table, IST/size/tags/Local badge), `filter.ts` (pure `filterRepoRows` + filter bar — filename/site/IP/date/tag), `loadAnalyze.ts` (Load&Analyze reuses `analyzeLogLines`→`renderResults`), `actions.ts` (delete + bulk select/delete/clear-all, injectable confirm), `tagEditor.ts` (modal, 7 presets + custom), `autoSaveUx.ts` (site-name banner + toast + duplicate prompt).
+- Service additions: `updateEntryTags`, `updateEntrySiteName`, and an atomic `patchEntry` in `db.ts` (single read-write transaction — fixes a real read-after-write window; opus-verified). `main.ts` swapped to `autoSaveWithUx` (4a headless `autoSaveUploadedFile` + test retained).
+- **+26 tests → 186 total**; `tsc` + `vite build` clean.
+- Review loop caught + fixed: clear-all wiping selection on cancel; single-row delete leaving phantom selected ids.
+
+### Next
+- **Manual browser check (user):** upload a log → see toast + site-name banner; open the 📂 Log Repository panel → filter, tag, Load & Analyze a stored log, delete / bulk-delete. Drive button is intentionally disabled.
+- **Phase 4d — Session Timeline** (per-tx 4-tab modal), then **4e API download**. 4c Drive + 3b-3b RemoteStart remain parked. Repository hardening follow-ups listed in `specs/tasks.md`.
