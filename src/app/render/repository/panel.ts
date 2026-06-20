@@ -11,6 +11,7 @@ import { renderRepoTableBody } from './repoTable';
 import type { RepoRowActions } from './repoTable';
 import { buildFilterBar, filterRepoRows } from './filter';
 import type { RepoFilter } from './filter';
+import { deleteRepoEntry, deleteSelectedRepoEntries, deleteAllBrowserLogs } from './actions';
 
 export interface RepoPanelDeps {
   onLoadAnalyze: (id: number) => void | Promise<void>;
@@ -34,6 +35,7 @@ export const REPO_COLUMNS = [
 let totalEl: HTMLElement | null = null;
 let storageEl: HTMLElement | null = null;
 let tbodyEl: HTMLElement | null = null;
+let selectedCountEl: HTMLElement | null = null;
 let panelDeps: RepoPanelDeps | null = null;
 
 // Module state for Task 3 (filtering) and Tasks 4–5 (select/tag/delete).
@@ -42,20 +44,27 @@ const selectedIds = new Set<number>();
 const EMPTY_FILTER: RepoFilter = { text: '', evseIp: '', from: '', to: '', tag: '' };
 let currentFilter: RepoFilter = { ...EMPTY_FILTER };
 
-// Tasks 4–5 will replace these stubs. For now only onLoadAnalyze is wired.
+function updateSelectedCount(): void {
+  if (selectedCountEl) selectedCountEl.textContent = `${selectedIds.size} selected`;
+}
+
 function buildRowActions(): RepoRowActions {
   return {
-    onLoadAnalyze: (id) => panelDeps?.onLoadAnalyze(id),
-    // STUB — Task 4 wires tag/delete modals
-    onTag: (_id) => { /* stub: Task 4 */ },
-    onDelete: (_id) => { /* stub: Task 5 */ },
-    // STUB — Task 5 wires multi-select state
-    onToggleSelect: (_id, _checked) => { /* stub: Task 5 */ },
+    // panelDeps is guaranteed set after createLogRepositoryPanel (not optional-chained).
+    onLoadAnalyze: (id) => panelDeps!.onLoadAnalyze(id),
+    // STUB — Task 5 wires tag editor
+    onTag: (_id) => { /* stub: Task 5 */ },
+    onDelete: (id) => { void deleteRepoEntry(id); },
+    onToggleSelect: (id, checked) => {
+      if (checked) selectedIds.add(id); else selectedIds.delete(id);
+      updateSelectedCount();
+    },
   };
 }
 
 export function createLogRepositoryPanel(deps: RepoPanelDeps): HTMLElement {
   panelDeps = deps;
+  selectedIds.clear();
 
   totalEl = el('span', {
     className: 'font-semibold text-gray-800 dark:text-gray-200',
@@ -121,9 +130,48 @@ export function createLogRepositoryPanel(deps: RepoPanelDeps): HTMLElement {
   ]);
   tbodyEl = table.querySelector<HTMLElement>('[data-repo-tbody]');
 
+  // Bulk toolbar (Task 4 — FR-353/355): live count + delete-selected + clear-all.
+  selectedCountEl = el('span', {
+    className: 'text-sm text-gray-600 dark:text-gray-400',
+    text: '0 selected',
+    attrs: { 'data-repo-selected-count': '' },
+  });
+
+  const deleteSelectedBtn = el('button', {
+    className:
+      'text-xs font-semibold py-1 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800',
+    text: 'Delete selected',
+    attrs: { 'data-repo-delete-selected': '' },
+  });
+  deleteSelectedBtn.addEventListener('click', async () => {
+    const count = await deleteSelectedRepoEntries([...selectedIds]);
+    if (count > 0) {
+      selectedIds.clear();
+      updateSelectedCount();
+    }
+  });
+
+  const clearAllBtn = el('button', {
+    className:
+      'text-xs font-semibold py-1 px-3 rounded-lg bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600',
+    text: 'Clear all browser logs',
+    attrs: { 'data-repo-clear-all': '' },
+  });
+  clearAllBtn.addEventListener('click', async () => {
+    await deleteAllBrowserLogs();
+    selectedIds.clear();
+    updateSelectedCount();
+  });
+
+  const bulkToolbar = el('div', {
+    className: 'flex flex-wrap items-center gap-3 py-2 text-sm',
+    attrs: { 'data-repo-bulk-toolbar': '' },
+  }, [selectedCountEl, deleteSelectedBtn, clearAllBtn]);
+
   const body = el('div', {}, [
     headerStats,
     filterSlot,
+    bulkToolbar,
     el('div', { className: 'overflow-x-auto' }, [table]),
   ]);
 

@@ -11,6 +11,7 @@ import { analyze, mergeParsed } from './analyze';
 import type { ParsedLines } from './parse/parseLines';
 import { autoSaveUploadedFile } from './repository/autoSave';
 import { initLogRepository } from './render/repository/panel';
+import { loadAndAnalyzeFromRepo } from './render/repository/loadAnalyze';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (root) {
@@ -18,8 +19,8 @@ if (root) {
   initTheme();
 
   // Mount the Log Repository panel above the upload card (FR-184).
-  // onLoadAnalyze stub — Task 4 replaces this with the real loadAndAnalyzeFromRepo call.
-  void initLogRepository(repoMount, { onLoadAnalyze: () => {} });
+  // Task 4: wire real Load & Analyze — loads from IndexedDB and renders into `container` (FR-189).
+  void initLogRepository(repoMount, { onLoadAnalyze: (id) => loadAndAnalyzeFromRepo(id, container) });
 
   parseBtn.addEventListener('click', async () => {
     const files = Array.from(fileInput.files ?? []);
