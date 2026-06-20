@@ -1,6 +1,6 @@
 // tests/unit/repository-service.test.ts
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { indexedDB } from 'fake-indexeddb';
 import {
   saveLogToRepository, loadFromRepo, deleteFromRepo, listRepoMeta, nextVersionFilename,
@@ -33,6 +33,9 @@ describe('saveLogToRepository / loadFromRepo round-trip', () => {
     expect(got?.meta.filename).toBe('a.log');
     expect(got?.meta.source).toBe('upload');
     expect(got?.meta.driveFileId).toBeNull();
+    expect(got?.meta.evseIp).toBe('');
+    expect(got?.meta.siteName).toBe('');
+    expect(got?.meta.tags).toEqual([]);
   });
 
   it('on duplicate filename with "new-version" choice, saves under _v2', async () => {
@@ -58,10 +61,11 @@ describe('saveLogToRepository / loadFromRepo round-trip', () => {
   });
 
   it('listRepoMeta sorts newest first', async () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValueOnce(1000).mockReturnValueOnce(2000);
     await saveLogToRepository('a', { filename: 'older.log', fileSize: 1 });
-    await new Promise((r) => setTimeout(r, 2));
     await saveLogToRepository('b', { filename: 'newer.log', fileSize: 1 });
     expect((await listRepoMeta())[0].filename).toBe('newer.log');
+    nowSpy.mockRestore();
   });
 
   it('deleteFromRepo removes the entry', async () => {
