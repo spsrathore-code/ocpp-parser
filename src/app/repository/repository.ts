@@ -78,3 +78,10 @@ export function deleteFromRepo(id: number): Promise<void> {
 export async function listRepoMeta(): Promise<RepoMeta[]> {
   return (await getAllMeta()).sort((a, b) => b.savedAt - a.savedAt);
 }
+
+/** Replace an entry's tags in place (content untouched). */
+export async function updateEntryTags(id: number, tags: string[]): Promise<void> {
+  const entry = await getEntry(id);
+  if (!entry) return;
+  await putEntry({ ...entry, tags });
+}

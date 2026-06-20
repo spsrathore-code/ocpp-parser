@@ -12,6 +12,8 @@ import type { RepoRowActions } from './repoTable';
 import { buildFilterBar, filterRepoRows } from './filter';
 import type { RepoFilter } from './filter';
 import { deleteRepoEntry, deleteSelectedRepoEntries, deleteAllBrowserLogs } from './actions';
+import { openTagEditor } from './tagEditor';
+import { updateEntryTags } from '../../repository/repository';
 
 export interface RepoPanelDeps {
   onLoadAnalyze: (id: number) => void | Promise<void>;
@@ -52,8 +54,13 @@ function buildRowActions(): RepoRowActions {
   return {
     // panelDeps is guaranteed set after createLogRepositoryPanel (not optional-chained).
     onLoadAnalyze: (id) => panelDeps!.onLoadAnalyze(id),
-    // STUB — Task 5 wires tag editor
-    onTag: (_id) => { /* stub: Task 5 */ },
+    onTag: async (id) => {
+      const entry = (await listRepoMeta()).find((m) => m.id === id);
+      openTagEditor(id, entry?.tags ?? [], async (tags) => {
+        await updateEntryTags(id, tags);
+        await refreshRepository();
+      });
+    },
     onDelete: (id) => {
       selectedIds.delete(id);
       updateSelectedCount();
