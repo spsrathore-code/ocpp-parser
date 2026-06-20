@@ -1,0 +1,72 @@
+// src/app/repository/db.ts
+// Low-level IndexedDB CRUD for the Log Repository. One object store `logs`,
+// keyPath `id` autoIncrement; every metadata field indexed (FR-178). Content is
+// stored gzip-compressed and never decompressed for listing.
+
+import type { RepoEntry, RepoMeta } from './types';
+
+export const DB_NAME = 'ocpp-log-repository';
+export const STORE = 'logs';
+const VERSION = 1;
+
+export function openRepoDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('filename', 'filename', { unique: false });
+        store.createIndex('savedAt', 'savedAt', { unique: false });
+        store.createIndex('evseIp', 'evseIp', { unique: false });
+        store.createIndex('siteName', 'siteName', { unique: false });
+        store.createIndex('source', 'source', { unique: false });
+        store.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return openRepoDb().then((db) => new Promise<T>((resolve, reject) => {
+    const t = db.transaction(STORE, mode);
+    const request = run(t.objectStore(STORE));
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    t.oncomplete = () => db.close();
+  }));
+}
+
+export async function putEntry(entry: RepoEntry): Promise<number> {
+  const key = await tx<IDBValidKey>('readwrite', (s) => s.put(entry));
+  return key as number;
+}
+
+export function getEntry(id: number): Promise<RepoEntry | undefined> {
+  return tx<RepoEntry | undefined>('readonly', (s) => s.get(id));
+}
+
+function stripContent(rec: RepoEntry): RepoMeta {
+  const { content: _content, ...meta } = rec;
+  return meta;
+}
+
+export function getAllMeta(): Promise<RepoMeta[]> {
+  return tx<RepoEntry[]>('readonly', (s) => s.getAll()).then((rows) => rows.map(stripContent));
+}
+
+export function findByFilename(filename: string): Promise<RepoMeta[]> {
+  return openRepoDb().then((db) => new Promise<RepoMeta[]>((resolve, reject) => {
+    const t = db.transaction(STORE, 'readonly');
+    const req = t.objectStore(STORE).index('filename').getAll(filename);
+    req.onsuccess = () => resolve((req.result as RepoEntry[]).map(stripContent));
+    req.onerror = () => reject(req.error);
+    t.oncomplete = () => db.close();
+  }));
+}
+
+export function deleteEntry(id: number): Promise<void> {
+  return tx<undefined>('readwrite', (s) => s.delete(id)).then(() => undefined);
+}
