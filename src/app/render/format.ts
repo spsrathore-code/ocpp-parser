@@ -39,6 +39,16 @@ export function formatLogDuration(ms: number): string {
   return `${hours}h ${minutes}m`;
 }
 
+/** Human-readable byte size: 2048 → "2.0 KB", 5_242_880 → "5.0 MB". */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let v = bytes / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+  return `${v.toFixed(1)} ${units[i]}`;
+}
+
 /** UTC ISO timestamp → "DD/MM/YYYY HH:MM:SS IST" (UTC+5:30) (HTML 1598). */
 export function convertToIST(utcTimestamp: string): string {
   try {

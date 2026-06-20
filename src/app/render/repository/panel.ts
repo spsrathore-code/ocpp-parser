@@ -2,11 +2,13 @@
 // badge + Connect button render DISABLED (parked to Phase 4c). Re-renders from
 // listRepoMeta() on every mutation via refreshRepository().
 
-import { el, collapsibleSection, clearChildren } from '../dom';
+import { el, collapsibleSection } from '../dom';
 import { listRepoMeta } from '../../repository/repository';
 import { getStorageInfo, formatStorage } from '../../repository/storage';
 import type { StorageInfo } from '../../repository/storage';
 import type { RepoMeta } from '../../repository/types';
+import { renderRepoTableBody } from './repoTable';
+import type { RepoRowActions } from './repoTable';
 
 export interface RepoPanelDeps {
   onLoadAnalyze: (id: number) => void | Promise<void>;
@@ -31,6 +33,22 @@ let totalEl: HTMLElement | null = null;
 let storageEl: HTMLElement | null = null;
 let tbodyEl: HTMLElement | null = null;
 let panelDeps: RepoPanelDeps | null = null;
+
+// Module state for Task 3 (filtering) and Tasks 4–5 (select/tag/delete).
+let allMeta: RepoMeta[] = [];
+const selectedIds = new Set<number>();
+
+// Tasks 4–5 will replace these stubs. For now only onLoadAnalyze is wired.
+function buildRowActions(): RepoRowActions {
+  return {
+    onLoadAnalyze: (id) => panelDeps?.onLoadAnalyze(id),
+    // STUB — Task 4 wires tag/delete modals
+    onTag: (_id) => { /* stub: Task 4 */ },
+    onDelete: (_id) => { /* stub: Task 5 */ },
+    // STUB — Task 5 wires multi-select state
+    onToggleSelect: (_id, _checked) => { /* stub: Task 5 */ },
+  };
+}
 
 export function createLogRepositoryPanel(deps: RepoPanelDeps): HTMLElement {
   panelDeps = deps;
@@ -106,20 +124,9 @@ export async function refreshRepository(): Promise<void> {
   const stats = formatHeaderStats(meta, storage);
   if (totalEl) totalEl.textContent = stats.totalText;
   if (storageEl) storageEl.textContent = stats.storageText;
-  if (tbodyEl && panelDeps) {
-    clearChildren(tbodyEl);
-    // Rows rendered in Task 2 (renderRepoTableBody). Empty-state placeholder for now.
-    if (meta.length === 0) {
-      tbodyEl.append(
-        el('tr', {}, [
-          el('td', {
-            className: 'px-3 py-4 text-center text-gray-500',
-            text: 'No saved logs yet.',
-            attrs: { colspan: String(REPO_COLUMNS.length) },
-          }),
-        ]),
-      );
-    }
+  allMeta = meta;
+  if (tbodyEl) {
+    renderRepoTableBody(tbodyEl, allMeta, buildRowActions(), selectedIds);
   }
 }
 
