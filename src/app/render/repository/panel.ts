@@ -9,6 +9,8 @@ import type { StorageInfo } from '../../repository/storage';
 import type { RepoMeta } from '../../repository/types';
 import { renderRepoTableBody } from './repoTable';
 import type { RepoRowActions } from './repoTable';
+import { buildFilterBar, filterRepoRows } from './filter';
+import type { RepoFilter } from './filter';
 
 export interface RepoPanelDeps {
   onLoadAnalyze: (id: number) => void | Promise<void>;
@@ -37,6 +39,8 @@ let panelDeps: RepoPanelDeps | null = null;
 // Module state for Task 3 (filtering) and Tasks 4–5 (select/tag/delete).
 let allMeta: RepoMeta[] = [];
 const selectedIds = new Set<number>();
+const EMPTY_FILTER: RepoFilter = { text: '', evseIp: '', from: '', to: '', tag: '' };
+let currentFilter: RepoFilter = { ...EMPTY_FILTER };
 
 // Tasks 4–5 will replace these stubs. For now only onLoadAnalyze is wired.
 function buildRowActions(): RepoRowActions {
@@ -89,8 +93,16 @@ export function createLogRepositoryPanel(deps: RepoPanelDeps): HTMLElement {
     el('span', { className: 'ml-auto flex items-center gap-2' }, [driveBadge, connectBtn]),
   ]);
 
-  // Placeholder filter bar slot — populated in Task 3.
+  // Filter bar slot (Task 3 — FR-186/195). The slot element is kept so the
+  // existing panel test can query [data-repo-filter]; the built bar is appended inside it.
   const filterSlot = el('div', { attrs: { 'data-repo-filter': '' } });
+  const onFilterChange = (f: RepoFilter) => {
+    currentFilter = f;
+    if (tbodyEl) {
+      renderRepoTableBody(tbodyEl, filterRepoRows(allMeta, currentFilter), buildRowActions(), selectedIds);
+    }
+  };
+  filterSlot.append(buildFilterBar(onFilterChange));
 
   const table = el('table', { className: 'min-w-full text-sm' }, [
     el('thead', { className: 'bg-gray-100 dark:bg-gray-700 text-left' }, [
@@ -126,7 +138,7 @@ export async function refreshRepository(): Promise<void> {
   if (storageEl) storageEl.textContent = stats.storageText;
   allMeta = meta;
   if (tbodyEl) {
-    renderRepoTableBody(tbodyEl, allMeta, buildRowActions(), selectedIds);
+    renderRepoTableBody(tbodyEl, filterRepoRows(allMeta, currentFilter), buildRowActions(), selectedIds);
   }
 }
 
