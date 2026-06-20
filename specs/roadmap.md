@@ -12,7 +12,7 @@
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
 | 1 | **Validation Engine** (L1–L3) | 🟢 Phase 1 built · PR open | Ship | `feat/validation-engine` (pushed; PR pending merge) | Merge PR → `main`; then L4 (Phase 2) |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3 done; 3b-3b parked) | Build | `feat/parser-revamp` | Phase 4 — repository / timeline / api-download |
+| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3 done; 4a done; 3b-3b + 4c Drive parked) | Build | `feat/parser-revamp` | Phase 4b — repository panel UI (then 4d timeline, 4e api-download) |
 | — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
 | 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
 | 4 | **Charger Emulator** | ⚪ Planned (adopt/fork SAP sim) | — | — | Evaluate SAP `e-mobility-charging-stations-simulator` |
@@ -48,8 +48,13 @@ parity with v2026.05.14, optimized, bugs fixed. Spec: `specs/requirements.md` (S
   - [x] 3b Static section renderers — **all 19 §19.4 sections rendered** (3b-1 generic tables · 3b-2 Debug/Boot · 3b-3a Status · 3b-4 tx-centric · 3b-5 analysis: Energy Dispense, Incomplete, Fault Status, Downtime, Power-Restore Sync, Emergency-Stop Release, Protocol, WS Health). 122 tests. Remaining 3b parity: [x] context-viewer (Preview/Download, 129 tests) · ⏸️ 3b-3b RemoteStart diagnostic **PARKED** (`docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`).
   - [x] 3c Charts (Chart.js): per-tx View Chart + Meter Values 6 graphs (faithful: hover/dash/dual-axis) + Enlarge/PNG-download + ZUC (chart.js lazy/code-split).
   - [x] 3d Excel export (SheetJS): per-section "Export to Excel" header buttons on 17 table sections (xlsx lazy/code-split). 135 tests.
-- [ ] **Phase 4 — Repository / timeline / api-download.**
-- [ ] **Phase 5 — Parity gate + deploy swap** (point GitHub Pages at the new build).
+- [~] **Phase 4 — Repository / timeline / api-download.**
+  - [x] 4a Log Repository **core** (local, headless) — `src/app/repository/`: gzip compress (FR-174), IndexedDB CRUD + 6 indexes (FR-178), save/load/delete/list + `_v2` versioning (FR-183), storage estimate/persist (FR-175/176/177), failure-isolated auto-save wired into `main.ts` (FR-179). +25 tests (160). Plan `docs/superpowers/plans/2026-06-20-parser-phase4a-repository-core.md`.
+  - [ ] 4b Repository **panel UI** (search/tags, bulk-select, Load&Analyze, delete/site-name prompts + toast). FR-180/182/184–196, 353–355.
+  - [ ] 4c Google **Drive sync** — ⏸️ **PARKED** → Phase 5 hosted deploy (needs https + OAuth). FR-197–206.
+  - [ ] 4d **Session Timeline** per-tx 4-tab modal. FR-207–234.
+  - [ ] 4e **API download** (EVSE folder-save + progress). §18.4, A.1.
+- [ ] **Phase 5 — Parity gate + deploy swap** (point GitHub Pages at the new build; wire 4c Drive sync once hosted).
 
 ## Planned features (Parser — from `requirements.md`)
 

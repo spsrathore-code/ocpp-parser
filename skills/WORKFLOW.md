@@ -49,8 +49,13 @@ until parity proven (Phase 5). Build runs as phased sub-cycles (0–5).
     - [ ] **(cross-cutting) context-viewer** sub-phase: shared Preview/Download "log context" modal + download, retro-fit into Boot/Events/Alerts/Downtime (deferred per 2026-06-17 decision).
   - [ ] **3c — Charts** (Chart.js per-tx + in-section).
   - [ ] **3d — Excel export** (SheetJS per-section buttons).
-- [ ] **Phase 4 — Repository / timeline / api-download.**
-- [ ] **Phase 5 — Parity gate + deploy swap.**
+- [~] **Phase 4 — Repository / timeline / api-download.**
+  - [x] **Phase 4a — Log Repository core (local, headless)** — `src/app/repository/`: `compress.ts` (gzip `CompressionStream` round-trip, FR-174) · `db.ts` (IndexedDB CRUD, 6 indexes incl. tags multiEntry, cached-connection singleton with `onversionchange` safety, FR-178) · `repository.ts` (`saveLogToRepository`/`loadFromRepo`/`deleteFromRepo`/`listRepoMeta` + duplicate `_v2` versioning + overwrite/cancel, FR-183) · `storage.ts` (estimate/persist guards, FR-175/176/177) · `autoSave.ts` (failure-isolated auto-save wired into `main.ts`, FR-179). **Google Drive (4c) PARKED → Phase 5 hosted deploy** (needs https + OAuth, untestable from file://). +25 tests (160 total); `tsc` + `vite build` clean. Plan `docs/superpowers/plans/2026-06-20-parser-phase4a-repository-core.md`. Built via subagent-driven-development (per-task implement→review→fix).
+  - [ ] **Phase 4b — Repository panel UI** (collapsible panel, search/tags, checkbox bulk-select, Load&Analyze, delete prompts, site-name prompt + toast). FR-180/182/184–196, 353–355.
+  - [ ] **Phase 4c — Google Drive sync** — ⏸️ **PARKED** to Phase 5 hosted deploy. FR-197–206.
+  - [ ] **Phase 4d — Session Timeline** (per-tx 4-tab modal). FR-207–234.
+  - [ ] **Phase 4e — API download** (EVSE folder-save + progress). §18.4, A.1.
+- [ ] **Phase 5 — Parity gate + deploy swap** (+ wire 4c Drive sync once hosted).
 
 ### Key outputs
 - **Think:** `specs/requirements.md` (1,860-line SSOT) + §19 architecture

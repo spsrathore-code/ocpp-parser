@@ -474,3 +474,23 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** click "Export to Excel" on a few sections → .xlsx downloads with the table data.
 - **Phase 4 — Repository / Timeline / API-download** (brainstorm/spec first; biggest remaining feature area) → **Phase 5** parity gate + deploy swap. Plus parked 3b-3b whenever prioritised.
+
+## 2026-06-20 (PM) — Parser revamp Phase 4a: Log Repository core (local)
+
+### Discussed
+- Resumed on `feat/parser-revamp` after Phase 3 complete. Committed loose working-tree docs (validation-engine spike + Phase 1 plan) as `183a7ca`; the 6 other "modified" files were CRLF-only churn and left untouched.
+- Scoped Phase 4 (Repository / Timeline / API-download) into sub-phases 4a–4e.
+
+### Decided
+- **Google Drive (4c) PARKED → Phase 5 hosted deploy.** It needs the hosted `https://` URL + OAuth client-id and is untestable from `file://`; parking keeps every Phase 4 item testable. Schema keeps `driveFileId` (null) so wiring later is additive.
+- Build order: **4a repository core first** (foundation, pure-local, fully TDD-able).
+- Executed via **subagent-driven-development**: fresh implementer + reviewer subagent per task, fix loop on Critical/Important findings.
+
+### Implemented
+- New `src/app/repository/` module, local + headless: `compress.ts` (gzip `CompressionStream` round-trip, FR-174) · `db.ts` (IndexedDB CRUD, 6 indexes incl. tags multiEntry, **cached-connection singleton with `onversionchange`/`onclose` safety** so `deleteDatabase` never deadlocks, FR-178) · `repository.ts` (`saveLogToRepository`/`loadFromRepo`/`deleteFromRepo`/`listRepoMeta` + `nextVersionFilename` `_v2` versioning + overwrite/cancel branches, FR-183) · `storage.ts` (estimate/persist guards that degrade gracefully, FR-175/176/177) · `autoSave.ts` (failure-isolated auto-save wired into `main.ts`'s parse loop — only existing-code edit, FR-179/205/206).
+- `fake-indexeddb` added as devDep for node-env tests. **+25 tests → 160 total**; `tsc` + `vite build` clean (repository chunk).
+- Review loop caught + fixed: T2 connection-per-call race (→ versionchange-safe singleton); T3 flaky `setTimeout` sort test (→ deterministic `Date.now` spy).
+
+### Next
+- **Manual browser check (user):** upload a log → reload → confirm it auto-saved (DevTools ▸ Application ▸ IndexedDB ▸ `ocpp-log-repository`). No UI panel yet — that's 4b.
+- **Phase 4b** repository panel UI (search/tags, bulk-select, Load&Analyze, prompts/toast), then 4d Session Timeline, 4e API-download. 4c Drive + 3b-3b RemoteStart remain parked.

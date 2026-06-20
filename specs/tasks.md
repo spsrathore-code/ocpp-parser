@@ -43,11 +43,15 @@
 ## Next
 
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
-- [ ] **Parser revamp Phase 4 — Repository / Timeline / API-download**: Log Repository (IndexedDB + Google Drive), Session Timeline per-tx modal (4-tab charts), API log download. (Biggest remaining feature area; brainstorm/spec before building.)
+- [x] **Parser revamp Phase 4a — Log Repository core (local, headless)**: `src/app/repository/` — gzip compress (FR-174), IndexedDB CRUD + 6 indexes (FR-178), save/load/delete/list + `_v2` duplicate versioning (FR-183), storage estimate/persist (FR-175/176/177), failure-isolated auto-save wired into `main.ts` (FR-179). +25 tests (160). Plan `docs/superpowers/plans/2026-06-20-parser-phase4a-repository-core.md`.
+- [ ] **Parser revamp Phase 4b — Repository panel UI**: collapsible panel, search/tags, checkbox bulk-select, Load&Analyze, delete/site-name prompts + toast. FR-180/182/184–196, 353–355.
+- [ ] **Parser revamp Phase 4d — Session Timeline**: per-tx 4-tab modal (Session/Energy/Status/Telemetry). FR-207–234.
+- [ ] **Parser revamp Phase 4e — API download**: EVSE folder-save + download progress. §18.4, A.1.
 
 ## Parked
 
 - ⏸️ **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic** (PARKED 2026-06-19, user decision). Status section's auth-contention analysis (⚠ Repeat-RemoteStart card + per-row "N× RS" pill + threshold problem-session panel). Full resume notes: `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`.
+- ⏸️ **Parser revamp Phase 4c — Google Drive sync** (PARKED 2026-06-20, user decision). OAuth 2.0 + Drive upload/download/sidecar/team-folder (FR-197–206). Untestable from `file://` — needs the hosted `https://` URL + OAuth client-id; do during the Phase 5 hosted deploy. Schema already carries `driveFileId` (null until wired).
 
 ## Later
 
