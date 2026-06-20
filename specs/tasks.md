@@ -45,6 +45,7 @@
 - [ ] **Merge the Validation Engine PR → `main`** (manual via GitHub; `gh` CLI absent): https://github.com/spsrathore-code/ocpp-parser/pull/new/feat/validation-engine
 - [x] **Parser revamp Phase 4a — Log Repository core (local, headless)**: `src/app/repository/` — gzip compress (FR-174), IndexedDB CRUD + 6 indexes (FR-178), save/load/delete/list + `_v2` duplicate versioning (FR-183), storage estimate/persist (FR-175/176/177), failure-isolated auto-save wired into `main.ts` (FR-179). +25 tests (160). Plan `docs/superpowers/plans/2026-06-20-parser-phase4a-repository-core.md`.
 - [ ] **Parser revamp Phase 4b — Repository panel UI**: collapsible panel, search/tags, checkbox bulk-select, Load&Analyze, delete/site-name prompts + toast. FR-180/182/184–196, 353–355.
+  - _4a hardening follow-ups (from final review, non-blocking) to fold into 4b:_ (1) surface `fileSize` as true UTF-8 bytes in the UI (autoSave already correct; some tests pass `.length`); (2) `await`/`.catch` the writer promises in `compress.ts` before loading arbitrary/older entries (avoid stray unhandledRejection on corrupt input); (3) add an explicit `closeRepoDb()` reset helper + a true failure-injection auto-save test; (4) revisit module-level `persistenceRequested` if persistence becomes test-asserted.
 - [ ] **Parser revamp Phase 4d — Session Timeline**: per-tx 4-tab modal (Session/Energy/Status/Telemetry). FR-207–234.
 - [ ] **Parser revamp Phase 4e — API download**: EVSE folder-save + download progress. §18.4, A.1.
 
