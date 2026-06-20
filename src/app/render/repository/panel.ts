@@ -54,7 +54,11 @@ function buildRowActions(): RepoRowActions {
     onLoadAnalyze: (id) => panelDeps!.onLoadAnalyze(id),
     // STUB — Task 5 wires tag editor
     onTag: (_id) => { /* stub: Task 5 */ },
-    onDelete: (id) => { void deleteRepoEntry(id); },
+    onDelete: (id) => {
+      selectedIds.delete(id);
+      updateSelectedCount();
+      void deleteRepoEntry(id);
+    },
     onToggleSelect: (id, checked) => {
       if (checked) selectedIds.add(id); else selectedIds.delete(id);
       updateSelectedCount();
@@ -158,9 +162,11 @@ export function createLogRepositoryPanel(deps: RepoPanelDeps): HTMLElement {
     attrs: { 'data-repo-clear-all': '' },
   });
   clearAllBtn.addEventListener('click', async () => {
-    await deleteAllBrowserLogs();
-    selectedIds.clear();
-    updateSelectedCount();
+    const count = await deleteAllBrowserLogs();
+    if (count > 0) {
+      selectedIds.clear();
+      updateSelectedCount();
+    }
   });
 
   const bulkToolbar = el('div', {
