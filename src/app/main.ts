@@ -9,6 +9,7 @@ import { renderResults } from './render/renderResults';
 import { parseLines } from './parse/parseLines';
 import { analyze, mergeParsed } from './analyze';
 import type { ParsedLines } from './parse/parseLines';
+import { autoSaveUploadedFile } from './repository/autoSave';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (root) {
@@ -25,10 +26,12 @@ if (root) {
       const allLines: string[] = [];
       const names: string[] = [];
       for (const file of files) {
-        const lines = (await file.text()).split(/\r?\n/);
+        const text = await file.text();
+        const lines = text.split(/\r?\n/);
         parts.push(parseLines(lines, file.name));
         allLines.push(...lines);
         names.push(file.name);
+        void autoSaveUploadedFile(file.name, text);
       }
       const result = analyze(mergeParsed(parts), allLines, names);
       renderResults(container, result);
