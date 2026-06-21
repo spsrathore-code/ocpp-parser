@@ -528,3 +528,21 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** Transaction Summary → "📊 Timeline" on a row → 4 tabs render (Session bar/markers, Energy dual-axis, Status swimlanes, Telemetry power+temp w/ red breach dots).
 - **Phase 4e — API download** (EVSE folder-save + progress), then **Phase 5** parity gate + deploy swap. 4c Drive + 3b-3b RemoteStart remain parked.
+
+## 2026-06-21 (eve) — Parser revamp Phase 5: parity-gate AUDIT (no deploy)
+
+### Did
+- Ran the Phase 5 parity gate as an **audit only** (user choice; deploy swap explicitly held). Finalized `docs/parser-revamp-comparison.md` with a feature-by-feature matrix: all 19 §19.4 render sections + every subsystem (parse/detect/health/protocol/ws/repository-local/timeline/offline-replay/internal-tx) confirmed at parity. Snapshot: 69 TS modules, 7,399 TS LOC, largest 541 lines, 223 tests.
+
+### Found (the audit's payoff)
+- **Untracked parity gap: the Help modal is not ported.** `shell.ts` renders the `❔ Help` button (`id="help-btn"`) but there is no `help-modal`, handler, or content anywhere in `src/` — clicking it does nothing. Legacy has a full content modal (HTML 191) + handler (254). Added as a **PRE-DEPLOY** task in `specs/tasks.md`; must close (or drop the button) before the deploy swap.
+
+### Confirmed (already-tracked, not regressions)
+- Parked: 3b-3b RemoteStart (local, buildable any time) · 4c Drive sync (needs hosted+OAuth) · 4e API download (needs EVSE hardware).
+- Intentional source-canonical drift: Timeline 10-vs-11 markers (no Phantom) · Protocol 21-vs-24 checks. (`N/A` vs `undefined` is an improvement.)
+
+### Deploy-readiness verdict
+- **Not ready to swap yet.** Order: (1) port Help modal; (2) decide parked items (ship-without vs build 3b-3b first — it's local+cheap; 4c/4e genuinely need hosted/hardware); (3) reconcile/accept the two drifts in the spec; (4) optional golden-master output diff + runtime benchmark.
+
+### Next
+- Awaiting user steer: port the Help modal, build 3b-3b, or proceed toward deploy accepting the gaps.
