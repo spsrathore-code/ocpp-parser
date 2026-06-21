@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { getTimelineDataForTx } from '../../src/app/render/timeline/timelineData';
 import { renderSessionTab } from '../../src/app/render/timeline/tabSession';
 import { buildEnergySeries } from '../../src/app/render/timeline/tabEnergy';
+import { renderStatusTab } from '../../src/app/render/timeline/tabStatus';
 import type { Transaction, ParsedMessage } from '../../src/app/model/types';
 
 // ── Shared fixture — mirrors the Task-1 fixture in timelineData.test.ts ──────
@@ -233,5 +234,84 @@ describe('buildEnergySeries (FR-218/219/220)', () => {
     const { socPts, energyPts } = buildEnergySeries(noData as typeof data);
     expect(socPts).toHaveLength(0);
     expect(energyPts).toHaveLength(0);
+  });
+});
+
+// ── renderStatusTab (FR-222/223/225/226) ──────────────────────────────────────
+
+describe('renderStatusTab (FR-222/223/225/226)', () => {
+  const data = getTimelineDataForTx(555, [tx], messages)!;
+
+  it('renders one lane row per connector (C1 label present)', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    // Connector label "C1" must appear
+    expect(container.textContent).toContain('C1');
+  });
+
+  it('renders a status block label for a wide block (Charging)', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    // "Charging" status block should have its label text in a span
+    // (legacy renders label when width > 8%)
+    // With 30-min session in a 80-min window the Charging block is wide
+    expect(container.innerHTML).toContain('Charging');
+  });
+
+  it('renders hover title attributes on status blocks', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    // title attributes encode "Status\ntime" — check at least one contains "Charging"
+    const divs = container.querySelectorAll('div[title]');
+    const titles = Array.from(divs).map((d) => d.getAttribute('title') ?? '');
+    expect(titles.some((t) => t.includes('Charging'))).toBe(true);
+  });
+
+  it('renders the status-colour legend with known statuses', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    // Legend must include all 8 legacy statusColors keys
+    expect(container.textContent).toContain('Available');
+    expect(container.textContent).toContain('Preparing');
+    expect(container.textContent).toContain('Charging');
+    expect(container.textContent).toContain('Faulted');
+    expect(container.textContent).toContain('Finishing');
+    expect(container.textContent).toContain('Unavailable');
+  });
+
+  it('renders the window start/end time footer', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    // The window timestamps footer uses tlTime — should include "IST"
+    expect(container.textContent).toContain('IST');
+  });
+
+  it('shows empty-state message when swimlanes is empty', () => {
+    const emptyData = { ...data, swimlanes: [] };
+    const container = document.createElement('div');
+    renderStatusTab(container, emptyData);
+    expect(container.textContent).toContain('No StatusNotification data in this window.');
+  });
+
+  it('does not render the legend in the empty-state path', () => {
+    const emptyData = { ...data, swimlanes: [] };
+    const container = document.createElement('div');
+    renderStatusTab(container, emptyData);
+    // Legend entries like "Faulted" must not be present in empty state
+    expect(container.textContent).not.toContain('Faulted');
+  });
+
+  it('uses dark background colour on lane bar (#1f2937)', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    expect(container.innerHTML).toContain('#1f2937');
+  });
+
+  it('renders marker lines via the markers array', () => {
+    const container = document.createElement('div');
+    renderStatusTab(container, data);
+    // markers array has at least StartTransaction (always added)
+    // Each marker becomes a div with position:absolute; check opacity:0.5
+    expect(container.innerHTML).toContain('opacity:0.5');
   });
 });
