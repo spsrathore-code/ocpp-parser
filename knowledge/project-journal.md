@@ -511,3 +511,20 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **Manual browser check (user):** upload a log → see toast + site-name banner; open the 📂 Log Repository panel → filter, tag, Load & Analyze a stored log, delete / bulk-delete. Drive button is intentionally disabled.
 - **Phase 4d — Session Timeline** (per-tx 4-tab modal), then **4e API download**. 4c Drive + 3b-3b RemoteStart remain parked. Repository hardening follow-ups listed in `specs/tasks.md`.
+
+## 2026-06-21 (PM) — Parser revamp Phase 4d: Session Timeline & Telemetry
+
+### Implemented
+- New `src/app/render/timeline/` module — faithful port of the legacy v2026.05.14 Session Timeline (HTML 7386–7931): pure `getTimelineDataForTx` (markers/mv-breakdown/swimlanes) + `tlTime`; dark modal `createSessionTimelineModal` with a 4-tab bar (Session·Energy·Status·Telemetry) + Chart.js destroy-on-tab-switch lifecycle; "📊 Timeline" button on each Transaction Summary row (additive — `renderTransactionSummary` already receives `r.messages`/`r.transactions`, so no `renderResults.ts` change).
+- Tabs: **Session** + **Status** are pure HTML/CSS (segmented bar / connector swimlanes via positioned divs); **Energy** + **Telemetry** use lazy `chart.js` (no new dependency, no annotation plugin). +37 tests (223 total); `tsc` + `vite build` clean (Chart.js code-split).
+
+### Decided / recorded
+- **Spec/source drift (FR-215):** spec lists 11 markers incl. a Phantom-Connection marker; the legacy v2026.05.14 implements **10 markers with NO Phantom marker**. Per the source-canonical rule (cf. the 21-vs-24 protocol-check drift), ported the 10 faithfully. Flagged in roadmap/tasks/WORKFLOW.
+- The timeline modal is **dark-only** (legacy inline styles) and does not follow the app light/dark toggle — intentional parity.
+
+### Process note
+- Tasks 1–4 ran via subagent-driven-development; **switched to inline execution for Tasks 5–6** after the per-task implementer+reviewer subagent pattern proved very token-expensive (each subagent cold-re-derives context), draining the session usage cap while my own context stayed lean (~44%). Inline is the right tool for faithful ports of known-good legacy code; reserve subagent-driven for genuinely novel/risky work (e.g. 4c Drive OAuth, Phase 6 engine integration).
+
+### Next
+- **Manual browser check (user):** Transaction Summary → "📊 Timeline" on a row → 4 tabs render (Session bar/markers, Energy dual-axis, Status swimlanes, Telemetry power+temp w/ red breach dots).
+- **Phase 4e — API download** (EVSE folder-save + progress), then **Phase 5** parity gate + deploy swap. 4c Drive + 3b-3b RemoteStart remain parked.
