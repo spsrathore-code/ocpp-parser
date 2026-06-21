@@ -49,7 +49,6 @@
 - [x] **Parser revamp Phase 4d — Session Timeline**: per-tx 4-tab modal (Session/Energy/Status/Telemetry) — `src/app/render/timeline/`, "📊 Timeline" button on tx rows. Faithful port of legacy 7386–7931. +37 tests (223). **Drift: 10 markers, no Phantom (legacy-canonical; spec FR-215 says 11).** Modal dark-only by parity. Plan `docs/superpowers/plans/2026-06-21-parser-phase4d-session-timeline.md`.
 - [x] **Parser revamp Phase 5 — Parity gate (AUDIT only, no deploy)**: feature-by-feature comparison vs legacy v2026.05.14 → `docs/parser-revamp-comparison.md` finalized. All 19 §19.4 sections + subsystems at parity. **Found 1 untracked gap (Help modal).** Deploy swap held pending Help-modal + parked-item decisions.
 - [x] **Parser revamp — async-parse responsiveness restored** (user: don't defer): `parse/parseLinesAsync.ts` drives `parseLines` in 1000-line chunks, yielding to the event loop between chunks with a live progress bar (faithful to legacy `parseOcppLogsAsync`). Shared internalTxMap across chunks + absolute line numbers; parity-tested vs sync. +6 tests (229). Large files no longer freeze the UI.
-- [ ] **Parser revamp — PRE-DEPLOY: port the Help modal** (parity gap found at the gate): `help-btn` renders in `shell.ts` but no `help-modal`/handler/content exists (legacy HTML 191 + handler 254). Port the modal content + open/close wiring (mirror existing modal patterns), or drop the button. Must close before the deploy swap.
 - [ ] **Phase 6 prep — bring engine + parser into one tree** (consumption = direct monorepo import, decided `knowledge/decisions/2026-06-21-validation-engine-consumption-model.md`): merge `feat/validation-engine` → `main`, then onto the integration line (or merge engine branch into parser branch). Blocks Phase 6 start.
 
 ## Parked
@@ -57,6 +56,7 @@
 - ⏸️ **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic** (PARKED 2026-06-19, user decision). Status section's auth-contention analysis (⚠ Repeat-RemoteStart card + per-row "N× RS" pill + threshold problem-session panel). Full resume notes: `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`.
 - ⏸️ **Parser revamp Phase 4c — Google Drive sync** (PARKED 2026-06-20, user decision). OAuth 2.0 + Drive upload/download/sidecar/team-folder (FR-197–206). Untestable from `file://` — needs the hosted `https://` URL + OAuth client-id; do during the Phase 5 hosted deploy. Schema already carries `driveFileId` (null until wired).
 - ⏸️ **Parser revamp Phase 4e — API download** (PARKED 2026-06-21, user decision). EVSE folder-save (File System Access API) + streaming download with progress (FR-349–352). Network/hardware-dependent (needs a reachable EVSE at `http://{IP}:3001`). §18.4, A.1.
+- ⏸️ **Parser revamp — Help modal** (PARKED 2026-06-21, user). `help-btn` renders in `shell.ts` but no modal/handler/content (legacy HTML 191 + handler 254). Port content + open/close, or drop the button. Close before deploy swap.
 
 ## Later
 
