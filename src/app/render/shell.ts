@@ -5,11 +5,19 @@
 
 import { el } from './dom';
 
+export interface ProgressRefs {
+  container: HTMLElement;
+  bar: HTMLElement;
+  text: HTMLElement;
+  percent: HTMLElement;
+}
+
 export interface ShellRefs {
   fileInput: HTMLInputElement;
   parseBtn: HTMLButtonElement;
   container: HTMLDivElement;
   repoMount: HTMLDivElement;
+  progress: ProgressRefs;
 }
 
 export function renderShell(root: HTMLElement): ShellRefs {
@@ -58,6 +66,21 @@ export function renderShell(root: HTMLElement): ShellRefs {
   // Log Repository panel mount (Phase 4b, FR-184) — sits above the upload card.
   const repoMount = el('div', { attrs: { id: 'log-repository-mount' } });
 
-  root.append(header, repoMount, uploadCard, container);
-  return { fileInput, parseBtn, container, repoMount };
+  // Chunked-parse progress (hidden until parsing) — faithful to the legacy
+  // "Processing in chunks to prevent browser crashes…" bar (HTML 166-175).
+  const progressBar = el('div', { className: 'bg-blue-600 h-3 rounded-full transition-all duration-150', attrs: { style: 'width:0%', id: 'progress-bar' } });
+  const progressText = el('span', { className: 'text-sm text-gray-600 dark:text-gray-400', text: 'Processing…', attrs: { id: 'progress-text' } });
+  const progressPercent = el('span', { className: 'text-sm font-semibold text-gray-700 dark:text-gray-300', text: '0%', attrs: { id: 'progress-percent' } });
+  const progressContainer = el('section', { className: 'mb-8 hidden', attrs: { id: 'progress-container' } }, [
+    el('div', { className: 'max-w-3xl mx-auto bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700' }, [
+      el('div', { className: 'flex justify-between items-center mb-2' }, [progressText, progressPercent]),
+      el('div', { className: 'w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden' }, [progressBar]),
+    ]),
+  ]);
+
+  root.append(header, repoMount, uploadCard, progressContainer, container);
+  return {
+    fileInput, parseBtn, container, repoMount,
+    progress: { container: progressContainer, bar: progressBar, text: progressText, percent: progressPercent },
+  };
 }

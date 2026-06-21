@@ -25,21 +25,29 @@ const TIMESTAMP_RE = /\[([^\]]+)\]/;
  * Pure, synchronous line parser — extracts OCPP messages, events, alerts, and the
  * CMS↔internal transaction-id map from raw log lines.
  *
- * This is the parsing *logic* of `parseOcppLogsAsync`, decomposed out of the
- * chunked/async UI driver (1000-line chunks + 10 ms yields), which is a render-layer
- * concern and lives with the UI shell in a later phase. The per-line behaviour —
- * regexes, `parseJsonSafely`, the `N/A` defaults, and the two-source internalTxMap —
- * is identical to the original.
+ * This is the parsing *logic* of `parseOcppLogsAsync`. The chunked/async UI driver
+ * (1000-line chunks + yields) lives in `parseLinesAsync` and calls this per chunk.
+ * The per-line behaviour — regexes, `parseJsonSafely`, the `N/A` defaults, and the
+ * two-source internalTxMap — is identical to the original.
+ *
+ * `startLine` offsets the emitted `lineNumber`s so a chunk reports ABSOLUTE file
+ * line numbers (the context-viewer depends on these). `internalTxMap` may be passed
+ * in so the same accumulator is threaded across chunks — the backup source's
+ * "set only if absent" check must see global state, not a fresh per-chunk map.
  */
-export function parseLines(lines: string[], fileName: string): ParsedLines {
+export function parseLines(
+  lines: string[],
+  fileName: string,
+  startLine = 0,
+  internalTxMap: InternalTxMap = new Map(),
+): ParsedLines {
   const messages: ParsedMessage[] = [];
   const events: ParsedEvent[] = [];
   const alerts: ParsedAlert[] = [];
-  const internalTxMap: InternalTxMap = new Map();
 
   for (let j = 0; j < lines.length; j++) {
     const line = lines[j];
-    const lineNumber = j + 1;
+    const lineNumber = startLine + j + 1;
 
     // OCPP message
     const ocppMatch = line.match(OCPP_RE);

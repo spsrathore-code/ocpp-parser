@@ -6,7 +6,7 @@
 import { renderShell } from './render/shell';
 import { initTheme } from './render/theme';
 import { renderResults } from './render/renderResults';
-import { parseLines } from './parse/parseLines';
+import { parseLinesAsync } from './parse/parseLinesAsync';
 import { analyze, mergeParsed } from './analyze';
 import type { ParsedLines } from './parse/parseLines';
 // autoSaveUploadedFile (./repository/autoSave) is the headless path — kept for tests; production uses UX wrapper below.
@@ -16,7 +16,7 @@ import { loadAndAnalyzeFromRepo } from './render/repository/loadAnalyze';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (root) {
-  const { fileInput, parseBtn, container, repoMount } = renderShell(root);
+  const { fileInput, parseBtn, container, repoMount, progress } = renderShell(root);
   initTheme();
 
   // Mount the Log Repository panel above the upload card (FR-184).
@@ -28,14 +28,27 @@ if (root) {
     if (files.length === 0) return;
     parseBtn.disabled = true;
     parseBtn.textContent = 'Parsing…';
+    progress.container.classList.remove('hidden');
     try {
       const parts: ParsedLines[] = [];
       const allLines: string[] = [];
       const names: string[] = [];
-      for (const file of files) {
+      const totalFiles = files.length;
+      for (let fi = 0; fi < files.length; fi++) {
+        const file = files[fi];
         const text = await file.text();
         const lines = text.split(/\r?\n/);
-        parts.push(parseLines(lines, file.name));
+        // Chunked async parse — yields between 1000-line chunks so the UI stays
+        // responsive (and a progress bar updates) on large files (FR: no-freeze).
+        const parsed = await parseLinesAsync(lines, file.name, {
+          onProgress: (done, total) => {
+            const pct = total > 0 ? Math.round((done / total) * 100) : 100;
+            progress.text.textContent = `File ${fi + 1}/${totalFiles}: Processing lines ${done}/${total}…`;
+            progress.percent.textContent = `${pct}%`;
+            progress.bar.style.width = `${pct}%`;
+          },
+        });
+        parts.push(parsed);
         allLines.push(...lines);
         names.push(file.name);
         void autoSaveWithUx(file.name, text);
@@ -43,6 +56,8 @@ if (root) {
       const result = analyze(mergeParsed(parts), allLines, names);
       renderResults(container, result);
     } finally {
+      progress.container.classList.add('hidden');
+      progress.bar.style.width = '0%';
       parseBtn.textContent = 'Parse Files';
       parseBtn.disabled = false;
     }
