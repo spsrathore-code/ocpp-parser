@@ -12,6 +12,7 @@ import { fmtReplayDelay, convertToIST } from '../format';
 import { TEMP_THRESHOLDS, DEFAULT_ZERO_ENERGY_THRESHOLD_WH, METER_DIFF_THRESHOLD_WH, CURRENT_MISMATCH_FACTOR } from '../../model/config';
 import type { Transaction } from '../../model/types';
 import type { AnalysisResult } from '../../analyze';
+import { wireTimelineButtons } from '../timeline/sessionTimeline';
 
 export interface TxFlags { isZeroEnergy: boolean; isTempHigh: boolean; isMeterDiff: boolean; isCurrentMismatch: boolean; }
 
@@ -181,7 +182,7 @@ export function renderTransactionSummary(r: AnalysisResult): HTMLElement {
           <td class="${TD}">${tx.isOfflineReplay ? fmtReplayDelay(tx.replayDelayMs) : DASH}</td>
           <td class="px-4 py-3 whitespace-nowrap text-sm">${offlineReplayCell}</td>
           <td class="px-4 py-3 whitespace-nowrap text-sm">${statusBadge}</td>
-          <td class="px-4 py-3 whitespace-nowrap text-sm"><button type="button" class="view-chart-btn bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-xs" data-txid="${tx.id}">View Chart</button></td>`,
+          <td class="px-4 py-3 whitespace-nowrap text-sm"><button type="button" class="view-chart-btn bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-xs" data-txid="${tx.id}">View Chart</button><button type="button" class="view-timeline-btn bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-3 rounded text-xs ml-1" data-txid="${tx.id}">📊 Timeline</button></td>`,
       });
     });
     tbody.replaceChildren(...trs);
@@ -253,6 +254,9 @@ export function renderTransactionSummary(r: AnalysisResult): HTMLElement {
     modal.classList.add('flex');
     requestAnimationFrame(() => { void renderTransactionChart(canvas, txData); });
   });
+
+  // Delegated "📊 Timeline" → open session timeline modal (FR-231/232/233/234).
+  wireTimelineButtons(root, transactions, r.messages);
 
   return root;
 }
