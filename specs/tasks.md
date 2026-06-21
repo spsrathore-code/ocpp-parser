@@ -47,12 +47,12 @@
 - [x] **Parser revamp Phase 4b — Repository panel UI (local)**: `src/app/render/repository/` — collapsible panel above upload (FR-184/185), search/filter (FR-186/195), 9-col table (FR-187), Load&Analyze via existing pipeline (FR-189), delete + bulk select/delete/clear-all (FR-191/353/355), tag editor 7 presets+custom (FR-193/194/356), auto-save UX: site-name banner + toast + duplicate prompt (FR-180/182/357). Added `updateEntryTags`/`updateEntrySiteName` + atomic `patchEntry` to the service. Drive UI disabled (4c parked); FR-192 Drive-delete prompt deferred. +26 tests (186). Plan `docs/superpowers/plans/2026-06-20-parser-phase4b-repository-panel.md`.
   - _Repository hardening follow-ups (non-blocking; address in a cleanup pass or alongside 4c):_ (1) `await`/`.catch` the writer promises in `compress.ts` (avoid stray unhandledRejection on corrupt input — now that Load&Analyze decompresses stored entries); (2) explicit `closeRepoDb()` reset helper + a true failure-injection auto-save test; (3) align test fixtures that pass `fileSize: text.length` to true UTF-8 byte length; (4) add Cancel-path + call-count assertions to the tag-editor test; (5) drop the no-op `mk()` ternary + kebab-case the `data-repo-f-*` attrs in `filter.ts`. _(onTag unhandled-rejection guard — done in 4b commit e67e6dc.)_
 - [x] **Parser revamp Phase 4d — Session Timeline**: per-tx 4-tab modal (Session/Energy/Status/Telemetry) — `src/app/render/timeline/`, "📊 Timeline" button on tx rows. Faithful port of legacy 7386–7931. +37 tests (223). **Drift: 10 markers, no Phantom (legacy-canonical; spec FR-215 says 11).** Modal dark-only by parity. Plan `docs/superpowers/plans/2026-06-21-parser-phase4d-session-timeline.md`.
-- [ ] **Parser revamp Phase 4e — API download**: EVSE folder-save + download progress. §18.4, A.1.
 
 ## Parked
 
 - ⏸️ **Parser revamp Phase 3b-3b — Repeated-RemoteStart diagnostic** (PARKED 2026-06-19, user decision). Status section's auth-contention analysis (⚠ Repeat-RemoteStart card + per-row "N× RS" pill + threshold problem-session panel). Full resume notes: `docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md`.
 - ⏸️ **Parser revamp Phase 4c — Google Drive sync** (PARKED 2026-06-20, user decision). OAuth 2.0 + Drive upload/download/sidecar/team-folder (FR-197–206). Untestable from `file://` — needs the hosted `https://` URL + OAuth client-id; do during the Phase 5 hosted deploy. Schema already carries `driveFileId` (null until wired).
+- ⏸️ **Parser revamp Phase 4e — API download** (PARKED 2026-06-21, user decision). EVSE folder-save (File System Access API) + streaming download with progress (FR-349–352). Network/hardware-dependent (needs a reachable EVSE at `http://{IP}:3001`). §18.4, A.1.
 
 ## Later
 
