@@ -95,6 +95,8 @@
 
 ## Deploy-readiness recommendation
 
+> **Update 2026-06-21:** the **async-parse responsiveness regression is now CLOSED** — `parseLinesAsync` restores the legacy chunked/yielding parse (1000-line chunks + event-loop yields + progress bar), so large files no longer block the UI. The deeper WS-rescan freeze was already designed out. Remaining blocker for deploy is the Help modal.
+
 **Not ready for the deploy swap yet.** Blockers, in order:
 1. **Port the Help modal** (the one true gap) — or consciously drop the button.
 2. **Decide on the parked items:** ship-without (accept Drive/API-download/RemoteStart absent at launch) vs. build 3b-3b first (it's local + cheap). 4c/4e genuinely need the hosted/hardware context, so they can follow the deploy.
@@ -111,3 +113,4 @@ Once (1) is done and (2)/(3) are decided, the deploy swap (copy build → GitHub
 | 2026-06-20 | 3 complete | 19/19 + charts + export | 135 | All sections + Chart.js (lazy) + SheetJS export (lazy) + context-viewer. 3b-3b parked. |
 | 2026-06-21 | 4a/4b/4d | 19/19 + repository + timeline | 223 | Log Repository (local) + Session Timeline modal. 4c/4e parked. |
 | 2026-06-21 | **5 parity gate** | audit | 223 | Feature-parity matrix finalized. **Found: Help modal not ported.** Deploy held. |
+| 2026-06-21 | post-gate | — | 229 | **Async-parse responsiveness restored** (`parseLinesAsync` — chunked + yield + progress bar). One deploy blocker (Help modal) remains. |

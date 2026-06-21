@@ -546,3 +546,20 @@ Chronological record of significant decisions and sessions. Detailed change hist
 
 ### Next
 - Awaiting user steer: port the Help modal, build 3b-3b, or proceed toward deploy accepting the gaps.
+
+## 2026-06-21 (night) — Async-parse responsiveness restored + Phase 6 decisions
+
+### Decided (user)
+- **Don't defer the async-parse yield** — restore it now (it's the gap tied to the parsing freeze).
+- **Phase 6 consumption model = Option A: direct monorepo import** (recorded in `knowledge/decisions/2026-06-21-validation-engine-consumption-model.md`). Rationale: already a monorepo; Parser is browser/Vite; publishing now = speculative complexity. Promote to a workspace/published package later when the Node-based CMS needs a dual build.
+
+### Implemented
+- `parse/parseLinesAsync.ts` — chunked (1000-line) async parse driver: yields to the event loop between chunks (`setTimeout(0)` — a deliberate improvement over the legacy's fixed 10 ms, which added artificial N×10 ms delay) with a live progress bar (`shell.ts` `#progress-container`, faithful to legacy HTML 166–175). `parseLines` gained additive `startLine` offset + shared `internalTxMap` params so chunking preserves **absolute line numbers** (context-viewer) and the **backup-source "only if absent"** check sees global state. Output parity-tested vs synchronous `parseLines` (incl. the primary-then-backup-across-a-chunk-boundary case). `main.ts` switched to `parseLinesAsync` with the progress callback. +6 tests → **229**; `tsc` + `vite build` clean. Commit `272f871`.
+- **Pushed `feat/parser-revamp` to GitHub** (was local-only, 91 commits at risk) — now backed up + upstream tracked.
+
+### Process notes (gaps surfaced by user, partially addressed)
+- Started actually using `knowledge/decisions/` (was empty). `knowledge/lessons-learned/` still empty — consolidation pending.
+- The branch is pushed but **no PR opened** and **not merged to `main`** (the whole revamp still lives only on `feat/parser-revamp`; `main` has only the legacy HTML). Formal skill-chain Review/Test/Ship/Reflect phases not yet run.
+
+### Next
+- Help modal (last deploy blocker) · then Phase 6 prep (merge engine + parser into one tree) · decide deploy timing (defer-to-unified per earlier discussion).
