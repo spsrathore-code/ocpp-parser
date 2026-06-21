@@ -1,10 +1,22 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { getTimelineDataForTx } from '../../src/app/render/timeline/timelineData';
 import { renderSessionTab } from '../../src/app/render/timeline/tabSession';
 import { buildEnergySeries } from '../../src/app/render/timeline/tabEnergy';
 import { renderStatusTab } from '../../src/app/render/timeline/tabStatus';
+import { renderTelemetryTab } from '../../src/app/render/timeline/tabTelemetry';
 import type { Transaction, ParsedMessage } from '../../src/app/model/types';
+
+// Mock chart.js/auto so renderTelemetryTab can be called in jsdom without a
+// canvas rendering context. Pattern mirrors the approach described in the task
+// brief (see also tests/unit/txChart.test.ts comments).
+beforeAll(() => {
+  vi.mock('chart.js/auto', () => ({
+    Chart: class {
+      destroy() { /* noop */ }
+    },
+  }));
+});
 
 // ── Shared fixture — mirrors the Task-1 fixture in timelineData.test.ts ──────
 const T0 = Date.parse('2026-01-21T10:00:00Z');
@@ -313,5 +325,113 @@ describe('renderStatusTab (FR-222/223/225/226)', () => {
     // markers array has at least StartTransaction (always added)
     // Each marker becomes a div with position:absolute; check opacity:0.5
     expect(container.innerHTML).toContain('opacity:0.5');
+  });
+});
+
+// ── renderTelemetryTab (FR-227/229/230) ───────────────────────────────────────
+
+describe('renderTelemetryTab (FR-227/229/230)', () => {
+  // Build a TimelineData with NO power and NO temp samples — tests empty-state path
+  // directly (avoids Chart.js instantiation entirely for this case).
+  const data = getTimelineDataForTx(555, [tx], messages)!;
+
+  const emptyMvData = {
+    ...data,
+    mv: {
+      ...data.mv,
+      power: [],
+      tempInlet: [],
+      tempOutlet: [],
+      tempBody: [],
+    },
+  };
+
+  it('shows empty-state message when no power or temp samples exist (FR-230)', async () => {
+    const container = document.createElement('div');
+    await renderTelemetryTab(container, emptyMvData, () => {});
+    expect(container.textContent).toContain(
+      'Insufficient telemetry data for this transaction.',
+    );
+  });
+
+  it('does NOT render charts in the empty-state path', async () => {
+    const container = document.createElement('div');
+    await renderTelemetryTab(container, emptyMvData, () => {});
+    // No canvas elements should be created
+    expect(container.querySelectorAll('canvas')).toHaveLength(0);
+  });
+
+  it('renders "Power (kW)" label when power samples are present (FR-227)', async () => {
+    // Use the main fixture which has a power sample (7 kW at t+1min)
+    const container = document.createElement('div');
+    await renderTelemetryTab(container, data, () => {});
+    expect(container.textContent).toContain('Power (kW)');
+  });
+
+  it('renders "Temperature (°C)" label when temp samples are present (FR-229)', async () => {
+    // Build a TimelineData with tempInlet data and no power
+    const tempOnlyData = {
+      ...data,
+      mv: {
+        ...data.mv,
+        power: [],
+        tempInlet: [{ t: min(5), v: 45, ctx: '', unit: '°C' }],
+        tempOutlet: [],
+        tempBody: [],
+      },
+    };
+    const container = document.createElement('div');
+    await renderTelemetryTab(container, tempOnlyData, () => {});
+    expect(container.textContent).toContain('Temperature (°C)');
+  });
+
+  it('registers each chart via pushChart', async () => {
+    const charts: Array<{ destroy(): void }> = [];
+    const container = document.createElement('div');
+    // Fixture has power; add a tempInlet sample to also get the temp chart
+    const bothData = {
+      ...data,
+      mv: {
+        ...data.mv,
+        tempInlet: [{ t: min(5), v: 45, ctx: '', unit: '°C' }],
+        tempOutlet: [],
+        tempBody: [],
+      },
+    };
+    await renderTelemetryTab(container, bothData, (c) => charts.push(c));
+    // One chart for power, one for temperature
+    expect(charts).toHaveLength(2);
+  });
+
+  it('renders a divider between power and temp charts when both are present', async () => {
+    const bothData = {
+      ...data,
+      mv: {
+        ...data.mv,
+        tempInlet: [{ t: min(5), v: 45, ctx: '', unit: '°C' }],
+        tempOutlet: [],
+        tempBody: [],
+      },
+    };
+    const container = document.createElement('div');
+    await renderTelemetryTab(container, bothData, () => {});
+    // Divider carries a data-tl-divider sentinel attribute
+    expect(container.querySelector('[data-tl-divider]')).not.toBeNull();
+  });
+
+  it('does NOT render a divider when only power is present', async () => {
+    // Main fixture only has power, no temp
+    const powerOnlyData = {
+      ...data,
+      mv: {
+        ...data.mv,
+        tempInlet: [],
+        tempOutlet: [],
+        tempBody: [],
+      },
+    };
+    const container = document.createElement('div');
+    await renderTelemetryTab(container, powerOnlyData, () => {});
+    expect(container.querySelector('[data-tl-divider]')).toBeNull();
   });
 });

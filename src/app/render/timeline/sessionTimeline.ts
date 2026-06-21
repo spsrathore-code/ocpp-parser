@@ -9,6 +9,7 @@ import { getTimelineDataForTx, tlTime } from './timelineData';
 import { renderSessionTab } from './tabSession';
 import { renderEnergyTab } from './tabEnergy';
 import { renderStatusTab } from './tabStatus';
+import { renderTelemetryTab } from './tabTelemetry';
 
 type ChartLike = { destroy(): void };
 
@@ -100,8 +101,10 @@ export function createSessionTimelineModal(
     } else if (key === 'status') {
       renderStatusTab(content, data);
     } else {
-      // Placeholder body — real renderer lands in Task 4d-5
-      content.innerHTML = '<div style="color:#6b7280;font-size:13px;padding:20px 0;">Telemetry — rendered in 4d-5</div>';
+      renderTelemetryTab(content, data, pushChart).catch(() => {
+        content.innerHTML =
+          '<div style="color:#6b7280;font-size:13px;padding:20px 0;">Telemetry chart failed to load.</div>';
+      });
     }
   };
 
