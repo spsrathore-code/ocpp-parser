@@ -153,17 +153,12 @@ describe('renderSessionTab (FR-216/217)', () => {
   });
 
   it('does NOT render Zero Energy badge when totalEnergy is N/A string', () => {
-    const naEnergyTx: Transaction = {
-      ...tx,
-      id: 777,
-      totalEnergy: 'N/A',
-    };
-    // Messages need tx id 777 — reuse same messages but pass new tx
-    const data3 = getTimelineDataForTx(777, [naEnergyTx], messages);
-    // data3 may be null since messages don't reference tx 777 — if so, skip
-    if (!data3) return;
+    // Build a TimelineData directly by cloning the main fixture and overriding
+    // totalEnergy to 'N/A' — avoids a broken getTimelineDataForTx lookup that
+    // returns null (tx 777 has no matching messages) and skips the assertion.
+    const dataNa = { ...data, tx: { ...data.tx, totalEnergy: 'N/A' as const } };
     const container = document.createElement('div');
-    renderSessionTab(container, data3);
+    renderSessionTab(container, dataNa);
     expect(container.textContent).not.toContain('Zero Energy');
   });
 

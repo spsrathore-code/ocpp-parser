@@ -128,7 +128,7 @@ export function renderSessionTab(container: HTMLElement, data: TimelineData): vo
     .map((m, i) => {
       const p = pct(m.t);
       const adj = (i * 26 + 13 - (p / 100) * N * 26).toFixed(1);
-      return `<div style="position:absolute;left:calc(${pctFmt(m.t)}% + ${adj}px);top:0;width:1px;height:100%;background:linear-gradient(to bottom,${m.color}cc,${m.color}22);transform:translateX(-0.5px);pointer-events:none;"></div>`;
+      return `<div style="position:absolute;left:calc(${pct(m.t).toFixed(3)}% + ${adj}px);top:0;width:1px;height:100%;background:linear-gradient(to bottom,${m.color}cc,${m.color}22);transform:translateX(-0.5px);pointer-events:none;"></div>`;
     })
     .join('');
 
