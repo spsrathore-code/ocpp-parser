@@ -7,6 +7,7 @@
 import type { Transaction, ParsedMessage } from '../../model/types';
 import { getTimelineDataForTx, tlTime } from './timelineData';
 import { renderSessionTab } from './tabSession';
+import { renderEnergyTab } from './tabEnergy';
 
 type ChartLike = { destroy(): void };
 
@@ -75,8 +76,6 @@ export function createSessionTimelineModal(
   // Chart tracker
   let activeCharts: ChartLike[] = [];
   const pushChart = (c: ChartLike): void => { activeCharts.push(c); };
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  void pushChart; // available for task 2–5 renderers
   const killCharts = (): void => {
     activeCharts.forEach((c) => { try { c.destroy(); } catch { /* ignore */ } });
     activeCharts = [];
@@ -93,13 +92,14 @@ export function createSessionTimelineModal(
     content.innerHTML = '';
     if (key === 'session') {
       renderSessionTab(content, data);
+    } else if (key === 'energy') {
+      renderEnergyTab(content, data, pushChart).catch(() => {
+        content.innerHTML = '<div style="color:#6b7280;font-size:13px;padding:20px 0;">Energy chart failed to load.</div>';
+      });
     } else {
-      // Placeholder bodies — real renderers land in Tasks 3–5
-      const label =
-        key === 'energy' ? 'Energy' :
-        key === 'status' ? 'Status' :
-        'Telemetry';
-      content.innerHTML = `<div style="color:#6b7280;font-size:13px;padding:20px 0;">${label} — rendered in 4d-${key === 'energy' ? '3' : key === 'status' ? '4' : '5'}</div>`;
+      // Placeholder bodies — real renderers land in Tasks 4–5
+      const label = key === 'status' ? 'Status' : 'Telemetry';
+      content.innerHTML = `<div style="color:#6b7280;font-size:13px;padding:20px 0;">${label} — rendered in 4d-${key === 'status' ? '4' : '5'}</div>`;
     }
   };
 
