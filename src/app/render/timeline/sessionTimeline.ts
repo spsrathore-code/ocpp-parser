@@ -6,6 +6,7 @@
 
 import type { Transaction, ParsedMessage } from '../../model/types';
 import { getTimelineDataForTx, tlTime } from './timelineData';
+import { renderSessionTab } from './tabSession';
 
 type ChartLike = { destroy(): void };
 
@@ -90,13 +91,16 @@ export function createSessionTimelineModal(
     });
     killCharts();
     content.innerHTML = '';
-    // Placeholder bodies — real renderers land in Tasks 2–5
-    const label =
-      key === 'session' ? 'Session' :
-      key === 'energy' ? 'Energy' :
-      key === 'status' ? 'Status' :
-      'Telemetry';
-    content.innerHTML = `<div style="color:#6b7280;font-size:13px;padding:20px 0;">${label} — rendered in 4d-${key === 'session' ? '2' : key === 'energy' ? '3' : key === 'status' ? '4' : '5'}</div>`;
+    if (key === 'session') {
+      renderSessionTab(content, data);
+    } else {
+      // Placeholder bodies — real renderers land in Tasks 3–5
+      const label =
+        key === 'energy' ? 'Energy' :
+        key === 'status' ? 'Status' :
+        'Telemetry';
+      content.innerHTML = `<div style="color:#6b7280;font-size:13px;padding:20px 0;">${label} — rendered in 4d-${key === 'energy' ? '3' : key === 'status' ? '4' : '5'}</div>`;
+    }
   };
 
   tabBar.querySelectorAll('button[data-tl-tab]').forEach((b) =>
