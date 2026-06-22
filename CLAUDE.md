@@ -7,13 +7,13 @@
 
 A **mega-repo for an OCPP tool suite** (Ador Digatron · DC fast chargers · OCPP 1.6J). Five tools share one OCPP core:
 
-| #   | Tool                                                                                      | Status                | Where                                          |
-| --- | ----------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------- |
-| 1   | **OCPP Validation Engine** — type-aware validation (L1–L3) on `typed-ocpp`                | 🟢 Phase 1 built · PR open | `docs/TYPEVALIDATION.md`                       |
-| 2   | **CMS (CSMS)** — own central system                                                       | ⏳ Planned             | —                                              |
-| 3   | **Charger Emulator** — candidate: adopt/fork SAP `e-mobility-charging-stations-simulator` | ⏳ Planned             | —                                              |
-| 4   | **Training Emulator**                                                                     | ⏳ Planned             | —                                              |
-| 5   | **Parser** — log analysis · live; TS+Vite revamp in progress                              | ✅ Live · 🟡 revamping | `src/app/…html` (legacy) · `feat/parser-revamp` |
+| #   | Tool                                                                                      | Status                     | Where                                           |
+| --- | ----------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------- |
+| 1   | **OCPP Validation Engine** — type-aware validation (L1–L3) on `typed-ocpp`                | 🟢 Built · merged into parser branch (Phase 6) | `src/services/validation/` · `docs/TYPEVALIDATION.md` |
+| 2   | **CMS (CSMS)** — own central system                                                       | ⏳ Planned                  | —                                               |
+| 3   | **Charger Emulator** — candidate: adopt/fork SAP `e-mobility-charging-stations-simulator` | ⏳ Planned                  | —                                               |
+| 4   | **Training Emulator**                                                                     | ⏳ Planned                  | —                                               |
+| 5   | **Parser** — log analysis · live; TS+Vite revamp (Phases 0–6 done; not deployed)          | ✅ Live · 🟡 revamp on branch | `src/app/` (TS, `feat/parser-revamp`) · legacy HTML on `main` |
 
 ## Canonical artifacts (don't confuse copies for sources)
 
@@ -55,12 +55,12 @@ design. See `skills/WORKFLOW.md` for current feature state.
 
 `specs/` plan · `src/` build (`app/` parser · `schemas/` OCPP schemas · future `services/` = validation engine) · `tests/` · `docs/` (incl. validation spec) · `knowledge/` (standards, principles, diagnostics L-001/2/3) · `data/samples/` logs · `assets/` images · `archive/` · `scratchpad/`.
 
-## Status (14 Jun 2026)
+## Status (22 Jun 2026)
 
 > **Live suite dashboard: `specs/roadmap.md`** — the at-a-glance board for all 5 tools (status · phase · branch · next). Keep this section short; the dashboard is the source of truth for progress.
 
-- **Validation Engine** — Phase 1 (L1–L3) **built, reviewed, QA'd** on `feat/validation-engine` (PR pushed, pending merge). 25 tests; isomorphic ESM+CJS+browser. L4 (Phase 2) + Parser integration deferred.
-- **Parser** — TS+Vite **revamp in progress** on `feat/parser-revamp` (Phase 0/6 done: scaffold + data model). Targets exact feature/UI parity with the live v2026.05.14 tool (`specs/requirements.md` = SSOT), optimized + bug-fixed. Legacy parser stays live until parity (Phase 5); frozen copy in `archive/parser-v2026.05.14/`.
-- **CMS · Charger Emulator · Training Emulator** — planned (see dashboard).
+- **Parser revamp** — all on `feat/parser-revamp` (**pushed to GitHub; NOT merged to `main`** — `main` still has only the legacy HTML). **273 tests**, `tsc` + `vite build` clean. Done: Phases 0–3 (all 19 §19.4 sections + charts + Excel + context-viewer), **4a/4b** (Log Repository — local IndexedDB + panel), **4d** (Session Timeline modal), restored async/chunked parse, Phase 5 **parity-gate audit**, and **Phase 6 — Validation Engine integration**. **⏸️ Parked:** 3b-3b RemoteStart · 4c Drive sync · 4e API download · the **Help modal** (parity gap found at the gate). **Drift (source-canonical):** 21-vs-24 protocol checks · 10-vs-11 timeline markers.
+- **Validation Engine** — Phase 1 (L1–L3) built/QA'd; **merged into `feat/parser-revamp`** (`src/services/validation/`, `8c5cc9f`) and consumed by the Parser via **direct monorepo import** (Phase 6). New **"Type-Aware Validation (L1–L3)"** section (#20): on-demand, lazy/code-split, renders the full `docs/Type Validation Metrics.md` KPI set + per-row Reason + Preview/Download log-context (yellow-highlighted discrepancy line). **L4** = engine Phase 2 (stub). Not on `main`.
+- **Next:** `/review` + `/cso` + `/qa` on Phase 6 (skill-chain Review/Test not yet run); then deploy decision (Help modal + parked items). **CMS · Charger Emulator · Training Emulator** — planned.
 
 > ⚠️ A leftover empty folder `OCPP Client Parser MD Collection/` could not be auto-deleted (it is the shell's locked working directory). It is git-ignored; delete it manually when convenient.

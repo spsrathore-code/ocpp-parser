@@ -607,3 +607,15 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 
 ### Next
 - `/review` + `/cso` + `/qa` on Phase 6 (novel OCPP code). Then deploy decision (Help modal + parked items). Optional: per-action CallError attribution, "Total Errors = total violations" variant if preferred.
+
+## 2026-06-22 (late) — Phase 6 validation: usability + correctness polish (session handoff)
+
+### Did (responding to user browser feedback)
+- **Reworked the validation render to the exact `docs/Type Validation Metrics.md` set** (was flat Total/Valid/Invalid cards → now per-layer L1/L2/L3 + orphans + latency percentiles + action-wise Calls/Success/Errors/RTT + weighted compliance score). Pure `render/sections/validationMetrics.ts`, derived from the engine `ValidationReport` (no engine change).
+- **Investigated "Unmatched / mismatched exchanges (39)"** (user example `9189b856…` Authorize): NOT a correlation bug — the Call+Response ARE paired; the engine's `RESULT_MISMATCH` fires because `checkCallResult` schema-validates the response and the charger sent `idTagInfo.expiryDate: null` (OCPP 1.6 wants the field omitted, not null). Real, useful charger-compliance finding; the **label was the problem**.
+- **Added per-row Reason + Preview/Download log-context** to the problem-exchanges + violations tables (same context-viewer Boot uses). `messageId → log line` mapped from parser frames (a mismatch points at the RESPONSE line). The offending line is **highlighted yellow** in the Preview (`buildSingleReport`/`buildDowntimeReport` wrap the marked line; download stays plain).
+- **273 tests**, `tsc` + `vite build` clean; engine still lazy code-split (typed-ocpp ~509 kB chunk, main ~208 kB). Commits `77ce777`, `15d5343`, `db20e4c`, `d6456e5`.
+
+### State for next session
+- All on `feat/parser-revamp` (pushed; **NOT on `main`**, NOT deployed). CLAUDE.md status + all trackers reconciled this session.
+- **Open / next:** `/review`+`/cso`+`/qa` on Phase 6 (skill-chain Review/Test not run). Then deploy decision (Help modal + parked 3b-3b/4c/4e). Optional engine refinement: split `RESULT_MISMATCH` into `RESULT_SCHEMA_INVALID` vs `RESULT_ACTION_MISMATCH`; per-action CallError attribution.
