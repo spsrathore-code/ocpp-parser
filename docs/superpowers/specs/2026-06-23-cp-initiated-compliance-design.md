@@ -246,7 +246,11 @@ language mirrors `src/app/render/sections/protocolCompliance.ts`:
 
 ## 7. Relationship to existing engines (parallel — D1)
 
-- `runProtocolValidation` (21 heuristic checks + lifecycle) — **unchanged**.
+- `runProtocolValidation` **engine** (21 heuristic checks + lifecycle) —
+  **logic unchanged**. The pure compute path is not edited.
+- `protocolCompliance.ts` **render file** — receives **one controlled edit**: a
+  mount point for the new sub-section. It is *not* untouched, and that edit is
+  the single highest-risk spot for a regression (see §9.1).
 - Type-Aware Validation L1–L3 (#20, typed-ocpp) — **unchanged**.
 - New §4 compliance — **rendered as a sibling sub-section** within the Protocol
   Compliance section.
@@ -288,6 +292,42 @@ upload → parse → correlate → group (existing pipeline, unchanged)
   section render tests.
 - Build gates: `tsc` clean + `vite build` clean + full suite green (current
   baseline: 273 tests).
+
+### 9.1 Regression safety — not breaking what already works
+
+The work is **additive by construction**, which is the primary protection:
+
+- New logic lives in **new files** (`src/app/compliance/*`,
+  `cpInitiatedCompliance.ts`); the existing 21-check engine and the L1–L3 engine
+  are never edited.
+- `runCompliance` is a **pure, read-only consumer** of already-parsed data
+  (`messageGroups / transactions / internalTxMap / rawLogLines`). It never
+  mutates the parse pipeline, so it cannot corrupt the data other sections
+  depend on.
+- Reused types (`CheckStatus`, `MessageGroups`, `Transaction`) are **consumed,
+  not changed** — `tsc` flags any accidental contract drift across the tree.
+
+Additive ≠ zero-contact. The real integration touchpoints and their guards:
+
+| Touchpoint | Why it's a risk | Guard |
+|---|---|---|
+| **Mount point in `protocolCompliance.ts`** | The sub-section renders *inside* the existing section, so that render file gets one edit — it is not truly untouched | **Characterization test** snapshotting the current Protocol Compliance render output *before* the change; must stay identical after |
+| **Shared context-viewer handler** | `contextViewer.ts` uses one delegated click handler on the results container keyed by `data-ctx-*` (prior dup-listener bug, obs 401) | Namespace the new `data-ctx-*` keys so they can't collide with Boot/Events/Downtime; test the handler stays wired once across re-renders |
+| **Shared Excel export util** | Reusing the per-section export adds a button via the shared util | Existing export tests stay green; add one for the new section |
+| **Inline (non-lazy) compute on large logs** | Runs synchronously over all frames on render | Smoke-test render time on the largest `data/samples/` log; no perceptible regression |
+
+Gates that catch a regression, in order:
+
+1. **The 273-test suite must stay green** — the primary net; any existing test
+   breaking is proof of unintended coupling.
+2. **`tsc` clean + `vite build` clean** on every step.
+3. **Characterization test** locking the edited `protocolCompliance.ts` output.
+4. **Real-sample smoke test** over `data/samples/` — no crashes, no false
+   failures on known-good logs, existing sections still render.
+5. **Skill-chain `/review` + `/qa`** — the formal regression/QA phase before any
+   merge.
+6. **Git/deploy isolation** — all on `feat/parser-revamp`, not on `main`, not
+   deployed; fully reversible.
 
 ## 10. Risks & mitigations
 
