@@ -576,3 +576,17 @@ Chronological record of significant decisions and sessions. Detailed change hist
 
 ### Next
 - **Phase 6 spec** via the skill chain (`/plan-eng-review`) — must cite `docs/TYPEVALIDATION.md` §5 (API contract) / §6 (schema strategy) / §9 (L4 future), `knowledge/standards/ocpp-1.6/`, `requirements.md §19.7`. Then decide inline vs subagent build.
+
+## 2026-06-22 — Phase 6: Validation Engine integration (L1–L3 build)
+
+### Did (skill chain: Think ✅ → Plan ✅ → Build ✅; Review/Test pending)
+- **Plan** via `/plan-eng-review` → arch doc `docs/superpowers/specs/2026-06-22-parser-phase6-validation-integration-arch.md`, with an "Inputs consumed" table mapping TYPEVALIDATION §5/§6/§9, `knowledge/standards/ocpp-1.6/` (J04), `requirements.md §19.7`, and the consumption decision to where each lands (so the prep is provably used). User confirmed 3 decisions: on-demand button · new section #20 · inline build.
+- **Build** (inline): new `src/app/render/sections/validation.ts` — **Type-Aware Validation (L1–L3)** section (#20, after WebSocket Health; new capability beyond legacy parity). On-demand "Run" button **lazy-loads** `src/services/validation` (dynamic import → Vite code-splits typed-ocpp into a ~509 kB chunk; **main bundle stays 200 kB**) and runs `validateBatch(framesFromMessages(r.messages))`, rendering the `ValidationReport` (summary cards + violations table + unmatched-exchange table). Adapter `framesFromMessages` is a faithful pass-through (`OcppRawMessage ≡ RawFrame`). All report cells via `textContent` (engine /cso XSS note: violation message/detail may carry raw log payload). +7 tests; `renderResults` test updated 19→20. **261 tests**, `tsc` + build clean. Commit `7b33368`.
+
+### Decisions / notes
+- **Topology:** integrated by merging the engine **into the parser branch** (`8c5cc9f`), not engine→`main`, since deploy is deferred. The "engine PR merged to main" prereq was satisfied-in-spirit by co-location; revisit at deploy.
+- **L4 stays a stub** (engine Phase 2). Bidirectional plan unchanged: L1–L3 engine→parser (done); L4 heuristics parser→engine (later).
+
+### Next
+- **`/review` + `/cso`** (OCPP checklist + security) then **`/qa`** (real-browser, sample logs — needs the user's browser) on Phase 6.
+- Then deploy decision (Help modal + parked items). Parser still only on `feat/parser-revamp`; not merged to `main`.
