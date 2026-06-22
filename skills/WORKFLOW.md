@@ -6,6 +6,22 @@
 
 ---
 
+## Feature: OCPP Validation Engine (L1–L3)  |  Started: 2026-06-13
+
+| Phase   | Skill(s)                                  | Status      | Date       |
+|---------|-------------------------------------------|-------------|------------|
+| Think   | /office-hours, /spec                      | ✅ Complete | 2026-06-06 |
+| Plan    | /plan-eng-review                          | ✅ Complete | 2026-06-13 |
+| Build   | /build-complete (checkpoint, not impl.)   | ✅ Complete | 2026-06-14 |
+| Review  | /review + /cso                            | ✅ Complete | 2026-06-14 |
+| Test    | /qa                                       | ✅ Complete | 2026-06-14 |
+| Ship    | /ship + /document-release + /canary       | ⏳ Active   |            |
+| Reflect | /retro + /learn                           | ⬜ Pending  |            |
+
+Engine code: `src/services/validation/` (L1–L3, 25 tests). **Merged into `feat/parser-revamp` 2026-06-22** to begin **Parser Phase 6 integration** (direct monorepo import — `knowledge/decisions/2026-06-21-validation-engine-consumption-model.md`). Not yet merged to `main`.
+
+---
+
 ## Feature: Parser Revamp (TS+Vite, feature/UI parity)  |  Started: 2026-06-14
 
 Goal: rebuild the 9,813-line single-file parser as a modular TS+Vite app — exact
@@ -59,11 +75,11 @@ until parity proven (Phase 5). Build runs as phased sub-cycles (0–5).
 - [ ] **Phase 6 — Validation Engine integration** (post-parity). Revamped Parser consumes `@ador/ocpp-validation` (L1 frame · L2 schema · L3 correlation) over already-parsed message arrays; runtime schema validation → typed-ocpp bundled schemas (56 local `.json` → reference/CI diff-check, `requirements.md §19.7`); renders `ValidationReport`. Prereqs: engine PR merged to `main` + Parser at parity. L4 protocol/state = engine Phase 2 (deferred), seeded by Parser's Protocol Compliance Report + L-001/2/3. Spec: `docs/TYPEVALIDATION.md`.
 
 ### Key outputs
-- **Think:** `specs/requirements.md` (1,860-line SSOT) + §19 architecture
+- **Think:** `specs/requirements.md` (1,860-line SSOT) + §19 architecture · engine spec `docs/TYPEVALIDATION.md`
 - **Plan:** architecture locked 2026-06-14 — §19.6 module map, TS+Vite, golden-master parity tests, 6-phase roadmap (this file)
-- **Build:** branch `feat/parser-revamp`; app under `src/app/` (Vite, root `index.html` shell)
-- **Review:** [findings summary]
-- **Test:** [pass/fail summary, regression test path]
+- **Build:** branch `feat/parser-revamp`; app under `src/app/` (Vite, root `index.html` shell); engine merged in at `src/services/validation/` (2026-06-22)
+- **Review:** [findings summary] · *(engine: /review fixed R1 ExchangeTracker MessageId-reuse + 2 regression tests)*
+- **Test:** [pass/fail summary, regression test path] · *(engine: /qa 788 real frames → 0 false violations, baselines `scratchpad/qa-validation-engine/QA-NOTES.md`)*
 - **Ship:** [PR link]
 - **Reflect:** [journal entry date]
 

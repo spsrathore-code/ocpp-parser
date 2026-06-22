@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "OCPP 1.6J client-log parser — modular TypeScript + Vite revamp of the v2026.05.14 single-file tool. Feature/UI parity, optimized.",
+  "description": "OCPP 1.6J client-log parser — modular TypeScript + Vite revamp of the v2026.05.14 single-file tool. Feature/UI parity, optimized. Bundles the in-repo OCPP Validation Engine (src/services/validation, consumed via direct monorepo import).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "chart.js": "^4.5.1",
+    "typed-ocpp": "1.5.6",
     "xlsx": "^0.18.5"
   }
 }

@@ -12,5 +12,5 @@
     "useDefineForClassFields": true,
     "noEmit": true
   },
-  "include": ["src/app", "tests", "vite.config.ts"]
+  "include": ["src/app", "src/services", "tests", "vite.config.ts"]
 }
