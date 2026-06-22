@@ -92,3 +92,36 @@ describe('adapter → engine wiring (end-to-end smoke — Test plan #2/#4)', () 
     expect(Array.isArray(report.exchanges)).toBe(true);
   });
 });
+
+describe('Reason + Preview/Download log-context', () => {
+  const report: ValidationReport = {
+    messages: [
+      { ok: true, kind: 'Call', action: 'Authorize', messageId: 'a1', violations: [] },
+      { ok: true, kind: 'CallResult', messageId: 'a1', violations: [] },
+    ],
+    exchanges: [{ messageId: 'a1', action: 'Authorize', status: 'mismatch', latencyMs: 50, violations: [{ layer: 'L3', code: 'RESULT_MISMATCH', message: 'no match', detail: ['/idTagInfo/expiryDate must be string'] }] }],
+    summary: { total: 2, valid: 2, invalid: 0, orphanCalls: 0, orphanResponses: 0, avgLatencyMs: 50 },
+  };
+  const messages: ParsedMessage[] = [
+    { timestamp: 't', direction: 'sent', message: [2, 'a1', 'Authorize', {}], lineNumber: 10, fileName: 'l' } as ParsedMessage,
+    { timestamp: 't', direction: 'received', message: [3, 'a1', {}], lineNumber: 12, fileName: 'l' } as ParsedMessage,
+  ];
+
+  it('shows the Reason (schema detail) and Preview/Download wired to the RESPONSE line', () => {
+    const body = document.createElement('div');
+    renderValidationReport(body, report, messages);
+    expect(body.textContent).toContain('/idTagInfo/expiryDate must be string'); // Reason column
+    const preview = body.querySelector('[data-ctx-action="preview"]')!;
+    expect(preview).not.toBeNull();
+    expect(preview.getAttribute('data-ctx-line')).toBe('12'); // a mismatch points at the response line, not the call (10)
+    expect(preview.getAttribute('data-ctx-label')).toContain('RESULT_MISMATCH'); // highlights the discrepancy
+    expect(body.querySelector('[data-ctx-action="download"]')).not.toBeNull();
+  });
+
+  it('omits the context columns when no parser messages are supplied', () => {
+    const body = document.createElement('div');
+    renderValidationReport(body, report); // no messages
+    expect(body.querySelector('[data-ctx-action]')).toBeNull();
+    expect(body.textContent).toContain('/idTagInfo/expiryDate must be string'); // Reason still shows
+  });
+});
