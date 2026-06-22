@@ -41,11 +41,13 @@ describe('renderValidationReport (cards + tables, textContent)', () => {
   it('renders summary cards and a violations row', () => {
     const body = document.createElement('div');
     renderValidationReport(body, report);
-    expect(body.textContent).toContain('Total');
+    expect(body.textContent).toContain('Frames Processed');
+    expect(body.textContent).toContain('Compliance Score');
+    expect(body.textContent).toContain('L1 — RPC Frame'); // layer breakdown visible
     expect(body.textContent).toContain('SCHEMA_VIOLATION');
     expect(body.textContent).toContain('/connectorId');
     expect(body.textContent).toContain('orphan-call'); // problem exchange listed
-    expect(body.textContent).toContain('12 ms'); // avg latency
+    expect(body.textContent).toContain('12.4 ms'); // avg RTT
   });
 
   it('shows positive states when clean (Test plan #2-ish)', () => {
