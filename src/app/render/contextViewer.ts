@@ -7,6 +7,10 @@
 
 const RADIUS = 25;
 
+// Yellow highlight for the focused/discrepancy line in a Preview (HTML) report.
+const HL_OPEN = '<span style="background:#fde047;color:#111827;font-weight:600;">';
+const HL_CLOSE = '</span>';
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -33,8 +37,11 @@ export function buildSingleReport(label: string, lineNumber: number, rawLogLines
   report += `Log context (lines ${ctx.startLine} to ${ctx.endLine})\n\n`;
   ctx.lines.forEach((line, idx) => {
     const cur = ctx.startLine + idx;
-    const marker = cur === lineNumber ? ` ← ${label}` : '';
-    report += `[${cur}] ${forDownload ? line : escapeHtml(line)}${marker}\n`;
+    const isTarget = cur === lineNumber;
+    const marker = isTarget ? ` ← ${label}` : '';
+    const text = `[${cur}] ${forDownload ? line : escapeHtml(line)}${marker}`;
+    // Preview (HTML): highlight the target line in yellow so the discrepancy stands out.
+    report += !forDownload && isTarget ? `${HL_OPEN}${text}${HL_CLOSE}\n` : `${text}\n`;
   });
   return report;
 }
@@ -63,8 +70,10 @@ export function buildDowntimeReport(startLineNumber: number, endLineNumber: numb
   report += `Downtime End Line: ${endLineNumber || 'N/A (Ongoing)'}\n${esc(endLog)}\n\n`;
   report += `Log context (lines ${items[0]?.lineNumber ?? startLineNumber} to ${items[items.length - 1]?.lineNumber ?? endLineNumber ?? startLineNumber}):\n${'─'.repeat(50)}\n\n`;
   items.forEach((item) => {
+    const isTarget = item.lineNumber === startLineNumber || item.lineNumber === endLineNumber;
     const marker = item.lineNumber === startLineNumber ? ' ← DOWNTIME START' : item.lineNumber === endLineNumber ? ' ← DOWNTIME END' : '';
-    report += `[${item.lineNumber}] ${esc(item.line)}${marker}\n`;
+    const text = `[${item.lineNumber}] ${esc(item.line)}${marker}`;
+    report += !forDownload && isTarget ? `${HL_OPEN}${text}${HL_CLOSE}\n` : `${text}\n`;
   });
   return report;
 }

@@ -21,6 +21,14 @@ describe('buildSingleReport', () => {
     expect(report).toContain('[50] line 50 ← BootNotification');
     expect(report).toContain('BootNotification Index: 3');
   });
+
+  it('highlights the target line in yellow for the Preview (HTML), not the download', () => {
+    const preview = buildSingleReport('⚠ RESULT_MISMATCH', 50, lines, 2, false);
+    expect(preview).toContain('<span style="background:#fde047'); // yellow highlight on the marked line
+    expect(preview).toContain('← ⚠ RESULT_MISMATCH');
+    // the download (plain text) variant must NOT contain any HTML span
+    expect(buildSingleReport('⚠ RESULT_MISMATCH', 50, lines, 2, true)).not.toContain('<span');
+  });
 });
 
 describe('buildDowntimeReport', () => {
