@@ -590,3 +590,20 @@ Chronological record of significant decisions and sessions. Detailed change hist
 ### Next
 - **`/review` + `/cso`** (OCPP checklist + security) then **`/qa`** (real-browser, sample logs — needs the user's browser) on Phase 6.
 - Then deploy decision (Help modal + parked items). Parser still only on `feat/parser-revamp`; not merged to `main`.
+
+## 2026-06-22 (eve) — Phase 6: validation metrics reworked to docs/Type Validation Metrics.md
+
+### Why
+User browser-checked the validation section: the flat Total/Valid/Invalid/Orphan cards were not comprehensible, and it wasn't self-evident L1/L2/L3 each ran. Provided `docs/Type Validation Metrics.md` with the recommended PCAP-style metric set.
+
+### Verified first (verify-don't-assume)
+Ran the engine on the real sample log + injected bad frames: L1 catches FRAME_INVALID (malformed / wrong MessageTypeId), L2 catches SCHEMA_VIOLATION (missing required field), valid frames pass; on the clean log: 580 frames, 100% valid, 288 paired, 4 orphan-responses, avg 105 ms. **Engine was correct — the render was illegible.**
+
+### Implemented
+- Pure `render/sections/validationMetrics.ts` (`computeValidationMetrics`) deriving the EXACT doc set from the existing `ValidationReport` (no engine change): §1 overall health, §2 L1 by frame-type (Invalid CALL/CALLRESULT/CALLERROR), §3 L2 (Schema Violations + missing/type/enum from Ajv `detail.keyword` + Max Violating Action), §4 L3 (Pairing + Result Match Rate), §5 orphans + rate, §6 latency (Avg/Min/Max/P95/P99 + Timeout Count/Rate + Healthy/Warning/Poor), §7 action-wise (Action/Calls/Success/Errors/Avg RTT — Success/Errors correlated to each Call's action via messageId), §9 weighted compliance score (40/30/20/10). Rewrote `validation.ts` render to show all of it (KPI cards + per-section blocks + action table). +16 validation tests → **270**; `tsc`+build clean; engine still lazy code-split. Commits `77ce777`, `15d5343`.
+
+### Tracking note (self-correction)
+Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journal/comparison; test count + a stale `[ ]` Phase 6 line in WORKFLOW; a garbled fragment in tasks.md). All reconciled this session — keep them current at each sub-step (the discipline rule), don't batch.
+
+### Next
+- `/review` + `/cso` + `/qa` on Phase 6 (novel OCPP code). Then deploy decision (Help modal + parked items). Optional: per-action CallError attribution, "Total Errors = total violations" variant if preferred.

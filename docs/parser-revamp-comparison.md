@@ -114,3 +114,4 @@ Once (1) is done and (2)/(3) are decided, the deploy swap (copy build → GitHub
 | 2026-06-21 | 4a/4b/4d | 19/19 + repository + timeline | 223 | Log Repository (local) + Session Timeline modal. 4c/4e parked. |
 | 2026-06-21 | **5 parity gate** | audit | 223 | Feature-parity matrix finalized. **Found: Help modal not ported.** Deploy held. |
 | 2026-06-21 | post-gate | — | 229 | **Async-parse responsiveness restored** (`parseLinesAsync` — chunked + yield + progress bar). One deploy blocker (Help modal) remains. |
+| 2026-06-22 | **6 — Validation Engine** | 19 parity + **#20 validation** | 270 | Engine merged into the parser tree (`8c5cc9f`); new **Type-Aware Validation (L1–L3)** section (on-demand, lazy/code-split) rendering the full `docs/Type Validation Metrics.md` KPI set. New capability beyond legacy parity; `/review`+`/qa` pending. |
