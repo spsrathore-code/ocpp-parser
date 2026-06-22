@@ -563,3 +563,16 @@ Chronological record of significant decisions and sessions. Detailed change hist
 
 ### Next
 - Help modal (last deploy blocker) · then Phase 6 prep (merge engine + parser into one tree) · decide deploy timing (defer-to-unified per earlier discussion).
+
+## 2026-06-22 — Phase 6 prep: engine + parser co-located (merge)
+
+### Did
+- **Merged `feat/validation-engine` → `feat/parser-revamp`** so the OCPP Validation Engine (`src/services/validation/`) and the Parser (`src/app/`) live in one tree — the prerequisite for direct-monorepo-import consumption (decided 2026-06-21).
+- Resolved 4 config conflicts: `package.json` (added `typed-ocpp@1.5.6`; kept Vite/Vitest tooling; **dropped the engine's standalone-package build tools esbuild/tsup** — not needed when Vite bundles the engine under direct import), `tsconfig.json` (kept the app config, added `src/services` to `include`), `package-lock.json` (regenerated via `npm install`), `skills/WORKFLOW.md` (unioned both feature sections).
+- Verified merged tree: `tsc` clean, **254 tests green** (229 parser + 25 engine, incl. the `schema-drift` integration test = typed-ocpp ↔ 56 local schemas), `vite build` clean. Merge `8c5cc9f`, pushed.
+
+### Note
+- The app bundle is unchanged (196 kB) because the engine isn't *imported* yet — `typed-ocpp` (~822 kb) only gets pulled in once Phase 6 wires `validateBatch`. → Phase 6 must **lazy-load/code-split** the engine (same pattern as chart.js/xlsx).
+
+### Next
+- **Phase 6 spec** via the skill chain (`/plan-eng-review`) — must cite `docs/TYPEVALIDATION.md` §5 (API contract) / §6 (schema strategy) / §9 (L4 future), `knowledge/standards/ocpp-1.6/`, `requirements.md §19.7`. Then decide inline vs subagent build.
