@@ -22,6 +22,7 @@ import { renderDowntimeReport } from './sections/downtimeReport';
 import { renderPowerRestoreSync, renderEmergencyStopRelease } from './sections/syncFlags';
 import { renderProtocolCompliance } from './sections/protocolCompliance';
 import { renderWebSocketHealth } from './sections/webSocketHealth';
+import { renderValidationSection } from './sections/validation';
 import { renderHeartbeats } from './sections/heartbeats';
 import { renderStartTransactions } from './sections/startTransactions';
 import { renderStopTransactions } from './sections/stopTransactions';
@@ -58,6 +59,8 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, exportTable: { id: 'energy-dispense-table', file: 'Energy_Dispense_Check.xlsx' }, render: renderEnergyDispense },
   { title: 'Protocol Compliance', emoji: '✅', render: renderProtocolCompliance },
   { title: 'WebSocket Health', emoji: '🌐', count: (r) => r.wsHealth.pingCount, exportTable: { id: 'ws-health-table', file: 'WebSocket_Health.xlsx' }, render: renderWebSocketHealth },
+  // Phase 6 — new capability beyond legacy parity: type-aware L1–L3 validation (on-demand, engine lazy-loaded).
+  { title: 'Type-Aware Validation (L1–L3)', emoji: '🔎', render: renderValidationSection },
 ];
 
 /** Render every section into `container` (clears prior content first). */

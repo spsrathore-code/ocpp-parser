@@ -9,11 +9,11 @@ function load(name: string): string[] {
   return readFileSync(join(process.cwd(), 'data', 'samples', name), 'utf8').split(/\r?\n/);
 }
 
-describe('renderResults — 19 sections in §19.4 order', () => {
+describe('renderResults — 19 §19.4 sections (+ Phase-6 validation)', () => {
   const result = analyzeLogLines(load('Sample OCPP Client Log .txt'), 'Sample OCPP Client Log .txt');
 
-  it('declares exactly the 19 §19.4 sections in order', () => {
-    expect(SECTION_ORDER.map((s) => s.title)).toEqual([
+  it('declares the 19 §19.4 parity sections in order, then the new validation section', () => {
+    expect(SECTION_ORDER.slice(0, 19).map((s) => s.title)).toEqual([
       'Debug Info', 'Boot Notifications', 'Heartbeats', 'Status Notifications',
       'Start Transactions', 'Stop Transactions', 'Transaction Summary',
       'Connector Stats', 'Transaction & Meter Values', 'Events', 'Alerts',
@@ -21,15 +21,19 @@ describe('renderResults — 19 sections in §19.4 order', () => {
       'Fault Status Summary', 'Incomplete Transactions', 'Energy Dispense Check',
       'Protocol Compliance', 'WebSocket Health',
     ]);
+    // Phase 6 — new capability beyond legacy parity, appended after WebSocket Health.
+    expect(SECTION_ORDER).toHaveLength(20);
+    expect(SECTION_ORDER[19].title).toBe('Type-Aware Validation (L1–L3)');
   });
 
   it('renders one section element per entry, in order, into the container', () => {
     const container = document.createElement('div');
     renderResults(container, result);
     const sections = container.querySelectorAll('section');
-    expect(sections).toHaveLength(19);
+    expect(sections).toHaveLength(20);
     expect(sections[0].textContent).toContain('Debug Info');
     expect(sections[18].textContent).toContain('WebSocket Health');
+    expect(sections[19].textContent).toContain('Type-Aware Validation');
   });
 
   it('shows a count in the header for sections that declare one', () => {
@@ -55,6 +59,6 @@ describe('renderResults — 19 sections in §19.4 order', () => {
     const container = document.createElement('div');
     renderResults(container, result);
     renderResults(container, result);
-    expect(container.querySelectorAll('section')).toHaveLength(19);
+    expect(container.querySelectorAll('section')).toHaveLength(20);
   });
 });
