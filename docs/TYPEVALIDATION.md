@@ -40,12 +40,12 @@ Provide a single, reusable engine that answers not just *"is this valid JSON?"* 
 
 ## 2. The Validation Ladder (L1–L4)
 
-| Layer | Question it answers | This engine | Source |
-|---|---|---|---|
-| **L1 Frame** | Is it a well-formed `[2,…]` Call / `[3,…]` CallResult / `[4,…]` CallError? | ✅ Phase 1 | `typed-ocpp` |
-| **L2 Schema** | Does the payload conform to that action's OCPP 1.6J schema? | ✅ Phase 1 | `typed-ocpp` (Ajv + OCA schemas) |
-| **L3 Correlation** | Does the response belong to its request and match its action? + orphans + latency | ✅ Phase 1 | `typed-ocpp` `checkCallResult` + our tracker |
-| **L4 Protocol/state** | Is the message *legal given context* (connector/transaction state)? | 🔌 Extension point (Phase 2) | Our rule catalog (§9) |
+| Layer                 | Question it answers                                                               | This engine                  | Source                                       |
+| --------------------- | --------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------- |
+| **L1 Frame**          | Is it a well-formed `[2,…]` Call / `[3,…]` CallResult / `[4,…]` CallError?        | ✅ Phase 1                    | `typed-ocpp`                                 |
+| **L2 Schema**         | Does the payload conform to that action's OCPP 1.6J schema?                       | ✅ Phase 1                    | `typed-ocpp` (Ajv + OCA schemas)             |
+| **L3 Correlation**    | Does the response belong to its request and match its action? + orphans + latency | ✅ Phase 1                    | `typed-ocpp` `checkCallResult` + our tracker |
+| **L4 Protocol/state** | Is the message *legal given context* (connector/transaction state)?               | 🔌 Extension point (Phase 2) | Our rule catalog (§9)                        |
 
 L4 is where the Parser's existing **Protocol Compliance Report** and diagnostic patterns **L-001 / L-002 / L-003** already live heuristically; Phase 2 consolidates them into a formal rule catalog.
 
@@ -104,11 +104,11 @@ A single **isomorphic TypeScript package** (Node + browser-bundle) with three in
                    ValidationReport  → consumers (Parser, CMS, Emulators)
 ```
 
-| Unit | Responsibility | Depends on |
-|---|---|---|
-| `messageValidator` | L1 frame + L2 schema for a single frame; classify kind/action | `typed-ocpp` |
-| `exchangeTracker` | L3 — pair requests↔responses by `MessageId`, detect orphans, compute latency/RTT | `messageValidator`, `typed-ocpp.checkCallResult` |
-| `protocolValidator` | L4 stub — defined interface, no rules yet | — |
+| Unit                | Responsibility                                                                   | Depends on                                       |
+| ------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `messageValidator`  | L1 frame + L2 schema for a single frame; classify kind/action                    | `typed-ocpp`                                     |
+| `exchangeTracker`   | L3 — pair requests↔responses by `MessageId`, detect orphans, compute latency/RTT | `messageValidator`, `typed-ocpp.checkCallResult` |
+| `protocolValidator` | L4 stub — defined interface, no rules yet                                        | —                                                |
 
 ---
 
