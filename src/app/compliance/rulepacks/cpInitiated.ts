@@ -334,6 +334,37 @@ const fwRules: ComplianceRule[] = [
   },
 ];
 
+// ---- Heartbeat (§4.6) ----
+const heartRules: ComplianceRule[] = [
+  {
+    id: 'HEART-001', specRef: '4.6', targetMessage: 'Heartbeat',
+    invariant: 'Every Heartbeat.req SHALL receive Heartbeat.conf',
+    auditLogic: 'Request-response pairing on Heartbeat.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(ctx.messageGroups.Heartbeat, 'Heartbeat'),
+  },
+  {
+    id: 'HEART-002', specRef: '4.6', targetMessage: 'Heartbeat',
+    invariant: 'Heartbeat MAY be skipped if another PDU was sent within heartbeat interval',
+    auditLogic: 'Informational: a missing Heartbeat is not a violation when another PDU was sent within the interval; this rule never fails.',
+    severity: 'Informational', tier: 'deterministic',
+    evaluate: () => ({ status: 'info', details: 'Informational — skipped Heartbeats are permitted when other PDUs are sent within the interval', affected: [] }),
+  },
+  {
+    id: 'HEART-003', specRef: '4.6', targetMessage: 'Heartbeat',
+    invariant: 'Heartbeat.conf SHALL contain currentTime',
+    auditLogic: 'Each answered Heartbeat must carry currentTime in its response.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const answered = ctx.messageGroups.Heartbeat.filter(hasResp);
+      if (answered.length === 0) return { status: 'info', details: 'No answered Heartbeats to check', affected: [] };
+      const bad = answered.filter((m) => { const r = resp<{ currentTime?: string }>(m); return r?.currentTime == null; });
+      return bad.length === 0
+        ? { status: 'pass', details: `All ${answered.length} Heartbeat.conf carry currentTime`, affected: [] }
+        : { status: 'fail', details: `${bad.length} Heartbeat.conf missing currentTime`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
@@ -343,6 +374,7 @@ export const cpInitiatedPack: RulePack = {
     { messageType: 'DataTransfer', prefix: 'DT', icon: '🔁', rules: dtRules },
     { messageType: 'DiagnosticsStatusNotification', prefix: 'DIAG', icon: '🛠️', rules: diagRules },
     { messageType: 'FirmwareStatusNotification', prefix: 'FW', icon: '⬆️', rules: fwRules },
-    // subsequent groups appended by Tasks 7–11
+    { messageType: 'Heartbeat', prefix: 'HEART', icon: '💓', rules: heartRules },
+    // subsequent groups appended by Tasks 8–11
   ],
 };
