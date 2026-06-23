@@ -29,11 +29,13 @@ describe('AUTH rules', () => {
     expect(res.status).toBe('fail');
     expect(res.affected[0].lineNumber).toBe(7);
   });
-  it('AUTH-003 warn: stop idTag equals start idTag', () => {
+  it('AUTH-003 is indeterminate: start-vs-stop Authorize intent is not knowable from a CP log', () => {
     const g = createMessageGroups();
     g.StartTransaction.push(mk('StartTransaction', { connectorId: 1, idTag: 'SAME', meterStart: 0, timestamp: '2025-01-01T00:00:00Z' }, 1, { transactionId: 5, idTagInfo: { status: 'Accepted' } }));
     g.StopTransaction.push(mk('StopTransaction', { transactionId: 5, meterStop: 10, idTag: 'SAME', timestamp: '2025-01-01T00:10:00Z' }, 2, { idTagInfo: { status: 'Accepted' } }));
-    expect(find(g, new Map(), 'AUTH-003').status).toBe('warn');
+    const res = find(g, new Map(), 'AUTH-003');
+    expect(res.status).toBe('info');
+    expect(res.details).toContain('Indeterminate');
   });
   it('AUTH-001 pass: no StartTransaction without an accepted authorization', () => {
     const g = createMessageGroups();

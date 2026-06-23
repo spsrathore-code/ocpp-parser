@@ -44,27 +44,13 @@ const authRules: ComplianceRule[] = [
   {
     id: 'AUTH-003', specRef: '4.1', targetMessage: 'Authorize',
     invariant: 'Authorize.req for stopping SHALL only occur if stop idTag differs from start idTag',
-    auditLogic: 'Compare each transaction’s stop idTag to its start idTag; equal tags are a likely redundant stop-authorize.',
-    severity: 'Major', tier: 'deterministic',
-    evaluate: (ctx) => {
-      const stops = ctx.messageGroups.StopTransaction;
-      const starts = ctx.messageGroups.StartTransaction;
-      const startTagByTx = new Map<number, string>();
-      starts.forEach((m) => {
-        const tid = resp<{ transactionId?: number }>(m)?.transactionId;
-        const tag = payload<{ idTag?: string }>(m).idTag;
-        if (tid != null && tag) startTagByTx.set(tid, tag);
-      });
-      const offenders: ParsedMessage[] = stops.filter((m) => {
-        const p = payload<{ transactionId?: number; idTag?: string }>(m);
-        return p.idTag != null && p.transactionId != null && startTagByTx.get(p.transactionId) === p.idTag;
-      });
-      if (stops.filter((m) => payload<{ idTag?: string }>(m).idTag != null).length === 0)
-        return { status: 'info', details: 'No stop-side idTags to compare', affected: [] };
-      return offenders.length === 0
-        ? { status: 'pass', details: 'All stop idTags differ from their start idTag', affected: [] }
-        : { status: 'warn', details: `${offenders.length} StopTransaction(s) re-used the start idTag`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
-    },
+    auditLogic: 'OCPP Authorize.req carries no indication of whether it is for starting or stopping, so a stop-specific Authorize cannot be reliably distinguished from the start authorization in a CP log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => ({
+      status: 'info',
+      details: 'Indeterminate — OCPP Authorize.req does not indicate start-vs-stop intent; a stop-side Authorize cannot be reliably told apart from the start authorization in a CP log',
+      affected: [],
+    }),
   },
   {
     id: 'AUTH-004', specRef: '4.1', targetMessage: 'Authorize',

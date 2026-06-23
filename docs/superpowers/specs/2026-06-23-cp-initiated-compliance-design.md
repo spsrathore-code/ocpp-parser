@@ -178,7 +178,7 @@ below are the design intent and may shift by ±1–2 during planning.)
   (`transactionId`), DT-002 (UnknownVendor → no data field), DT-003
   (unsupported messageId → `UnknownMessageId`).
 - **Transaction integrity:** AUTH-001 (charging only after accepted auth),
-  AUTH-003 (stop idTag ≠ start idTag), METER-002 (txId ∈ active tx), METER-005
+  METER-002 (txId ∈ active tx), METER-005
   (no MeterValues after closure), STOP-002 (txId ∈ active tx), STOP-003
   (`meterStop ≥ meterStart`).
 - **Ordering / value:** METER-003 (chronological timestamps), METER-004
@@ -214,6 +214,11 @@ below are the design intent and may shift by ±1–2 during planning.)
   configuration, which is **not present in the log**.
 - **CSMS-side behavior:** BOOT-007, BOOT-008 (RemoteStart/Stop must not occur
   during Pending) — CSMS behavior the charger log may not fully witness.
+- **Intent not in the frame:** AUTH-003 (Authorize for stopping only if tags
+  differ) — OCPP `Authorize.req` carries no start-vs-stop intent, so a stop-side
+  Authorize cannot be told apart from the start authorization in a CP log.
+  *(Reclassified deterministic→indeterminate during /qa — it false-fired on every
+  normal same-tag session.)*
 
 > These render as `status: 'info'` rows with a fixed reason string
 > (e.g. *"Indeterminate — depends on StopTransactionOnEVSideDisconnect config,
