@@ -6,6 +6,7 @@
 import { el } from '../dom';
 import { convertToIST } from '../format';
 import { downtimeContextButtons } from '../contextViewer';
+import { maxOf, minOf } from '../../parse/concatChunks';
 import type { AnalysisResult } from '../../analyze';
 import type { Downtime } from '../../detect/types';
 
@@ -55,8 +56,8 @@ export function renderDowntimeReport(r: AnalysisResult): HTMLElement {
     summaryCard('Total Events', String(downtimes.length), 'blue') +
     summaryCard('Total Duration', formatDuration(totalMs), 'red') +
     summaryCard('Avg Duration', formatDuration(valid.length ? totalMs / valid.length : null), 'orange') +
-    summaryCard('Longest', formatDuration(valid.length ? Math.max(...valid) : null), 'purple') +
-    summaryCard('Shortest', formatDuration(valid.length ? Math.min(...valid) : null), 'green') +
+    summaryCard('Longest', formatDuration(valid.length ? maxOf(valid) : null), 'purple') +
+    summaryCard('Shortest', formatDuration(valid.length ? minOf(valid) : null), 'green') +
     summaryCard('First Downtime', sortedByStart.length ? formatDateDMY(sortedByStart[0].startTime) : 'N/A', 'cyan') +
     summaryCard('Last Downtime', sortedByStart.length ? formatDateDMY(sortedByStart[sortedByStart.length - 1].startTime) : 'N/A', 'pink') });
 
@@ -78,8 +79,8 @@ export function renderDowntimeReport(r: AnalysisResult): HTMLElement {
         <div class="grid grid-cols-3 gap-2 text-xs">
           <div><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">Total</div><div class="font-bold text-${c}-800 dark:text-${c}-200">${formatDuration(fTotal)}</div></div>
           <div><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">Avg</div><div class="font-bold text-${c}-800 dark:text-${c}-200">${formatDuration(fv.length ? fTotal / fv.length : null)}</div></div>
-          <div><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">Longest</div><div class="font-bold text-${c}-800 dark:text-${c}-200">${formatDuration(fv.length ? Math.max(...fv) : null)}</div></div>
-          <div><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">Shortest</div><div class="font-bold text-${c}-800 dark:text-${c}-200">${formatDuration(fv.length ? Math.min(...fv) : null)}</div></div>
+          <div><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">Longest</div><div class="font-bold text-${c}-800 dark:text-${c}-200">${formatDuration(fv.length ? maxOf(fv) : null)}</div></div>
+          <div><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">Shortest</div><div class="font-bold text-${c}-800 dark:text-${c}-200">${formatDuration(fv.length ? minOf(fv) : null)}</div></div>
           <div class="col-span-2"><div class="text-${c}-600 dark:text-${c}-400 uppercase font-medium">First / Last</div><div class="font-bold text-${c}-800 dark:text-${c}-200 text-[10px]">${(fSorted.length ? formatDateDMY(fSorted[0].startTime) : 'N/A').split(' ')[0]} / ${(fSorted.length ? formatDateDMY(fSorted[fSorted.length - 1].startTime) : 'N/A').split(' ')[0]}</div></div>
         </div></div>`;
     }

@@ -1,4 +1,5 @@
 import { OFFLINE_REPLAY_THRESHOLD_MS } from '../model/config';
+import { maxOf } from './concatChunks';
 import type { Transaction, MessageGroups, InternalTxMap, TxStatus } from '../model/types';
 
 interface SampledValue {
@@ -140,7 +141,7 @@ export function processTransactions(
       powerReadings.length > 0
         ? (powerReadings.reduce((a, b) => a + b, 0) / powerReadings.length).toFixed(2)
         : 'N/A';
-    tx.peakPower = powerReadings.length > 0 ? Math.max(...powerReadings).toFixed(2) : 'N/A';
+    tx.peakPower = powerReadings.length > 0 ? maxOf(powerReadings).toFixed(2) : 'N/A';
 
     // max temperature per location (FR-097) — from MeterValues + StopTx transactionData
     const tempInlet: number[] = [];
@@ -166,9 +167,9 @@ export function processTransactions(
     if (Array.isArray(stopPayload.transactionData)) {
       for (const data of stopPayload.transactionData) collectTemp(data.sampledValue);
     }
-    tx.maxTempInlet = tempInlet.length > 0 ? Math.max(...tempInlet) : null;
-    tx.maxTempOutlet = tempOutlet.length > 0 ? Math.max(...tempOutlet) : null;
-    tx.maxTempBody = tempBody.length > 0 ? Math.max(...tempBody) : null;
+    tx.maxTempInlet = tempInlet.length > 0 ? maxOf(tempInlet) : null;
+    tx.maxTempOutlet = tempOutlet.length > 0 ? maxOf(tempOutlet) : null;
+    tx.maxTempBody = tempBody.length > 0 ? maxOf(tempBody) : null;
 
     // Current.Import Outlet-vs-EV pairs (FR-108) — paired at MeterValues message level
     const currentPairs: { outlet: number; ev: number }[] = [];

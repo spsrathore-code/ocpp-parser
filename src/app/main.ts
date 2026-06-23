@@ -8,6 +8,7 @@ import { initTheme } from './render/theme';
 import { renderResults } from './render/renderResults';
 import { parseLinesAsync } from './parse/parseLinesAsync';
 import { analyze, mergeParsed } from './analyze';
+import { appendAll } from './parse/concatChunks';
 import type { ParsedLines } from './parse/parseLines';
 // autoSaveUploadedFile (./repository/autoSave) is the headless path — kept for tests; production uses UX wrapper below.
 import { autoSaveWithUx } from './render/repository/autoSaveUx';
@@ -49,12 +50,17 @@ if (root) {
           },
         });
         parts.push(parsed);
-        allLines.push(...lines);
+        appendAll(allLines, lines); // loop-append: a large file's lines would overflow `push(...lines)`
         names.push(file.name);
         void autoSaveWithUx(file.name, text);
       }
       const result = analyze(mergeParsed(parts), allLines, names);
       renderResults(container, result);
+    } catch (err) {
+      // Surface failures instead of silently rendering nothing (previously a large
+      // file threw here and the empty `finally` hid it → "no results").
+      console.error('Parse/analyze failed:', err);
+      container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg">Failed to process the uploaded file(s): ${err instanceof Error ? err.message : String(err)}</div>`;
     } finally {
       progress.container.classList.add('hidden');
       progress.bar.style.width = '0%';

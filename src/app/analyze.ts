@@ -4,6 +4,7 @@
 // stays unit-testable. The chunked/async file driver lives in main.ts (UI shell).
 
 import { parseLines, type ParsedLines } from './parse/parseLines';
+import { appendAll } from './parse/concatChunks';
 import { correlateMessages } from './parse/correlate';
 import { groupMessagesByType } from './parse/groupMessages';
 import { processTransactions } from './parse/processTransactions';
@@ -47,13 +48,15 @@ export interface AnalysisResult {
   filesProcessed: string[];
 }
 
-/** Merge per-file parse outputs into one combined `ParsedLines` (multi-file upload). */
+/** Merge per-file parse outputs into one combined `ParsedLines` (multi-file upload).
+ *  Uses loop-append (not `push(...spread)`) so a large file's message array cannot
+ *  overflow the JS argument-count cap. */
 export function mergeParsed(parts: ParsedLines[]): ParsedLines {
   const merged: ParsedLines = { messages: [], events: [], alerts: [], internalTxMap: new Map() };
   for (const p of parts) {
-    merged.messages.push(...p.messages);
-    merged.events.push(...p.events);
-    merged.alerts.push(...p.alerts);
+    appendAll(merged.messages, p.messages);
+    appendAll(merged.events, p.events);
+    appendAll(merged.alerts, p.alerts);
     p.internalTxMap.forEach((v, k) => merged.internalTxMap.set(k, v));
   }
   return merged;

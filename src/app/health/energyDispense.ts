@@ -6,6 +6,7 @@
 
 import type { Transaction } from '../model/types';
 import { ENERGY_DISPENSE_DIFF_PER_TX_WH } from '../model/config';
+import { maxOf, minOf } from '../parse/concatChunks';
 import type { ConnectorId, EnergyDispenseRow } from './types';
 
 /**
@@ -28,8 +29,8 @@ export function analyzeEnergyDispense(transactions: Transaction[]): EnergyDispen
   connectorMap.forEach((txList, cid) => {
     const meterStarts = txList.map((tx) => tx.meterStart!);
     const meterStops = txList.map((tx) => tx.meterStop!);
-    const minMeterStart = Math.min(...meterStarts);
-    const maxMeterStop = Math.max(...meterStops);
+    const minMeterStart = minOf(meterStarts);
+    const maxMeterStop = maxOf(meterStops);
     const recordedEnergy = maxMeterStop - minMeterStart;
     const summedEnergy = txList.reduce((sum, tx) => sum + (tx.meterStop! - tx.meterStart!), 0);
     const energyDiff = recordedEnergy - summedEnergy;

@@ -9,6 +9,7 @@
 
 import type { WsEventStreams } from '../detect/types';
 import type { WsHealth, WsPingRecord, WsConnectionStatus } from './types';
+import { maxOf } from '../parse/concatChunks';
 
 const MISSED_TIMEOUT_MS = 10000; // 10 s per spec — PONG later than this counts as missed
 
@@ -77,7 +78,7 @@ export function analyzeWebSocketHealth(wsEvents: WsEventStreams): WsHealth {
   const validLatencies = pingRecords.filter((r) => r.latencyMs !== null).map((r) => r.latencyMs as number);
   const avgLatencyMs =
     validLatencies.length > 0 ? round1(validLatencies.reduce((a, b) => a + b, 0) / validLatencies.length) : null;
-  const maxLatencyMs = validLatencies.length > 0 ? Math.max(...validLatencies) : null;
+  const maxLatencyMs = validLatencies.length > 0 ? maxOf(validLatencies) : null; // maxOf: spread-safe on large arrays
   const missedPongCount = pingRecords.filter((r) => r.pongMissed).length;
   const stallCount = pingRecords.filter((r) => r.isStall).length;
 

@@ -10,6 +10,7 @@
 import { el } from '../dom';
 import { renderTransactionGraphs } from '../charts/meterValueGraphs';
 import { fmtReplayDelay } from '../format';
+import { maxOf, minOf } from '../../parse/concatChunks';
 import { OFFLINE_REPLAY_THRESHOLD_MS } from '../../model/config';
 import type { ParsedMessage, Transaction } from '../../model/types';
 import type { AnalysisResult } from '../../analyze';
@@ -143,7 +144,7 @@ export function calculateTransactionStats(txId: string | number, rows: MvRow[]):
   if (txData.length === 0) return null;
   const maxMin = (key: string): MinMax => {
     const values = txData.map((row) => parseFloat(row[key])).filter((v) => !isNaN(v) && v > 0);
-    return values.length === 0 ? { max: 'N/A', min: 'N/A' } : { max: Math.max(...values).toFixed(2), min: Math.min(...values).toFixed(2) };
+    return values.length === 0 ? { max: 'N/A', min: 'N/A' } : { max: maxOf(values).toFixed(2), min: minOf(values).toFixed(2) };
   };
   const startEnd = (key: string): { start: string; end: string } => {
     const values = txData.map((row) => ({ value: parseFloat(row[key]), ts: row['UTC Time Stamp'] }))

@@ -6,6 +6,7 @@
 // Phase 3; this module is pure aggregation.
 
 import type { Transaction } from '../model/types';
+import { maxOf } from '../parse/concatChunks';
 import {
   TEMP_THRESHOLDS,
   DEFAULT_ZERO_ENERGY_THRESHOLD_WH,
@@ -60,7 +61,7 @@ export function aggregateConnectorStats(
     const peakPowers = txList.filter((tx) => tx.peakPower !== 'N/A').map((tx) => parseFloat(tx.peakPower!));
     const avgPower =
       avgPowers.length > 0 ? (avgPowers.reduce((a, b) => a + b, 0) / avgPowers.length).toFixed(2) : 'N/A';
-    const peakPower = peakPowers.length > 0 ? Math.max(...peakPowers).toFixed(2) : 'N/A';
+    const peakPower = peakPowers.length > 0 ? maxOf(peakPowers).toFixed(2) : 'N/A';
 
     let zeroEnergyCount = 0;
     let tempHighCount = 0;

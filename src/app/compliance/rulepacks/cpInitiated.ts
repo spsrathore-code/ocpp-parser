@@ -2,6 +2,7 @@
 // verbatim from docs/business_case_compliance_check.md. Groups appended per task.
 import type { ComplianceRule, RulePack } from '../types';
 import { payload, resp, hasResp, msgId, itemOf, byAction, pairingResult } from '../helpers';
+import { minOf } from '../../parse/concatChunks';
 import type { ParsedMessage, MessageGroups } from '../../model/types';
 
 const ms = (ts: string): number => new Date(ts).getTime();
@@ -95,7 +96,7 @@ const bootRules: ComplianceRule[] = [
     evaluate: (ctx) => {
       const boots = ctx.messageGroups.BootNotification;
       if (boots.length === 0) return { status: 'info', details: 'No BootNotification to anchor acceptance', affected: [] };
-      const firstBootTs = Math.min(...boots.map((b) => ms(b.timestamp)));
+      const firstBootTs = minOf(boots.map((b) => ms(b.timestamp)));
       const offenders = allCpMessagesExceptBoot(ctx.messageGroups).filter((m) => ms(m.timestamp) < firstBootTs);
       // Heuristic tier: warn (not fail) — on a mid-session/truncated capture the first
       // BootNotification may be a reconnect, so earlier messages can be legitimately post-registration.
@@ -112,7 +113,7 @@ const bootRules: ComplianceRule[] = [
     evaluate: (ctx) => {
       const boots = ctx.messageGroups.BootNotification;
       if (boots.length === 0) return { status: 'info', details: 'No BootNotification to compare against', affected: [] };
-      const firstBootTs = Math.min(...boots.map((b) => ms(b.timestamp)));
+      const firstBootTs = minOf(boots.map((b) => ms(b.timestamp)));
       const queued = allCpMessagesExceptBoot(ctx.messageGroups).filter((m) => {
         const p = payload<{ timestamp?: string }>(m);
         return p.timestamp != null && ms(m.timestamp) < firstBootTs && ms(p.timestamp) < firstBootTs;
