@@ -619,3 +619,21 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 ### State for next session
 - All on `feat/parser-revamp` (pushed; **NOT on `main`**, NOT deployed). CLAUDE.md status + all trackers reconciled this session.
 - **Open / next:** `/review`+`/cso`+`/qa` on Phase 6 (skill-chain Review/Test not run). Then deploy decision (Help modal + parked 3b-3b/4c/4e). Optional engine refinement: split `RESULT_MISMATCH` into `RESULT_SCHEMA_INVALID` vs `RESULT_ACTION_MISMATCH`; per-action CallError attribution.
+
+## 2026-06-23 — §4 CP-Initiated Operations Compliance (new sub-compliance report)
+
+### Did
+- **Brainstormed → spec → plan → built** a new spec-cited compliance report: OCPP 1.6J **§4 (Operations Initiated by Charge Point)**, the first of planned per-section "dedicated compliance" reports under Protocol Compliance. Source: `docs/business_case_compliance_check.md` (46 test IDs).
+- **Pluggable rule-pack framework** in `src/app/compliance/` (`types.ts`, `runCompliance.ts` pure runner + severity-weighted score, `helpers.ts` incl. `byAction`, `rulepacks/cpInitiated.ts` = all 46 rules). Each rule is a self-describing object (id · specRef · invariant verbatim · severity · tier · `evaluate`).
+- **All 46 rules, tier-tagged:** 🟢 deterministic (real pass/warn/fail), 🟡 heuristic (inference-based, FP-suppressed), 🔴 indeterminate (config-dependent → explicit `info` rows, excluded from score). Weights Critical 4 / Major 2 / Minor 1 / Informational 0; `warn` = half credit.
+- **Mounted as a sibling top-level section** (new `SECTION_ORDER` entry after Protocol Compliance) — **zero edit to `protocolCompliance.ts`** (decision D5, lowest-risk), Excel export free via the registry, context Preview/Download (yellow highlight) via the existing idempotent handler. `analyze.ts` gains a `cpCompliance` field.
+- **TDD throughout: +49 tests (273 → 322)**, `tsc` + `vite build` clean. Real-sample smoke on 2 logs: no crash, 46 results, valid scores (Sample log 92%; `BOOT-001` fail is correct — that log has no BootNotification).
+- Caught + fixed a plan-time correctness issue: Authorize/DataTransfer/Diagnostics/Firmware/TriggerMessage are in the `Other` bucket, not their own `messageGroups` keys → routed via `byAction()`.
+
+### Decisions
+- Parallel to (not replacing) the existing 21 heuristic Protocol checks; intentional overlap accepted for now (D1).
+- All 46 implemented up front, nothing silently dropped (D2). Rule-pack framework so §5/§3 packs are additive later (D3). Inline compute, no lazy-load (D4). Sibling section, no `protocolCompliance.ts` edit (D5).
+
+### State for next session
+- All on `feat/parser-revamp` (**not committed-pushed yet this session beyond local commits; NOT on `main`, NOT deployed**). Spec `docs/superpowers/specs/2026-06-23-cp-initiated-compliance-design.md`, plan `docs/superpowers/plans/2026-06-23-cp-initiated-compliance.md`.
+- **Next:** push branch; `/review`+`/cso`+`/qa` on this §4 work (and still-pending Phase 6). Then the broader deploy decision. Future: §5 (CS-Initiated) pack reuses the same framework.

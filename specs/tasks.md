@@ -3,10 +3,11 @@
 > Living list of granular work. **Suite-level status is in `specs/roadmap.md`** (the
 > dashboard); this file is the finer-grained active task list. Done items also flow
 > to `knowledge/project-journal.md` and (for shipped parser changes) `CHANGELOG.md`.
-> **Last updated:** 2026-06-15
+> **Last updated:** 2026-06-23
 
 ## Done
 
+- [x] **§4 CP-Initiated Operations Compliance** (2026-06-23) — pluggable compliance rule-pack framework (`src/app/compliance/`) + full OCPP 1.6J §4 pack (46 rules, tier-tagged 🟢/🟡/🔴, severity-weighted score). Sibling section after Protocol Compliance (no `protocolCompliance.ts` edit). +49 tests (322 total), `tsc`+build clean, real-sample smoke clean. Spec + plan dated 2026-06-23. Next: `/review`+`/qa`.
 - [x] SSOT consolidation (`requirements.md`), repo standardisation, OCPP schema strategy (§19.7), Validation Engine spec (`docs/TYPEVALIDATION.md`).
 - [x] Skill chain implemented (28 skills).
 - [x] **Validation Engine Phase 1 (L1–L3)** — spike (typed-ocpp browser bundle), build, `/review`+`/cso` (R1 fixed + 2 regression tests), `/qa` (788 real frames, 0 bugs). 25 tests; ESM+CJS+browser. PR pushed.
