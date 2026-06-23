@@ -5,9 +5,16 @@
 > to `knowledge/project-journal.md` and (for shipped parser changes) `CHANGELOG.md`.
 > **Last updated:** 2026-06-23
 
+## Open / next (pick up here)
+
+- [ ] **Cross-file message-ID collision** (bug, found 2026-06-23): `correlateMessages` keys ids globally but OCPP ids are per-connection — two logs reusing `1,2,3…` mis-pair and drop a transaction (repro 2→1). Produces wrong/partial results (not blank). Needs its own systematic-debugging pass (correlate per-file before merge).
+- [ ] **Phase 6 validation engine** — `/review`+`/cso`+`/qa` still pending.
+- [ ] **Deploy decision** — Help modal + parked 3b-3b/4c/4e; set `vite.config` `base` for GitHub Pages; optionally `vite-plugin-singlefile` for the old single-file UX.
+
 ## Done
 
-- [x] **§4 CP-Initiated Operations Compliance** (2026-06-23) — pluggable compliance rule-pack framework (`src/app/compliance/`) + full OCPP 1.6J §4 pack (46 rules, tier-tagged 🟢/🟡/🔴, severity-weighted score). Sibling section after Protocol Compliance (no `protocolCompliance.ts` edit). +49 tests (322 total), `tsc`+build clean, real-sample smoke clean. Spec + plan dated 2026-06-23. Next: `/review`+`/qa`.
+- [x] **🐞 Large/multi-file upload crash — FIXED** (2026-06-23, `6b22e00`) — big/multi-file logs showed no results: unbounded-array spread (`push(...lines)`, `Math.max(...validLatencies)`) overflowed V8's arg cap on `MH0135` (315k lines/130k pings); catch-less `try/finally` hid it. Fixed with loop-based `concatChunks`/`appendAll`/`maxOf`/`minOf` across the large-log path + `main.ts` error `catch`. +3 tests (325).
+- [x] **§4 CP-Initiated Operations Compliance** (2026-06-23) — pluggable compliance rule-pack framework (`src/app/compliance/`) + full OCPP 1.6J §4 pack (46 rules, tier-tagged 🟢/🟡/🔴, severity-weighted score). Sibling section after Protocol Compliance (no `protocolCompliance.ts` edit). +49 tests. Spec + plan dated 2026-06-23. **/review ✅ + /qa ✅** (BOOT-002 fail→warn; AUTH-003→indeterminate). 325 tests total, `tsc`+build clean.
 - [x] SSOT consolidation (`requirements.md`), repo standardisation, OCPP schema strategy (§19.7), Validation Engine spec (`docs/TYPEVALIDATION.md`).
 - [x] Skill chain implemented (28 skills).
 - [x] **Validation Engine Phase 1 (L1–L3)** — spike (typed-ocpp browser bundle), build, `/review`+`/cso` (R1 fixed + 2 regression tests), `/qa` (788 real frames, 0 bugs). 25 tests; ESM+CJS+browser. PR pushed.

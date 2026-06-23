@@ -637,3 +637,21 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 ### State for next session
 - All on `feat/parser-revamp` (**not committed-pushed yet this session beyond local commits; NOT on `main`, NOT deployed**). Spec `docs/superpowers/specs/2026-06-23-cp-initiated-compliance-design.md`, plan `docs/superpowers/plans/2026-06-23-cp-initiated-compliance.md`.
 - **Next:** push branch; `/review`+`/cso`+`/qa` on this §4 work (and still-pending Phase 6). Then the broader deploy decision. Future: §5 (CS-Initiated) pack reuses the same framework.
+
+## 2026-06-23 (cont.) — §4 compliance reviewed+QA'd, large/multi-file crash fixed, run docs
+
+### Did
+- **§4 CP-Initiated Compliance** taken through the skill chain: **/review** (1 fix: BOOT-002 fail→warn — heuristic shouldn't hard-fail on mid-session captures) and **/qa** on both sample logs (1 fix: AUTH-003 deterministic→indeterminate — OCPP Authorize.req has no start-vs-stop intent, so it false-fired on every same-tag session). QA notes: `scratchpad/qa-cp-compliance/QA-NOTES.md`. Baselines: Sample 93% (BOOT-001 fail correct, 0 boots), TS0064 98%. Pushed.
+- **Fixed a real production-class bug** (user report: "multiple log files → no results"). Used systematic-debugging. **Root cause:** spreading unbounded arrays into variadic calls — `push(...lines)`, `mergeParsed` `push(...messages)`, and especially `Math.max(...validLatencies)` in `analyzeWebSocketHealth` — throws `RangeError: Maximum call stack size exceeded` past V8's arg-count cap. The `MH0135` sample is **315,117 lines / 130,845 WS pings**, so wsHealth overflowed; `main.ts`'s **catch-less `try/finally`** swallowed the throw → `renderResults` never ran → blank. Confirmed via stage-by-stage instrumentation (wsHealth was the throwing stage) and an end-to-end repro (MH0135+Sample → now `msgs=9034, tx=25, no throw`).
+- **Fix:** new spread-safe helpers `src/app/parse/concatChunks.ts` (`concatChunks` / `appendAll` / `maxOf` / `minOf`, all loop-based); replaced EVERY unbounded `push(...)`/`Math.max|min(...)` on the large-log path (main.ts, mergeParsed, wsHealth, processTransactions per-tx power/temp, connectorStats, energyDispense, meterValues, downtimeReport, cpInitiated boot rules); added a `catch` in `main.ts` so future failures show an on-screen error instead of silent blank. +3 regression tests (300k merge/concat, 300k-ping wsHealth). **325 tests**, `tsc`+build clean. Commit `6b22e00`, pushed.
+- Documented **how to run the revamp** in `CLAUDE.md` → *How to run* (it's a bundled Vite app now: `npm run dev` localhost:5173, or `npm run build`+`npm run preview`, or deploy `dist/` to a static host; double-click no longer works — ES modules over file://). Offered `vite-plugin-singlefile` to restore the old single-file UX (not wired yet).
+
+### Known-open bugs (NOT yet fixed)
+- **Cross-file message-ID collisions** (found while debugging the above): `correlateMessages` keys OCPP message ids globally, but ids are only unique per-connection. Two logs reusing ids `1,2,3…` mis-pair → a transaction can be dropped (repro: 2 expected → 1). Produces *wrong/partial* results, not blank. Needs its own systematic-debugging pass (likely correlate per-file/per-connection before merge).
+- **Phase 6 validation engine**: skill-chain `/review`+`/cso`+`/qa` still pending (only §4 compliance has been reviewed/QA'd).
+
+### Next session — pick up here
+1. Decide on the **cross-file id-collision** fix (own task).
+2. Run **`/review`+`/cso`+`/qa` on Phase 6** validation.
+3. Deploy decision: Help modal + parked 3b-3b/4c/4e + set `vite.config` `base` for GitHub Pages; optionally add `vite-plugin-singlefile`.
+- All work on `feat/parser-revamp` (pushed; **NOT on `main`**, NOT deployed). HEAD `6b22e00`.
