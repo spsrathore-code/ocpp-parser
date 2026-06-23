@@ -111,9 +111,11 @@ const bootRules: ComplianceRule[] = [
       if (boots.length === 0) return { status: 'info', details: 'No BootNotification to anchor acceptance', affected: [] };
       const firstBootTs = Math.min(...boots.map((b) => ms(b.timestamp)));
       const offenders = allCpMessagesExceptBoot(ctx.messageGroups).filter((m) => ms(m.timestamp) < firstBootTs);
+      // Heuristic tier: warn (not fail) — on a mid-session/truncated capture the first
+      // BootNotification may be a reconnect, so earlier messages can be legitimately post-registration.
       return offenders.length === 0
         ? { status: 'pass', details: 'No CP messages precede the first BootNotification', affected: [] }
-        : { status: 'fail', details: `${offenders.length} CP message(s) sent before the first BootNotification`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+        : { status: 'warn', details: `${offenders.length} CP message(s) precede the first BootNotification (possible mid-session capture or pre-registration send)`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
     },
   },
   {

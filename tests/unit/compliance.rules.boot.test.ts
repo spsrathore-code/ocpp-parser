@@ -25,12 +25,12 @@ describe('BOOT rules', () => {
     g.Heartbeat.push(mk('Heartbeat', {}, `${T}00:01:00.000Z`, 2, { currentTime: `${T}00:01:00Z` }));
     expect(find(g, 'BOOT-002').status).toBe('pass');
   });
-  it('BOOT-002 fail: a Heartbeat precedes the first BootNotification', () => {
+  it('BOOT-002 warn: a Heartbeat precedes the first BootNotification (heuristic, not a hard fail)', () => {
     const g = createMessageGroups();
     g.Heartbeat.push(mk('Heartbeat', {}, `${T}00:01:00.000Z`, 1, { currentTime: 't' }));
     g.BootNotification.push(mk('BootNotification', {}, `${T}00:05:00.000Z`, 2, { status: 'Accepted', interval: 300 }));
     const res = find(g, 'BOOT-002');
-    expect(res.status).toBe('fail');
+    expect(res.status).toBe('warn');
     expect(res.affected[0].lineNumber).toBe(1);
   });
   it('BOOT-002 FP-suppression: a message exactly at the boot timestamp passes', () => {
