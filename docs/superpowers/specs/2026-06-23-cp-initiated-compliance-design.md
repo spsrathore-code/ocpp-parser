@@ -60,6 +60,7 @@ small **pluggable rule-pack framework**, not a one-off §4 module.
 | D2 | **All 46 rules, tier-tagged** | Complete + traceable: every spec rule is visibly accounted for; nothing silently dropped. Honours the completeness/traceability principle. |
 | D3 | **Rule-pack framework**, not a one-off §4 module | User intends "more dedicated compliance sections"; a pack pattern makes future sections additive with zero framework change. |
 | D4 | **Runs inline** (no lazy-load) | Pure local logic over already-parsed frames — cheap. Unlike the typed-ocpp L1–L3 engine, no network/large bundle, so no code-split needed. |
+| D5 | **Sibling top-level section** (new `SECTION_ORDER` entry after Protocol Compliance), **not** nested inside `renderProtocolCompliance` | Discovered at plan time: the orchestrator's section registry + already-idempotent context handler mean a sibling entry needs **zero edit to `protocolCompliance.ts`**, gets Excel export for free, and renders in the same visual spot. Removes the highest-risk touchpoint. Directly serves the regression-safety priority. |
 
 ## 4. Architecture
 
@@ -221,9 +222,14 @@ below are the design intent and may shift by ±1–2 during planning.)
 
 ## 6. Rendering & UX
 
-A new **collapsible sub-section** rendered **inside** the existing Protocol
-Compliance section, below its current System-Checks / Lifecycle tabs. Visual
-language mirrors `src/app/render/sections/protocolCompliance.ts`:
+A new **top-level collapsible section**, registered in `renderResults.ts`'s
+`SECTION_ORDER` registry **immediately after the existing "Protocol Compliance"
+entry** (title e.g. *"Protocol Compliance — CP-Initiated Operations (§4)"*). This
+renders in the same place visually but requires **no edit to
+`protocolCompliance.ts`** — the lowest-risk mount (decision D5, §3). Excel export
+comes free via the registry's `exportTable`; context buttons auto-wire via the
+orchestrator's single delegated handler. Visual language mirrors
+`src/app/render/sections/protocolCompliance.ts`:
 
 - **Sub-section header:** title "Charge Point Initiated Operations Compliance
   (OCPP 1.6J §4)", overall **weighted score badge**, status counts
@@ -248,12 +254,15 @@ language mirrors `src/app/render/sections/protocolCompliance.ts`:
 
 - `runProtocolValidation` **engine** (21 heuristic checks + lifecycle) —
   **logic unchanged**. The pure compute path is not edited.
-- `protocolCompliance.ts` **render file** — receives **one controlled edit**: a
-  mount point for the new sub-section. It is *not* untouched, and that edit is
-  the single highest-risk spot for a regression (see §9.1).
+- `protocolCompliance.ts` **render file** — **unchanged** (decision D5: the §4
+  matrix mounts as a sibling `SECTION_ORDER` entry, not nested inside this file).
 - Type-Aware Validation L1–L3 (#20, typed-ocpp) — **unchanged**.
-- New §4 compliance — **rendered as a sibling sub-section** within the Protocol
-  Compliance section.
+- New §4 compliance — **rendered as a sibling top-level section** registered in
+  `SECTION_ORDER` immediately after Protocol Compliance.
+
+The only two existing files edited are **additive registration points**:
+`analyze.ts` (add a `cpCompliance` field to `AnalysisResult`) and
+`renderResults.ts` (one import + one `SECTION_ORDER` entry).
 
 Intentional overlap (the pairing checks exist in both the heuristic report and
 the formal §4 matrix) is **accepted for this cut**. A future reconciliation pass
@@ -311,10 +320,14 @@ Additive ≠ zero-contact. The real integration touchpoints and their guards:
 
 | Touchpoint | Why it's a risk | Guard |
 |---|---|---|
-| **Mount point in `protocolCompliance.ts`** | The sub-section renders *inside* the existing section, so that render file gets one edit — it is not truly untouched | **Characterization test** snapshotting the current Protocol Compliance render output *before* the change; must stay identical after |
-| **Shared context-viewer handler** | `contextViewer.ts` uses one delegated click handler on the results container keyed by `data-ctx-*` (prior dup-listener bug, obs 401) | Namespace the new `data-ctx-*` keys so they can't collide with Boot/Events/Downtime; test the handler stays wired once across re-renders |
-| **Shared Excel export util** | Reusing the per-section export adds a button via the shared util | Existing export tests stay green; add one for the new section |
-| **Inline (non-lazy) compute on large logs** | Runs synchronously over all frames on render | Smoke-test render time on the largest `data/samples/` log; no perceptible regression |
+| **`renderResults.ts` registry edit** | One new import + one `SECTION_ORDER` entry. Additive, but the orchestrator drives every section | A render test asserts the new section title appears once, in the right order (after Protocol Compliance), and that all pre-existing sections still render |
+| **`analyze.ts` field add** | New `cpCompliance` field on `AnalysisResult` + one `runCompliance(...)` call | Purely additive to a typed struct; `tsc` guarantees no consumer breaks; existing `analyze` tests stay green |
+| **Shared context-viewer handler** | `contextViewer.ts` uses one delegated handler keyed by `data-ctx-*` (already idempotent via a `Symbol`; prior dup-listener bug fixed, obs 401) | **Reuse `singleContextButtons()`** rather than invent new attributes; give each finding a unique `label`/`line`/`index`; test buttons carry correct `data-ctx-*` |
+| **Shared Excel export** | Section gets export via the registry's `exportTable` (no new util code) | Existing export tests stay green; render test asserts the export button + target table id are present |
+| **Inline (non-lazy) compute on large logs** | Runs synchronously over all frames on render | Smoke-test render over the largest `data/samples/` log; no crash, no perceptible regression |
+
+`protocolCompliance.ts` is **not edited** under decision D5, so the previous
+"characterization test on the mounted section" guard is no longer needed.
 
 Gates that catch a regression, in order:
 
