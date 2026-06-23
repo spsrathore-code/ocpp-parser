@@ -15,6 +15,9 @@ import { analyzeEnergyDispense } from './health/energyDispense';
 import { runProtocolValidation } from './protocol/runProtocolValidation';
 import { detectPhantomConnectionPattern } from './protocol/phantom';
 import { analyzeWebSocketHealth } from './ws/wsHealth';
+import { runCompliance } from './compliance/runCompliance';
+import { cpInitiatedPack } from './compliance/rulepacks/cpInitiated';
+import type { ComplianceReport } from './compliance/types';
 
 import type { MessageGroups, Transaction, InternalTxMap, ParsedMessage, ParsedEvent, ParsedAlert } from './model/types';
 import type { Downtime, MissingSyncFlag, IncompleteTransaction } from './detect/types';
@@ -37,6 +40,7 @@ export interface AnalysisResult {
   connectorStats: ConnectorStatsRow[];
   energyDispense: EnergyDispenseRow[];
   protocol: ProtocolValidationResult;
+  cpCompliance: ComplianceReport;
   phantom: PhantomResult;
   wsHealth: WsHealth;
   rawLogLines: string[];
@@ -70,13 +74,14 @@ export function analyze(parsed: ParsedLines, rawLogLines: string[], filesProcess
   const energyDispense = analyzeEnergyDispense(transactions);
 
   const protocol = runProtocolValidation(messageGroups, transactions, internalTxMap, rawLogLines);
+  const cpCompliance = runCompliance(cpInitiatedPack, { messageGroups, transactions, internalTxMap, rawLogLines });
   const phantom = detectPhantomConnectionPattern(messageGroups.BootNotification, rawLogLines);
   const wsHealth = analyzeWebSocketHealth(wsEvents);
 
   return {
     messages, events, alerts, internalTxMap, messageGroups, transactions,
     downtimes, incompleteTransactions, powerRestoreSync, emergencyStopSync,
-    connectorStats, energyDispense, protocol, phantom, wsHealth,
+    connectorStats, energyDispense, protocol, cpCompliance, phantom, wsHealth,
     rawLogLines, filesProcessed,
   };
 }
