@@ -456,6 +456,52 @@ const meterRules: ComplianceRule[] = [
   },
 ];
 
+// ---- StartTransaction (§4.8) ----
+interface StatusPayload { connectorId?: number; status?: string; errorCode?: string; }
+const statusOf = (m: ParsedMessage): StatusPayload => payload<StatusPayload>(m);
+
+const startRules: ComplianceRule[] = [
+  {
+    id: 'START-001', specRef: '4.8', targetMessage: 'StartTransaction',
+    invariant: 'Every StartTransaction.req SHALL receive StartTransaction.conf',
+    auditLogic: 'Request-response pairing on StartTransaction.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(ctx.messageGroups.StartTransaction, 'StartTransaction'),
+  },
+  {
+    id: 'START-002', specRef: '4.8', targetMessage: 'StartTransaction',
+    invariant: 'reservationId SHALL exist if reservation is being terminated',
+    auditLogic: 'If a connector reported Reserved before a StartTransaction, that start should carry a reservationId. Reservation context (ReserveNow, §5) is CSMS-side, so this is inferred.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const reservedConns = new Set(
+        ctx.messageGroups.StatusNotification.filter((m) => statusOf(m).status === 'Reserved').map((m) => statusOf(m).connectorId),
+      );
+      if (reservedConns.size === 0) return { status: 'info', details: 'No Reserved status observed — reservation context not present in log', affected: [] };
+      const missing = ctx.messageGroups.StartTransaction.filter((m) => {
+        const p = payload<{ connectorId?: number; reservationId?: number }>(m);
+        return reservedConns.has(p.connectorId) && p.reservationId == null;
+      });
+      return missing.length === 0
+        ? { status: 'pass', details: 'Starts following a Reserved connector carry a reservationId', affected: [] }
+        : { status: 'warn', details: `${missing.length} StartTransaction(s) after a Reserved connector lack a reservationId`, affected: missing.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'START-003', specRef: '4.8', targetMessage: 'StartTransaction',
+    invariant: 'StartTransaction.conf SHALL contain transactionId',
+    auditLogic: 'Each answered StartTransaction must return a transactionId.',
+    severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const answered = ctx.messageGroups.StartTransaction.filter(hasResp);
+      if (answered.length === 0) return { status: 'info', details: 'No answered StartTransactions to check', affected: [] };
+      const bad = answered.filter((m) => resp<{ transactionId?: number }>(m)?.transactionId == null);
+      return bad.length === 0
+        ? { status: 'pass', details: `All ${answered.length} StartTransaction.conf carry a transactionId`, affected: [] }
+        : { status: 'fail', details: `${bad.length} StartTransaction.conf missing transactionId`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
@@ -467,6 +513,7 @@ export const cpInitiatedPack: RulePack = {
     { messageType: 'FirmwareStatusNotification', prefix: 'FW', icon: '⬆️', rules: fwRules },
     { messageType: 'Heartbeat', prefix: 'HEART', icon: '💓', rules: heartRules },
     { messageType: 'MeterValues', prefix: 'METER', icon: '📊', rules: meterRules },
-    // subsequent groups appended by Tasks 9–11
+    { messageType: 'StartTransaction', prefix: 'START', icon: '▶️', rules: startRules },
+    // subsequent groups appended by Tasks 10–11
   ],
 };
