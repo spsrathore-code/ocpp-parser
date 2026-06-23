@@ -12,28 +12,30 @@ function load(name: string): string[] {
 describe('renderResults — 19 §19.4 sections (+ Phase-6 validation)', () => {
   const result = analyzeLogLines(load('Sample OCPP Client Log .txt'), 'Sample OCPP Client Log .txt');
 
-  it('declares the 19 §19.4 parity sections in order, then the new validation section', () => {
-    expect(SECTION_ORDER.slice(0, 19).map((s) => s.title)).toEqual([
+  it('declares the §19.4 parity sections in order, then CP-Initiated Compliance and the validation section', () => {
+    expect(SECTION_ORDER.map((s) => s.title)).toEqual([
       'Debug Info', 'Boot Notifications', 'Heartbeats', 'Status Notifications',
       'Start Transactions', 'Stop Transactions', 'Transaction Summary',
       'Connector Stats', 'Transaction & Meter Values', 'Events', 'Alerts',
       'Downtime Report', 'Power Restore Missing Sync', 'Emergency Stop Release',
       'Fault Status Summary', 'Incomplete Transactions', 'Energy Dispense Check',
-      'Protocol Compliance', 'WebSocket Health',
+      'Protocol Compliance', 'Protocol Compliance — CP-Initiated Operations (§4)',
+      'WebSocket Health', 'Type-Aware Validation (L1–L3)',
     ]);
-    // Phase 6 — new capability beyond legacy parity, appended after WebSocket Health.
-    expect(SECTION_ORDER).toHaveLength(20);
-    expect(SECTION_ORDER[19].title).toBe('Type-Aware Validation (L1–L3)');
+    // §4 compliance sibling after Protocol Compliance; Phase-6 validation last.
+    expect(SECTION_ORDER).toHaveLength(21);
+    expect(SECTION_ORDER[18].title).toBe('Protocol Compliance — CP-Initiated Operations (§4)');
+    expect(SECTION_ORDER[20].title).toBe('Type-Aware Validation (L1–L3)');
   });
 
   it('renders one section element per entry, in order, into the container', () => {
     const container = document.createElement('div');
     renderResults(container, result);
     const sections = container.querySelectorAll('section');
-    expect(sections).toHaveLength(20);
+    expect(sections).toHaveLength(21);
     expect(sections[0].textContent).toContain('Debug Info');
-    expect(sections[18].textContent).toContain('WebSocket Health');
-    expect(sections[19].textContent).toContain('Type-Aware Validation');
+    expect(sections[19].textContent).toContain('WebSocket Health');
+    expect(sections[20].textContent).toContain('Type-Aware Validation');
   });
 
   it('shows a count in the header for sections that declare one', () => {
@@ -46,11 +48,12 @@ describe('renderResults — 19 §19.4 sections (+ Phase-6 validation)', () => {
     expect(heartbeats.querySelector('button')!.textContent).toMatch(/Heartbeats \(\d+\)/);
   });
 
-  it('puts an "Export to Excel" button on the 17 table sections (not Debug Info / Protocol)', () => {
+  it('puts an "Export to Excel" button on the 18 table sections (not Debug Info / Protocol)', () => {
     const container = document.createElement('div');
     renderResults(container, result);
     const exportBtns = [...container.querySelectorAll('button')].filter((b) => b.textContent === 'Export to Excel');
-    expect(exportBtns).toHaveLength(17);
+    // 17 legacy table sections + the new CP-Initiated Compliance (§4) section.
+    expect(exportBtns).toHaveLength(18);
     const debug = [...container.querySelectorAll('section')].find((s) => s.querySelector('button')?.textContent?.includes('Debug Info'))!;
     expect([...debug.querySelectorAll('button')].some((b) => b.textContent === 'Export to Excel')).toBe(false);
   });
@@ -59,6 +62,6 @@ describe('renderResults — 19 §19.4 sections (+ Phase-6 validation)', () => {
     const container = document.createElement('div');
     renderResults(container, result);
     renderResults(container, result);
-    expect(container.querySelectorAll('section')).toHaveLength(20);
+    expect(container.querySelectorAll('section')).toHaveLength(21);
   });
 });

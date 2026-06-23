@@ -21,6 +21,7 @@ import { renderEnergyDispense } from './sections/energyDispense';
 import { renderDowntimeReport } from './sections/downtimeReport';
 import { renderPowerRestoreSync, renderEmergencyStopRelease } from './sections/syncFlags';
 import { renderProtocolCompliance } from './sections/protocolCompliance';
+import { renderCpCompliance } from './sections/cpCompliance';
 import { renderWebSocketHealth } from './sections/webSocketHealth';
 import { renderValidationSection } from './sections/validation';
 import { renderHeartbeats } from './sections/heartbeats';
@@ -58,6 +59,8 @@ export const SECTION_ORDER: SectionDef[] = [
   { title: 'Incomplete Transactions', emoji: '🧩', count: (r) => r.incompleteTransactions.length, exportTable: { id: 'incomplete-transactions-table', file: 'Incomplete_Transactions.xlsx' }, render: renderIncompleteTransactions },
   { title: 'Energy Dispense Check', emoji: '⚡', count: (r) => r.energyDispense.length, exportTable: { id: 'energy-dispense-table', file: 'Energy_Dispense_Check.xlsx' }, render: renderEnergyDispense },
   { title: 'Protocol Compliance', emoji: '✅', render: renderProtocolCompliance },
+  // Sibling spec-cited compliance report: OCPP 1.6J §4 (CP-Initiated Operations) — 46 tier-tagged rules.
+  { title: 'Protocol Compliance — CP-Initiated Operations (§4)', emoji: '📋', exportTable: { id: 'cp-compliance-table', file: 'CP_Initiated_Compliance.xlsx' }, render: renderCpCompliance },
   { title: 'WebSocket Health', emoji: '🌐', count: (r) => r.wsHealth.pingCount, exportTable: { id: 'ws-health-table', file: 'WebSocket_Health.xlsx' }, render: renderWebSocketHealth },
   // Phase 6 — new capability beyond legacy parity: type-aware L1–L3 validation (on-demand, engine lazy-loaded).
   { title: 'Type-Aware Validation (L1–L3)', emoji: '🔎', render: renderValidationSection },
