@@ -2,7 +2,19 @@
 // verbatim from docs/business_case_compliance_check.md. Groups appended per task.
 import type { ComplianceRule, RulePack } from '../types';
 import { payload, resp, hasResp, msgId, itemOf, byAction, pairingResult } from '../helpers';
-import type { ParsedMessage } from '../../model/types';
+import type { ParsedMessage, MessageGroups } from '../../model/types';
+
+const ms = (ts: string): number => new Date(ts).getTime();
+
+interface BootResp { status?: string; interval?: number; }
+
+/** Every message the Charge Point sent (all known groups + Other), excluding BootNotification. */
+function allCpMessagesExceptBoot(mg: MessageGroups): ParsedMessage[] {
+  return [
+    ...mg.Heartbeat, ...mg.StatusNotification, ...mg.StartTransaction,
+    ...mg.StopTransaction, ...mg.MeterValues, ...mg.Other,
+  ];
+}
 
 // ---- AUTH (§4.1) ----
 const authRules: ComplianceRule[] = [
@@ -71,11 +83,166 @@ const authRules: ComplianceRule[] = [
   },
 ];
 
+// ---- BOOT (§4.2) ----
+const INDETERMINATE_BOOT = (msg: string): { status: 'info'; details: string; affected: [] } => ({
+  status: 'info', details: `Indeterminate — ${msg}`, affected: [],
+});
+
+const bootRules: ComplianceRule[] = [
+  {
+    id: 'BOOT-001', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'BootNotification SHALL be sent after every boot/reboot',
+    auditLogic: 'Detect that the charge point registered with the CSMS via at least one BootNotification.',
+    severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const boots = ctx.messageGroups.BootNotification;
+      return boots.length > 0
+        ? { status: 'pass', details: `${boots.length} BootNotification(s) sent`, affected: [] }
+        : { status: 'fail', details: 'No BootNotification found — charge point did not register with the CSMS', affected: [] };
+    },
+  },
+  {
+    id: 'BOOT-002', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'CP SHALL NOT send any request before Accepted/Pending',
+    auditLogic: 'Flag any CP-initiated message timestamped before the first BootNotification (i.e. before registration/acceptance).',
+    severity: 'Critical', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const boots = ctx.messageGroups.BootNotification;
+      if (boots.length === 0) return { status: 'info', details: 'No BootNotification to anchor acceptance', affected: [] };
+      const firstBootTs = Math.min(...boots.map((b) => ms(b.timestamp)));
+      const offenders = allCpMessagesExceptBoot(ctx.messageGroups).filter((m) => ms(m.timestamp) < firstBootTs);
+      return offenders.length === 0
+        ? { status: 'pass', details: 'No CP messages precede the first BootNotification', affected: [] }
+        : { status: 'fail', details: `${offenders.length} CP message(s) sent before the first BootNotification`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'BOOT-003', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'Cached offline messages SHALL NOT bypass BootNotification',
+    auditLogic: 'Flag queued messages carrying an embedded timestamp older than the first BootNotification but appearing before it.',
+    severity: 'Critical', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const boots = ctx.messageGroups.BootNotification;
+      if (boots.length === 0) return { status: 'info', details: 'No BootNotification to compare against', affected: [] };
+      const firstBootTs = Math.min(...boots.map((b) => ms(b.timestamp)));
+      const queued = allCpMessagesExceptBoot(ctx.messageGroups).filter((m) => {
+        const p = payload<{ timestamp?: string }>(m);
+        return p.timestamp != null && ms(m.timestamp) < firstBootTs && ms(p.timestamp) < firstBootTs;
+      });
+      return queued.length === 0
+        ? { status: 'pass', details: 'No cached/offline messages delivered before BootNotification', affected: [] }
+        : { status: 'warn', details: `${queued.length} cached message(s) delivered before BootNotification`, affected: queued.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'BOOT-004', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'Rejected CP SHALL NOT send any OCPP message during retry interval',
+    auditLogic: 'For each Rejected BootNotification, verify CP silence for the returned interval.',
+    severity: 'Critical', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const boots = ctx.messageGroups.BootNotification;
+      const rejected = boots.filter((b) => resp<BootResp>(b)?.status === 'Rejected');
+      if (rejected.length === 0) return { status: 'info', details: 'No Rejected BootNotification to check', affected: [] };
+      const offenders: ParsedMessage[] = [];
+      const others = allCpMessagesExceptBoot(ctx.messageGroups);
+      for (const b of rejected) {
+        const interval = resp<BootResp>(b)?.interval ?? 0;
+        const start = ms(b.timestamp);
+        const end = start + interval * 1000;
+        for (const m of others) { const t = ms(m.timestamp); if (t >= start && t <= end) offenders.push(m); }
+      }
+      return offenders.length === 0
+        ? { status: 'pass', details: 'CP stayed silent during all rejection retry intervals', affected: [] }
+        : { status: 'fail', details: `${offenders.length} CP message(s) sent during a rejection retry interval`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'BOOT-005', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'Rejected CP SHALL NOT respond to CS initiated messages',
+    auditLogic: 'While in Rejected state, verify the CP issued no responses to CSMS-initiated messages.',
+    severity: 'Critical', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const boots = ctx.messageGroups.BootNotification;
+      const rejected = boots.filter((b) => resp<BootResp>(b)?.status === 'Rejected');
+      if (rejected.length === 0) return { status: 'info', details: 'No Rejected BootNotification to check', affected: [] };
+      // CP-issued responses appear as direction 'received' frames; flag any inside a rejection window.
+      const received = [...ctx.messageGroups.Other].filter((m) => m.direction === 'received');
+      const offenders: ParsedMessage[] = [];
+      for (const b of rejected) {
+        const interval = resp<BootResp>(b)?.interval ?? 0;
+        const start = ms(b.timestamp); const end = start + interval * 1000;
+        for (const m of received) { const t = ms(m.timestamp); if (t >= start && t <= end) offenders.push(m); }
+      }
+      return offenders.length === 0
+        ? { status: 'pass', details: 'No CP responses to CSMS messages during rejected state', affected: [] }
+        : { status: 'warn', details: `${offenders.length} CP response(s) during rejected state`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'BOOT-006', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'Pending CP SHALL NOT send requests unless TriggerMessage exists',
+    auditLogic: 'For a Pending BootNotification, verify CP silence unless a TriggerMessage was received.',
+    severity: 'Critical', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const boots = ctx.messageGroups.BootNotification;
+      const pending = boots.filter((b) => resp<BootResp>(b)?.status === 'Pending');
+      if (pending.length === 0) return { status: 'info', details: 'No Pending BootNotification to check', affected: [] };
+      const triggers = byAction(ctx.messageGroups, 'TriggerMessage');
+      if (triggers.length > 0) return { status: 'pass', details: 'TriggerMessage present — Pending-state requests are allowed', affected: [] };
+      const others = allCpMessagesExceptBoot(ctx.messageGroups);
+      const offenders: ParsedMessage[] = [];
+      for (const b of pending) {
+        const start = ms(b.timestamp);
+        // until the next boot (re-registration) or end of log
+        const nextBoot = boots.map((x) => ms(x.timestamp)).filter((t) => t > start).sort((a, c) => a - c)[0] ?? Infinity;
+        for (const m of others) { const t = ms(m.timestamp); if (t >= start && t < nextBoot) offenders.push(m); }
+      }
+      return offenders.length === 0
+        ? { status: 'pass', details: 'No CP requests during Pending state', affected: [] }
+        : { status: 'warn', details: `${offenders.length} CP request(s) during Pending state with no TriggerMessage`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'BOOT-007', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'RemoteStartTransaction SHALL NOT occur during Pending',
+    auditLogic: 'CSMS-side behavior; not fully witnessed in a CP-only log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => INDETERMINATE_BOOT('RemoteStartTransaction is a CSMS-initiated message and may not be fully witnessed in the CP log'),
+  },
+  {
+    id: 'BOOT-008', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'RemoteStopTransaction SHALL NOT occur during Pending',
+    auditLogic: 'CSMS-side behavior; not fully witnessed in a CP-only log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => INDETERMINATE_BOOT('RemoteStopTransaction is a CSMS-initiated message and may not be fully witnessed in the CP log'),
+  },
+  {
+    id: 'BOOT-009', specRef: '4.2', targetMessage: 'BootNotification',
+    invariant: 'BootNotification retries SHALL respect retry interval',
+    auditLogic: 'Verify the gap between consecutive BootNotifications is not materially shorter than the prior interval.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const boots = [...ctx.messageGroups.BootNotification].sort((a, b) => ms(a.timestamp) - ms(b.timestamp));
+      if (boots.length < 2) return { status: 'info', details: 'Fewer than two BootNotifications — no retry timing to check', affected: [] };
+      const offenders: ParsedMessage[] = [];
+      for (let i = 1; i < boots.length; i++) {
+        const interval = resp<BootResp>(boots[i - 1])?.interval ?? 0;
+        const gapSec = (ms(boots[i].timestamp) - ms(boots[i - 1].timestamp)) / 1000;
+        if (interval > 0 && gapSec < interval * 0.5) offenders.push(boots[i]);
+      }
+      return offenders.length === 0
+        ? { status: 'pass', details: 'BootNotification retries respect the returned interval', affected: [] }
+        : { status: 'warn', details: `${offenders.length} BootNotification retry(ies) shorter than the prior interval`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
   groups: [
     { messageType: 'Authorize', prefix: 'AUTH', icon: '🔑', rules: authRules },
-    // subsequent groups appended by Tasks 5–11
+    { messageType: 'BootNotification', prefix: 'BOOT', icon: '🔌', rules: bootRules },
+    // subsequent groups appended by Tasks 6–11
   ],
 };
