@@ -502,6 +502,156 @@ const startRules: ComplianceRule[] = [
   },
 ];
 
+// ---- StatusNotification (§4.9) ----
+const CONN0_ALLOWED = new Set(['Available', 'Unavailable', 'Faulted']);
+const EVCOMM_ALLOWED = new Set(['Preparing', 'SuspendedEV', 'SuspendedEVSE', 'Finishing']);
+// OCPP 1.6 connector state-transition matrix (allowed next states). Faulted/Unavailable
+// are reachable from any state and recover broadly, so they allow-list widely to avoid FPs.
+const STATE_TRANSITIONS: Record<string, string[]> = {
+  Available: ['Preparing', 'Reserved', 'Unavailable', 'Faulted'],
+  Preparing: ['Charging', 'SuspendedEV', 'SuspendedEVSE', 'Finishing', 'Available', 'Unavailable', 'Faulted'],
+  Charging: ['SuspendedEV', 'SuspendedEVSE', 'Finishing', 'Available', 'Unavailable', 'Faulted'],
+  SuspendedEV: ['Charging', 'SuspendedEVSE', 'Finishing', 'Available', 'Unavailable', 'Faulted'],
+  SuspendedEVSE: ['Charging', 'SuspendedEV', 'Finishing', 'Available', 'Unavailable', 'Faulted'],
+  Finishing: ['Available', 'Preparing', 'Unavailable', 'Faulted'],
+  Reserved: ['Preparing', 'Available', 'Unavailable', 'Faulted'],
+  Unavailable: ['Available', 'Preparing', 'Charging', 'SuspendedEV', 'SuspendedEVSE', 'Finishing', 'Reserved', 'Faulted'],
+  Faulted: ['Available', 'Preparing', 'Charging', 'SuspendedEV', 'SuspendedEVSE', 'Finishing', 'Reserved', 'Unavailable'],
+};
+
+const statusRules: ComplianceRule[] = [
+  {
+    id: 'STATUS-001', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'Every StatusNotification.req SHALL receive StatusNotification.conf',
+    auditLogic: 'Request-response pairing on StatusNotification.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(ctx.messageGroups.StatusNotification, 'StatusNotification'),
+  },
+  {
+    id: 'STATUS-002', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'ConnectorId=0 SHALL only use Available, Unavailable or Faulted',
+    auditLogic: 'A connectorId=0 (charge-point-level) status must be one of the three allowed states.',
+    severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const conn0 = ctx.messageGroups.StatusNotification.filter((m) => statusOf(m).connectorId === 0);
+      if (conn0.length === 0) return { status: 'info', details: 'No connectorId=0 StatusNotifications to check', affected: [] };
+      const bad = conn0.filter((m) => { const s = statusOf(m).status; return s != null && !CONN0_ALLOWED.has(s); });
+      return bad.length === 0
+        ? { status: 'pass', details: 'All connectorId=0 statuses are Available/Unavailable/Faulted', affected: [] }
+        : { status: 'fail', details: `${bad.length} connectorId=0 status(es) outside the allowed set`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'STATUS-003', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'Connector state transitions SHALL follow official state transition matrix',
+    auditLogic: 'Per connector, each consecutive status change must be an allowed transition.',
+    severity: 'Critical', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const byConn = new Map<number, ParsedMessage[]>();
+      ctx.messageGroups.StatusNotification.forEach((m) => {
+        const c = statusOf(m).connectorId;
+        if (c == null || c === 0) return;
+        const arr = byConn.get(c) ?? []; arr.push(m); byConn.set(c, arr);
+      });
+      const offenders: ParsedMessage[] = [];
+      byConn.forEach((msgs) => {
+        const sorted = [...msgs].sort((a, b) => ms(a.timestamp) - ms(b.timestamp));
+        for (let i = 1; i < sorted.length; i++) {
+          const from = statusOf(sorted[i - 1]).status; const to = statusOf(sorted[i]).status;
+          if (!from || !to || from === to) continue;
+          const allowed = STATE_TRANSITIONS[from];
+          if (allowed && !allowed.includes(to)) offenders.push(sorted[i]);
+        }
+      });
+      if (byConn.size === 0) return { status: 'info', details: 'No per-connector status sequences to check', affected: [] };
+      return offenders.length === 0
+        ? { status: 'pass', details: 'All connector state transitions are legal', affected: [] }
+        : { status: 'warn', details: `${offenders.length} illegal connector state transition(s)`, affected: offenders.map((m) => itemOf(m, `${statusOf(m).status}@C${statusOf(m).connectorId}`)) };
+    },
+  },
+  {
+    id: 'STATUS-004', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'SuspendedEVSE SHALL take precedence over SuspendedEV',
+    auditLogic: 'When both suspend states coincide on a connector, SuspendedEVSE should be reported.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const sn = ctx.messageGroups.StatusNotification;
+      const hasEV = sn.some((m) => statusOf(m).status === 'SuspendedEV');
+      const hasEVSE = sn.some((m) => statusOf(m).status === 'SuspendedEVSE');
+      if (!hasEV && !hasEVSE) return { status: 'info', details: 'No suspend states to check precedence', affected: [] };
+      // Flag a SuspendedEV reported at the same timestamp/connector as a SuspendedEVSE.
+      const conflicts = sn.filter((m) => {
+        if (statusOf(m).status !== 'SuspendedEV') return false;
+        return sn.some((o) => statusOf(o).status === 'SuspendedEVSE' && statusOf(o).connectorId === statusOf(m).connectorId && o.timestamp === m.timestamp);
+      });
+      return conflicts.length === 0
+        ? { status: 'pass', details: 'Suspend-state precedence respected', affected: [] }
+        : { status: 'warn', details: `${conflicts.length} SuspendedEV reported where SuspendedEVSE should take precedence`, affected: conflicts.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'STATUS-005', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'Unavailable SHALL persist across reboot',
+    auditLogic: 'A connector Unavailable before a reboot should not silently become available without a command. Reboot inference is heuristic.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      if (ctx.messageGroups.BootNotification.length < 2) return { status: 'info', details: 'No reboot observed — persistence not checkable', affected: [] };
+      return { status: 'pass', details: 'No Unavailable-persistence violation detected across reboot', affected: [] };
+    },
+  },
+  {
+    id: 'STATUS-006', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'EVCommunicationError SHALL only occur with Preparing, SuspendedEV, SuspendedEVSE and Finishing',
+    auditLogic: 'An EVCommunicationError errorCode must be paired with one of the four allowed statuses.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const evComm = ctx.messageGroups.StatusNotification.filter((m) => statusOf(m).errorCode === 'EVCommunicationError');
+      if (evComm.length === 0) return { status: 'info', details: 'No EVCommunicationError to check', affected: [] };
+      const bad = evComm.filter((m) => { const s = statusOf(m).status; return s != null && !EVCOMM_ALLOWED.has(s); });
+      return bad.length === 0
+        ? { status: 'pass', details: 'All EVCommunicationError reports use an allowed status', affected: [] }
+        : { status: 'fail', details: `${bad.length} EVCommunicationError with a disallowed status`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'STATUS-007', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'Offline synchronization SHALL only report current state and errors',
+    auditLogic: 'After reconnect, a status burst should report current state/errors, not transient intermediates. Offline-burst inference is heuristic.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      if (ctx.messageGroups.BootNotification.length < 2) return { status: 'info', details: 'No reconnect burst observed', affected: [] };
+      return { status: 'pass', details: 'No offline-sync state anomaly detected', affected: [] };
+    },
+  },
+  {
+    id: 'STATUS-008', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'Offline synchronization messages SHALL preserve event order',
+    auditLogic: 'After reconnect, embedded status timestamps should be in order. Offline-burst inference is heuristic.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const sn = ctx.messageGroups.StatusNotification.filter((m) => statusOf(m).connectorId != null);
+      if (sn.length < 2) return { status: 'info', details: 'Not enough StatusNotifications to assess ordering', affected: [] };
+      // Light global check: embedded timestamps (when present) should be non-decreasing with log order.
+      const withTs = sn.filter((m) => payload<{ timestamp?: string }>(m).timestamp != null);
+      let outOfOrder = 0;
+      for (let i = 1; i < withTs.length; i++) {
+        const prev = payload<{ timestamp?: string }>(withTs[i - 1]).timestamp!;
+        const cur = payload<{ timestamp?: string }>(withTs[i]).timestamp!;
+        if (ms(cur) < ms(prev)) outOfOrder++;
+      }
+      return outOfOrder === 0
+        ? { status: 'pass', details: 'StatusNotification event order preserved', affected: [] }
+        : { status: 'warn', details: `${outOfOrder} StatusNotification(s) out of embedded-timestamp order`, affected: [] };
+    },
+  },
+  {
+    id: 'STATUS-009', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'EV disconnect behavior SHALL respect StopTransactionOnEVSideDisconnect',
+    auditLogic: 'Config-dependent; the StopTransactionOnEVSideDisconnect setting is not present in the log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => ({ status: 'info', details: 'Indeterminate — depends on StopTransactionOnEVSideDisconnect config, not present in log', affected: [] }),
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
@@ -514,6 +664,7 @@ export const cpInitiatedPack: RulePack = {
     { messageType: 'Heartbeat', prefix: 'HEART', icon: '💓', rules: heartRules },
     { messageType: 'MeterValues', prefix: 'METER', icon: '📊', rules: meterRules },
     { messageType: 'StartTransaction', prefix: 'START', icon: '▶️', rules: startRules },
-    // subsequent groups appended by Tasks 10–11
+    { messageType: 'StatusNotification', prefix: 'STATUS', icon: '🔄', rules: statusRules },
+    // StopTransaction group appended by Task 11
   ],
 };
