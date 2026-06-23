@@ -237,12 +237,112 @@ const bootRules: ComplianceRule[] = [
   },
 ];
 
+// ---- DataTransfer (§4.3) ----
+const dtRules: ComplianceRule[] = [
+  {
+    id: 'DT-001', specRef: '4.3', targetMessage: 'DataTransfer',
+    invariant: 'Every DataTransfer.req SHALL receive DataTransfer.conf',
+    auditLogic: 'Request-response pairing on DataTransfer.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(byAction(ctx.messageGroups, 'DataTransfer'), 'DataTransfer'),
+  },
+  {
+    id: 'DT-002', specRef: '4.3', targetMessage: 'DataTransfer',
+    invariant: 'UnknownVendor SHALL NOT contain data field',
+    auditLogic: 'A DataTransfer.conf with status UnknownVendorId must not carry a data field.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const dts = byAction(ctx.messageGroups, 'DataTransfer').filter(hasResp);
+      if (dts.length === 0) return { status: 'info', details: 'No answered DataTransfer to check', affected: [] };
+      const bad = dts.filter((m) => {
+        const r = resp<{ status?: string; data?: unknown }>(m);
+        return r?.status === 'UnknownVendorId' && r.data !== undefined && r.data !== null;
+      });
+      return bad.length === 0
+        ? { status: 'pass', details: 'No UnknownVendorId response carries a data field', affected: [] }
+        : { status: 'fail', details: `${bad.length} UnknownVendorId DataTransfer.conf carried a data field`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'DT-003', specRef: '4.3', targetMessage: 'DataTransfer',
+    invariant: 'Unsupported messageId SHALL return UnknownMessageId',
+    auditLogic: 'A DataTransfer to an unsupported messageId should be answered with status UnknownMessageId.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const dts = byAction(ctx.messageGroups, 'DataTransfer').filter(hasResp);
+      if (dts.length === 0) return { status: 'info', details: 'No answered DataTransfer to check', affected: [] };
+      // Heuristic-light: flag responses that rejected the messageId without the canonical status.
+      const bad = dts.filter((m) => {
+        const r = resp<{ status?: string }>(m);
+        return r?.status === 'Rejected'; // a plain Rejected where UnknownMessageId was expected
+      });
+      return bad.length === 0
+        ? { status: 'pass', details: 'No mis-coded unsupported-messageId responses', affected: [] }
+        : { status: 'warn', details: `${bad.length} DataTransfer rejected without UnknownMessageId status`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
+// ---- DiagnosticsStatusNotification (§4.4) ----
+const diagRules: ComplianceRule[] = [
+  {
+    id: 'DIAG-001', specRef: '4.4', targetMessage: 'DiagnosticsStatusNotification',
+    invariant: 'Every request SHALL receive DiagnosticsStatusNotification.conf',
+    auditLogic: 'Request-response pairing on DiagnosticsStatusNotification.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(byAction(ctx.messageGroups, 'DiagnosticsStatusNotification'), 'DiagnosticsStatusNotification'),
+  },
+  {
+    id: 'DIAG-002', specRef: '4.4', targetMessage: 'DiagnosticsStatusNotification',
+    invariant: 'Idle SHALL only occur after TriggerMessage when not uploading',
+    auditLogic: 'An Idle status with no prior upload activity and no TriggerMessage is unexpected.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const diags = byAction(ctx.messageGroups, 'DiagnosticsStatusNotification');
+      if (diags.length === 0) return { status: 'info', details: 'No DiagnosticsStatusNotification to check', affected: [] };
+      const hasUpload = diags.some((m) => { const s = payload<{ status?: string }>(m).status; return s === 'Uploading' || s === 'Uploaded' || s === 'UploadFailed'; });
+      const hasTrigger = byAction(ctx.messageGroups, 'TriggerMessage').length > 0;
+      const orphanIdle = diags.filter((m) => payload<{ status?: string }>(m).status === 'Idle');
+      return (orphanIdle.length === 0 || hasUpload || hasTrigger)
+        ? { status: 'pass', details: 'Idle diagnostics statuses are consistent with upload/trigger context', affected: [] }
+        : { status: 'warn', details: `${orphanIdle.length} Idle diagnostics status(es) with no upload activity or TriggerMessage`, affected: orphanIdle.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
+// ---- FirmwareStatusNotification (§4.5) ----
+const fwRules: ComplianceRule[] = [
+  {
+    id: 'FW-001', specRef: '4.5', targetMessage: 'FirmwareStatusNotification',
+    invariant: 'Every request SHALL receive FirmwareStatusNotification.conf',
+    auditLogic: 'Request-response pairing on FirmwareStatusNotification.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(byAction(ctx.messageGroups, 'FirmwareStatusNotification'), 'FirmwareStatusNotification'),
+  },
+  {
+    id: 'FW-002', specRef: '4.5', targetMessage: 'FirmwareStatusNotification',
+    invariant: 'Idle SHALL only occur after TriggerMessage when not downloading/installing firmware',
+    auditLogic: 'An Idle status with no prior download/install activity and no TriggerMessage is unexpected.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const fws = byAction(ctx.messageGroups, 'FirmwareStatusNotification');
+      if (fws.length === 0) return { status: 'info', details: 'No FirmwareStatusNotification to check', affected: [] };
+      const active = fws.some((m) => { const s = payload<{ status?: string }>(m).status; return s != null && s !== 'Idle'; });
+      const hasTrigger = byAction(ctx.messageGroups, 'TriggerMessage').length > 0;
+      const orphanIdle = fws.filter((m) => payload<{ status?: string }>(m).status === 'Idle');
+      return (orphanIdle.length === 0 || active || hasTrigger)
+        ? { status: 'pass', details: 'Idle firmware statuses are consistent with download/install/trigger context', affected: [] }
+        : { status: 'warn', details: `${orphanIdle.length} Idle firmware status(es) with no download/install activity or TriggerMessage`, affected: orphanIdle.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
   groups: [
     { messageType: 'Authorize', prefix: 'AUTH', icon: '🔑', rules: authRules },
     { messageType: 'BootNotification', prefix: 'BOOT', icon: '🔌', rules: bootRules },
-    // subsequent groups appended by Tasks 6–11
+    { messageType: 'DataTransfer', prefix: 'DT', icon: '🔁', rules: dtRules },
+    { messageType: 'DiagnosticsStatusNotification', prefix: 'DIAG', icon: '🛠️', rules: diagRules },
+    { messageType: 'FirmwareStatusNotification', prefix: 'FW', icon: '⬆️', rules: fwRules },
+    // subsequent groups appended by Tasks 7–11
   ],
 };
