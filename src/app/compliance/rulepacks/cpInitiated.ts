@@ -652,6 +652,85 @@ const statusRules: ComplianceRule[] = [
   },
 ];
 
+// ---- StopTransaction (§4.10) ----
+const INDETERMINATE_CONFIG = (which: string): { status: 'info'; details: string; affected: [] } => ({
+  status: 'info', details: `Indeterminate — depends on ${which} config, not present in log`, affected: [],
+});
+
+const stopRules: ComplianceRule[] = [
+  {
+    id: 'STOP-001', specRef: '4.10', targetMessage: 'StopTransaction',
+    invariant: 'Every StopTransaction.req SHALL receive StopTransaction.conf',
+    auditLogic: 'Request-response pairing on StopTransaction.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(ctx.messageGroups.StopTransaction, 'StopTransaction'),
+  },
+  {
+    id: 'STOP-002', specRef: '4.10', targetMessage: 'StopTransaction',
+    invariant: 'transactionId SHALL belong to active transaction',
+    auditLogic: 'Each StopTransaction.transactionId must map to a known transaction; transactionId=0 cannot be matched by the CMS.',
+    severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const stops = ctx.messageGroups.StopTransaction;
+      if (stops.length === 0) return { status: 'info', details: 'No StopTransactions to check', affected: [] };
+      const known = knownTxIds(ctx);
+      const zero = stops.filter((m) => payload<{ transactionId?: number }>(m).transactionId === 0);
+      const unknown = stops.filter((m) => { const t = payload<{ transactionId?: number }>(m).transactionId; return t != null && t !== 0 && !known.has(t); });
+      if (unknown.length > 0)
+        return { status: 'fail', details: `${unknown.length} StopTransaction(s) reference an unknown transactionId`, affected: unknown.map((m) => itemOf(m, msgId(m))) };
+      if (zero.length > 0)
+        return { status: 'warn', details: `${zero.length} StopTransaction(s) sent with transactionId=0 — CMS cannot match the session`, affected: zero.map((m) => itemOf(m, msgId(m))) };
+      return { status: 'pass', details: 'All StopTransactions reference a known transaction', affected: [] };
+    },
+  },
+  {
+    id: 'STOP-003', specRef: '4.10', targetMessage: 'StopTransaction',
+    invariant: 'meterStop SHALL be greater than or equal to meterStart',
+    auditLogic: 'For each transaction, the StopTransaction meterStop must be ≥ the StartTransaction meterStart.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const startMeterByTx = new Map<number, number>();
+      ctx.messageGroups.StartTransaction.forEach((m) => {
+        const tid = resp<{ transactionId?: number }>(m)?.transactionId;
+        const meterStart = payload<{ meterStart?: number }>(m).meterStart;
+        if (tid != null && typeof meterStart === 'number') startMeterByTx.set(tid, meterStart);
+      });
+      const stops = ctx.messageGroups.StopTransaction.filter((m) => {
+        const p = payload<{ transactionId?: number; meterStop?: number }>(m);
+        return p.transactionId != null && typeof p.meterStop === 'number' && startMeterByTx.has(p.transactionId);
+      });
+      if (stops.length === 0) return { status: 'info', details: 'No matched start/stop meters to check', affected: [] };
+      const bad = stops.filter((m) => {
+        const p = payload<{ transactionId?: number; meterStop?: number }>(m);
+        return (p.meterStop as number) < (startMeterByTx.get(p.transactionId as number) as number);
+      });
+      return bad.length === 0
+        ? { status: 'pass', details: 'All meterStop values are ≥ their meterStart', affected: [] }
+        : { status: 'fail', details: `${bad.length} StopTransaction(s) with meterStop < meterStart`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'STOP-004', specRef: '4.10', targetMessage: 'StopTransaction',
+    invariant: 'StopTransactionOnEVSideDisconnect=true SHALL stop transaction',
+    auditLogic: 'Config-dependent behavior; the setting is not present in the log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => INDETERMINATE_CONFIG('StopTransactionOnEVSideDisconnect'),
+  },
+  {
+    id: 'STOP-005', specRef: '4.10', targetMessage: 'StopTransaction',
+    invariant: 'StopTransactionOnEVSideDisconnect=false SHALL NOT stop transaction',
+    auditLogic: 'Config-dependent behavior; the setting is not present in the log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => INDETERMINATE_CONFIG('StopTransactionOnEVSideDisconnect'),
+  },
+  {
+    id: 'STOP-006', specRef: '4.10', targetMessage: 'StopTransaction',
+    invariant: 'StopTransactionOnEVSideDisconnect=false SHALL take precedence over UnlockConnectorOnEVSideDisconnect',
+    auditLogic: 'Config-dependent behavior; both settings are absent from the log.',
+    severity: 'Major', tier: 'indeterminate',
+    evaluate: () => INDETERMINATE_CONFIG('StopTransactionOnEVSideDisconnect / UnlockConnectorOnEVSideDisconnect'),
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
@@ -665,6 +744,6 @@ export const cpInitiatedPack: RulePack = {
     { messageType: 'MeterValues', prefix: 'METER', icon: '📊', rules: meterRules },
     { messageType: 'StartTransaction', prefix: 'START', icon: '▶️', rules: startRules },
     { messageType: 'StatusNotification', prefix: 'STATUS', icon: '🔄', rules: statusRules },
-    // StopTransaction group appended by Task 11
+    { messageType: 'StopTransaction', prefix: 'STOP', icon: '⏹️', rules: stopRules },
   ],
 };
