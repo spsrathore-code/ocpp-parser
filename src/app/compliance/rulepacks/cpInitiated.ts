@@ -365,6 +365,97 @@ const heartRules: ComplianceRule[] = [
   },
 ];
 
+// ---- MeterValues (§4.7) ----
+interface MvEntry { timestamp?: string; }
+interface MvPayload { connectorId?: number; transactionId?: number; meterValue?: MvEntry[]; }
+
+/** Set of known transaction ids (from processed transactions + StartTransaction.conf). */
+function knownTxIds(ctx: { transactions: { id: number }[]; messageGroups: MessageGroups }): Set<number> {
+  const ids = new Set<number>(ctx.transactions.map((t) => t.id));
+  ctx.messageGroups.StartTransaction.forEach((m) => { const tid = resp<{ transactionId?: number }>(m)?.transactionId; if (tid != null) ids.add(tid); });
+  return ids;
+}
+
+const meterRules: ComplianceRule[] = [
+  {
+    id: 'METER-001', specRef: '4.7', targetMessage: 'MeterValues',
+    invariant: 'Every MeterValues.req SHALL receive MeterValues.conf',
+    auditLogic: 'Request-response pairing on MeterValues.', severity: 'Critical', tier: 'deterministic',
+    evaluate: (ctx) => pairingResult(ctx.messageGroups.MeterValues, 'MeterValues'),
+  },
+  {
+    id: 'METER-002', specRef: '4.7', targetMessage: 'MeterValues',
+    invariant: 'transactionId SHALL belong to active transaction if present',
+    auditLogic: 'Any MeterValues.transactionId must map to a known transaction.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const mvs = ctx.messageGroups.MeterValues;
+      const withTx = mvs.filter((m) => payload<MvPayload>(m).transactionId != null);
+      if (withTx.length === 0) return { status: 'info', details: 'No transaction-scoped MeterValues to check', affected: [] };
+      const known = knownTxIds(ctx);
+      const orphan = withTx.filter((m) => !known.has(payload<MvPayload>(m).transactionId as number));
+      return orphan.length === 0
+        ? { status: 'pass', details: 'All MeterValues reference a known transaction', affected: [] }
+        : { status: 'fail', details: `${orphan.length} MeterValues reference an unknown transactionId`, affected: orphan.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'METER-003', specRef: '4.7', targetMessage: 'MeterValues',
+    invariant: 'MeterValues timestamps SHALL be chronological',
+    auditLogic: 'Per transaction, sampled meterValue timestamps must be non-decreasing in log order.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const byTx = new Map<number, number[]>();
+      ctx.messageGroups.MeterValues.forEach((m) => {
+        const p = payload<MvPayload>(m);
+        if (p.transactionId == null || !p.meterValue) return;
+        const arr = byTx.get(p.transactionId) ?? [];
+        p.meterValue.forEach((e) => { if (e.timestamp) arr.push(ms(e.timestamp)); });
+        byTx.set(p.transactionId, arr);
+      });
+      const offendingTx: number[] = [];
+      byTx.forEach((times, tx) => { for (let i = 1; i < times.length; i++) if (times[i] < times[i - 1]) { offendingTx.push(tx); break; } });
+      if (byTx.size === 0) return { status: 'info', details: 'No transaction-scoped MeterValues to check', affected: [] };
+      return offendingTx.length === 0
+        ? { status: 'pass', details: 'MeterValues timestamps are chronological', affected: [] }
+        : { status: 'warn', details: `${offendingTx.length} transaction(s) have out-of-order MeterValues timestamps`, affected: offendingTx.map((t) => ({ label: `TX ${t}` })) };
+    },
+  },
+  {
+    id: 'METER-004', specRef: '4.7', targetMessage: 'MeterValues',
+    invariant: 'connectorId=0 energy measurements SHALL represent Charge Point level meter',
+    auditLogic: 'A connectorId=0 MeterValues should be CP-level (not transaction-scoped).',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const conn0 = ctx.messageGroups.MeterValues.filter((m) => payload<MvPayload>(m).connectorId === 0);
+      if (conn0.length === 0) return { status: 'info', details: 'No connectorId=0 MeterValues to check', affected: [] };
+      const bad = conn0.filter((m) => payload<MvPayload>(m).transactionId != null);
+      return bad.length === 0
+        ? { status: 'pass', details: 'All connectorId=0 MeterValues are Charge Point level', affected: [] }
+        : { status: 'warn', details: `${bad.length} connectorId=0 MeterValues carry a transactionId (not CP-level)`, affected: bad.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+  {
+    id: 'METER-005', specRef: '4.7', targetMessage: 'MeterValues',
+    invariant: 'MeterValues SHALL NOT appear after transaction closure',
+    auditLogic: 'A transaction-scoped MeterValues timestamped after that transaction’s StopTransaction is unexpected.',
+    severity: 'Major', tier: 'deterministic',
+    evaluate: (ctx) => {
+      const stopByTx = new Map<number, number>();
+      ctx.transactions.forEach((t) => { if (t.stopTime) stopByTx.set(t.id, ms(t.stopTime)); });
+      if (stopByTx.size === 0) return { status: 'info', details: 'No closed transactions to check', affected: [] };
+      const offenders = ctx.messageGroups.MeterValues.filter((m) => {
+        const p = payload<MvPayload>(m);
+        const stop = p.transactionId != null ? stopByTx.get(p.transactionId) : undefined;
+        return stop != null && ms(m.timestamp) > stop;
+      });
+      return offenders.length === 0
+        ? { status: 'pass', details: 'No MeterValues after transaction closure', affected: [] }
+        : { status: 'warn', details: `${offenders.length} MeterValues appeared after the transaction was stopped`, affected: offenders.map((m) => itemOf(m, msgId(m))) };
+    },
+  },
+];
+
 export const cpInitiatedPack: RulePack = {
   packId: 'ocpp-1.6j-section-4',
   packName: 'CP-Initiated Operations (§4)',
@@ -375,6 +466,7 @@ export const cpInitiatedPack: RulePack = {
     { messageType: 'DiagnosticsStatusNotification', prefix: 'DIAG', icon: '🛠️', rules: diagRules },
     { messageType: 'FirmwareStatusNotification', prefix: 'FW', icon: '⬆️', rules: fwRules },
     { messageType: 'Heartbeat', prefix: 'HEART', icon: '💓', rules: heartRules },
-    // subsequent groups appended by Tasks 8–11
+    { messageType: 'MeterValues', prefix: 'METER', icon: '📊', rules: meterRules },
+    // subsequent groups appended by Tasks 9–11
   ],
 };
