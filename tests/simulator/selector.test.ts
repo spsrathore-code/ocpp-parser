@@ -20,4 +20,13 @@ describe('renderSelector', () => {
     msgSel.dispatchEvent(new Event('change'));
     expect(onSelect).toHaveBeenCalledWith('Authorize');
   });
+
+  it('shows a lesson blurb when a profile is chosen', () => {
+    const mount = document.createElement('div');
+    renderSelector(mount, buildCatalog(), vi.fn());
+    const profileSel = mount.querySelector<HTMLSelectElement>('[data-role="profile"]')!;
+    profileSel.value = 'Smart Charging';
+    profileSel.dispatchEvent(new Event('change'));
+    expect(mount.querySelector('[data-role="profile-blurb"]')!.textContent).toMatch(/charging profiles/i);
+  });
 });

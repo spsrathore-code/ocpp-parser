@@ -27,4 +27,9 @@ describe('buildCatalog', () => {
     const boot = getMessage('BootNotification')!;
     expect(boot.response.map(f => f.name).sort()).toEqual(['currentTime', 'interval', 'status']);
   });
+
+  it('applies the training defaults overlay (Authorize.idTag)', () => {
+    const authorize = getMessage('Authorize')!;
+    expect(authorize.request.find(f => f.name === 'idTag')!.default).toBe('ABC12345');
+  });
 });
