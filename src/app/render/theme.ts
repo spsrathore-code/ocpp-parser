@@ -15,11 +15,23 @@ function isDarkPreferred(): boolean {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
 }
 
-/** Apply the persisted/preferred theme and wire the #theme-toggle-btn click. */
+/**
+ * Apply the persisted/preferred theme and wire theme-toggle controls.
+ *
+ * Uses one delegated document-level listener so ANY toggle control works
+ * regardless of when it mounts — the global nav-bar button (`[data-theme-toggle]`)
+ * and a view's own button (`#theme-toggle-btn`) both toggle the theme. This is
+ * important now that views mount lazily inside the nav shell.
+ */
+let toggleWired = false;
+
 export function initTheme(): void {
   apply(isDarkPreferred());
-  const btn = document.getElementById('theme-toggle-btn');
-  btn?.addEventListener('click', () => {
+  if (toggleWired) return; // idempotent — attach the delegated listener exactly once
+  toggleWired = true;
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (!target?.closest('#theme-toggle-btn, [data-theme-toggle]')) return;
     const nowDark = !document.documentElement.classList.contains('dark');
     apply(nowDark);
     localStorage.setItem(KEY, nowDark ? 'dark' : 'light');

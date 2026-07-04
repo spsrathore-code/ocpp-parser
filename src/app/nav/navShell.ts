@@ -14,6 +14,7 @@ export function renderNavShell(root: HTMLElement, groups: NavGroup[] = NAV_GROUP
       <div class="max-w-6xl mx-auto px-4 flex items-center gap-4">
         <span class="font-bold py-3 text-gray-800 dark:text-gray-100">OCPP Suite</span>
         <div data-role="tier1" class="flex gap-1"></div>
+        <button data-theme-toggle title="Toggle light / dark" class="ml-auto text-sm bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-1.5 px-3 rounded-md">🌓 Theme</button>
       </div>
       <div data-role="tier2" class="max-w-6xl mx-auto px-4 flex gap-1"></div>
     </div>
