@@ -3,9 +3,11 @@
 > Living list of granular work. **Suite-level status is in `specs/roadmap.md`** (the
 > dashboard); this file is the finer-grained active task list. Done items also flow
 > to `knowledge/project-journal.md` and (for shipped parser changes) `CHANGELOG.md`.
-> **Last updated:** 2026-06-23
+> **Last updated:** 2026-07-05
 
 ## Open / next (pick up here)
+
+- [ ] **OCPP Simulator — finish the branch** (`feat/ocpp-simulator`): Review/QA, then merge to `feat/parser-revamp` (or PR). Build complete (Phases 0–6 + post-browser-test UI fixes), 370 tests green.
 
 - [ ] **Cross-file message-ID collision** (bug, found 2026-06-23): `correlateMessages` keys ids globally but OCPP ids are per-connection — two logs reusing `1,2,3…` mis-pair and drop a transaction (repro 2→1). Produces wrong/partial results (not blank). Needs its own systematic-debugging pass (correlate per-file before merge).
 - [ ] **Phase 6 validation engine** — `/review`+`/cso`+`/qa` still pending.
@@ -13,6 +15,7 @@
 
 ## Done
 
+- [x] **OCPP Simulator — suite integration** (2026-07-03/04, branch `feat/ocpp-simulator`) — the reference HTML's OCPP Simulator (Tab 1) rebuilt as TS+Vite modules (`src/simulator/`), consuming the Validation Engine + Parser directly. **Phase 0** scaffold · **1** schema-driven 28-message catalog (from `typed-ocpp` `OCPP16.schemas`) + Profile/Direction selector + schema forms · **2** Simulator-Only + engine validation · **3** CP-Mode WebSocket (send/listen/heartbeat via `ExchangeTracker`) · **4** session→Parser handoff (round-trip verified) · **5** training defaults + per-profile blurbs · **6** **unified into ONE tool** (two-tier nav shell `Parser·Emulator·CMS` in `src/app/nav/`; `simulator.html` removed; future views reserved as disabled placeholders). **Post-browser-test UI fixes:** dark-mode control colors, **original two-column layout restored** (Description + Message Format + payload cards + Log) with per-message Descriptions, **global 🌓 theme toggle** in nav bar. **370 tests**, `tsc`+build clean. Requirements `specs/ocpp-simulator/requirements.md` (R1–R9) · design `docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md` · plan `docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md` · decision `knowledge/decisions/2026-07-04-unified-nav-shell.md`. **Not merged; Review/QA/Ship pending.**
 - [x] **🐞 Large/multi-file upload crash — FIXED** (2026-06-23, `6b22e00`) — big/multi-file logs showed no results: unbounded-array spread (`push(...lines)`, `Math.max(...validLatencies)`) overflowed V8's arg cap on `MH0135` (315k lines/130k pings); catch-less `try/finally` hid it. Fixed with loop-based `concatChunks`/`appendAll`/`maxOf`/`minOf` across the large-log path + `main.ts` error `catch`. +3 tests (325).
 - [x] **§4 CP-Initiated Operations Compliance** (2026-06-23) — pluggable compliance rule-pack framework (`src/app/compliance/`) + full OCPP 1.6J §4 pack (46 rules, tier-tagged 🟢/🟡/🔴, severity-weighted score). Sibling section after Protocol Compliance (no `protocolCompliance.ts` edit). +49 tests. Spec + plan dated 2026-06-23. **/review ✅ + /qa ✅** (BOOT-002 fail→warn; AUTH-003→indeterminate). 325 tests total, `tsc`+build clean.
 - [x] SSOT consolidation (`requirements.md`), repo standardisation, OCPP schema strategy (§19.7), Validation Engine spec (`docs/TYPEVALIDATION.md`).

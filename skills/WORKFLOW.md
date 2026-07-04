@@ -30,9 +30,10 @@ handoff. Branch `feat/ocpp-simulator`.
 - [x] **Phase 3** CP Mode transport (WebSocket send/listen/heartbeat via `ExchangeTracker`).
 - [x] **Phase 4** Session → Parser handoff (round-trip verified).
 - [x] **Phase 5** Training niceties (defaults overlay + per-profile blurbs).
-- [ ] **Phase 6 (2026-07-04)** **Unify into one tool** — user clarified it must be ONE tool, not a separate `simulator.html` page. Decision (via /design-consultation): **two-tier nav shell** (`Parser · Emulator · CMS`, grouped by function) in `src/app/nav/`, reserving homes for future Transaction Flow / CMS Log Parser / CMS views. Remove `simulator.html`; revert Vite to single-entry; per-view state persists (CP-Mode WebSocket survives). Design §4.1 · requirements R9.
-- [ ] Then Review/QA/Ship.
-- **State:** 358 tests green, `tsc`+build clean. Not merged. Docs updated for the unify decision before implementation.
+- [x] **Phase 6 (2026-07-04)** **Unified into one tool** — two-tier nav shell (`Parser · Emulator · CMS`) in `src/app/nav/` (`navConfig` + `navShell`); Parser + OCPP Simulator mounted as views (lazy + kept alive → CP-Mode WebSocket survives switches); future views = disabled "coming soon"; `simulator.html` removed; Vite single-entry. Design §4.1 · requirements R9.
+- [x] **UI fixes (post-browser-test)** — dark-mode control colors (white-on-white dropdowns); **original two-column layout restored** (Operating Mode · Description · Message Format · payload cards · Log) incl. per-message Descriptions + Message Format tables; **global 🌓 theme toggle in nav bar** (light+dark, every tab; `initTheme` made idempotent).
+- [ ] Next: Review/QA/Ship (finish branch → merge to `feat/parser-revamp` or PR).
+- **State:** **370 tests green** (85 files), `tsc`+build clean. Branch `feat/ocpp-simulator`, not merged.
 
 ---
 

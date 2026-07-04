@@ -697,3 +697,18 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 **Docs updated (before coding):** design spec §4 rewritten + new §4.1 (IA) + §5.1 nav-shell modules; requirements R9 added; roadmap detail + Phase 6; WORKFLOW Phase 6; this journal; decision record `knowledge/decisions/2026-07-04-unified-nav-shell.md`.
 
 **Next:** implement Phase 6 — nav shell in `src/app/nav/` (navConfig + navShell), remove `simulator.html`, revert Vite to single-entry. All `src/simulator/*` modules unchanged.
+
+---
+
+## 2026-07-04 (impl) — Phase 6 built + browser-test fixes; simulator is now one unified tool
+
+**Implemented Phase 6 (unify):** `src/app/nav/navConfig.ts` (view registry — the single place to activate future views), `navShell.ts` (two-tier nav: Tier-1 `Parser·Emulator·CMS` + contextual Tier-2 sub-tabs; lazy-mount + keep-alive so CP-Mode's WebSocket survives switching; last view persisted in localStorage), `mountParser.ts` (extracted the former `main.ts` Parser bootstrap). `main.ts` now boots the nav shell. Removed `simulator.html` + `src/simulator/main.ts`; reverted Vite to single-entry. Future views (CMS Log Parser, Transaction Flow, CSMS) render as disabled "(soon)" placeholders.
+
+**Then verified in the browser (dev server; Chrome extension not connected, so the user eyeballed it) and fixed three things the user caught:**
+1. **White-on-white dropdowns** — the simulator's form controls had no colors; in the Parser's dark theme they rendered invisible. Added `bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100` (+ border) across `selector.ts`/`paramForm.ts`/`shell.ts`.
+2. **Layout didn't match the original** — restructured `shell.ts` to two columns: Operating Mode (top) · left = OCPP Message → **Description** → **Message Format** → Validation · right = Request Parameters (Editable) → Request Payload → Response Payload · **OCPP Message Log** (bottom, full width). Added per-message **Descriptions** (all 28, `catalog/descriptions.ts` → `MessageDef.description`) + a **Message Format** renderer (`render/messageFormat.ts`). Kept the Profile/Direction filters (R7) in the message-picker slot.
+3. **Theme toggle didn't work / missing on non-Parser tabs** — the `🌓 Theme` button lived only in the Parser view and was wired before it mounted. Added a **global toggle in the nav bar**, wired via a **delegated** document listener; made `initTheme()` idempotent (a test caught a double-toggle from stacked listeners).
+
+**State:** **370 tests green** (85 files), `tsc`+`vite build` clean. Branch `feat/ocpp-simulator` (~30 commits), **not merged**. Trackers (roadmap, WORKFLOW, tasks, this journal) brought current.
+
+**Next session:** Review/QA the simulator, then finish the branch (merge to `feat/parser-revamp` or PR). Future: Tabs 2/3 (Transaction Flow, CMS Log Parser) + CMS — own specs, homes already reserved in `navConfig`.

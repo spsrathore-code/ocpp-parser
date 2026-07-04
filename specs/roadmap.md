@@ -49,8 +49,9 @@ persists across switches (CP-Mode WebSocket survives). Design §4.1.
 - [x] **Phase 3 — CP Mode** — injectable WebSocket client; connect/send/listen/heartbeat with `ExchangeTracker` correlation (R1/R3).
 - [x] **Phase 4 — Parser handoff** — session → Parser log lines → `analyzeLogLines` + `renderResults`; round-trip verified (Start→Stop ⇒ 1 transaction, id 555) (R4).
 - [x] **Phase 5 — Training polish** — defaults/descriptions overlay, per-profile lesson blurbs.
-- [ ] **Phase 6 — Unify into nav shell (2026-07-04)** — remove `simulator.html`; add the two-tier nav shell in `src/app/nav/`; mount Parser + OCPP Simulator as views; declare future views as disabled placeholders; revert Vite to single-entry.
-- **State:** 358 tests green (81 files; +33 simulator), `tsc` + `vite build` clean. Not merged. Tabs 2 (Flow replay) & 3 (CMS parser) out of scope — own specs later.
+- [x] **Phase 6 — Unify into nav shell (2026-07-04)** — removed `simulator.html`; two-tier nav shell in `src/app/nav/` (`navConfig` + `navShell`); Parser + OCPP Simulator mounted as views (lazy + kept alive so CP-Mode WebSocket survives); future views declared as disabled "coming soon"; Vite reverted to single-entry.
+- [x] **UI fixes (2026-07-04, post-browser-test)** — (a) dark-mode colors on simulator form controls (white-on-white dropdowns); (b) **restored the original two-column layout** — Operating Mode (top) · left: OCPP Message → Description → Message Format · right: Request Parameters → Request/Response Payload · Log (bottom); added per-message Descriptions (all 28) + Message Format tables; (c) **global 🌓 theme toggle in the nav bar** (works on every tab; light + dark).
+- **State:** **370 tests green** (85 files), `tsc` + `vite build` clean. Not merged (branch `feat/ocpp-simulator`). Tabs 2 (Flow replay) & 3 (CMS parser) out of scope — own specs later.
 
 ## Validation Engine — detail
 
