@@ -3,6 +3,7 @@ import type { MessageDef, FieldDef } from '../model/types';
 import { fieldsFromSchema } from './schemaFields';
 import { MESSAGE_META, ACTIONS } from './metadata';
 import { TRAINING_OVERLAY } from './training';
+import { MESSAGE_DESCRIPTIONS } from './descriptions';
 
 const schemas = OCPP16.schemas as unknown as Record<string, unknown>;
 
@@ -21,6 +22,7 @@ export function buildCatalog(): MessageDef[] {
       action,
       profile: meta.profile,
       direction: meta.direction,
+      description: MESSAGE_DESCRIPTIONS[action],
       request: applyDefaults(fieldsFromSchema(schemas[`${action}Request`]), action),
       response: fieldsFromSchema(schemas[`${action}Response`]),
     };

@@ -32,4 +32,9 @@ describe('buildCatalog', () => {
     const authorize = getMessage('Authorize')!;
     expect(authorize.request.find(f => f.name === 'idTag')!.default).toBe('ABC12345');
   });
+
+  it('carries a description for every message', () => {
+    expect(catalog.every(m => typeof m.description === 'string' && m.description.length > 0)).toBe(true);
+    expect(getMessage('Authorize')!.description).toMatch(/authoriz/i);
+  });
 });

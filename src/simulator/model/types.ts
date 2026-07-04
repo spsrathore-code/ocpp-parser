@@ -22,6 +22,8 @@ export interface MessageDef {
   action: string;
   profile: Profile;
   direction: Direction;
+  /** plain-language summary shown in the Description card */
+  description?: string;
   request: FieldDef[];
   response: FieldDef[];
 }
