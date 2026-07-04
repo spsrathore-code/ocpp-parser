@@ -1,19 +1,12 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'node:path';
 
 // Single config for Vite (dev/build) and Vitest (test). Root = repo root.
-// Two page entries: the Parser (index.html → src/app/main.ts) and the
-// OCPP Simulator (simulator.html → src/simulator/main.ts).
+// One page entry: the unified tool (index.html → src/app/main.ts), which boots the
+// nav shell that hosts the Parser and the OCPP Simulator as views (design §4.1).
 export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve('index.html'),
-        simulator: resolve('simulator.html'),
-      },
-    },
   },
   test: {
     include: ['tests/**/*.test.ts'],
