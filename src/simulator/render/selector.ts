@@ -20,14 +20,14 @@ const DIRECTIONS: { value: Direction | 'ALL'; label: string }[] = [
 export function renderSelector(mount: HTMLElement, catalog: MessageDef[], onSelect: (action: string) => void): void {
   mount.innerHTML = `
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <select data-role="profile" class="px-3 py-2 border rounded-md">
+      <select data-role="profile" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
         <option value="ALL">All profiles</option>
         ${PROFILES.map(p => `<option value="${p}">${p}</option>`).join('')}
       </select>
-      <select data-role="direction" class="px-3 py-2 border rounded-md">
+      <select data-role="direction" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
         ${DIRECTIONS.map(d => `<option value="${d.value}">${d.label}</option>`).join('')}
       </select>
-      <select data-role="message" class="px-3 py-2 border rounded-md"></select>
+      <select data-role="message" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"></select>
     </div>
     <p data-role="profile-blurb" class="text-xs text-gray-500 mt-2"></p>`;
 

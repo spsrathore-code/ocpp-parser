@@ -21,7 +21,7 @@ export function renderShell(
         <label><input type="radio" name="mode" value="cp" /> Charge Point (CP) Mode</label>
       </div>
       <div data-role="connect-panel" class="hidden border-t pt-3 flex flex-wrap gap-2 items-center">
-        <input data-role="ws-url" type="text" placeholder="wss://csms.example.com/CP_001" class="px-3 py-2 border rounded-md w-full md:w-96" />
+        <input data-role="ws-url" type="text" placeholder="wss://csms.example.com/CP_001" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-full md:w-96" />
         <button data-role="connect" class="bg-blue-600 text-white px-4 py-2 rounded-md">Connect</button>
         <button data-role="heartbeat" class="bg-gray-500 text-white px-4 py-2 rounded-md" disabled>Start Heartbeat</button>
         <span data-role="status" class="ml-2 text-sm">Disconnected</span>
