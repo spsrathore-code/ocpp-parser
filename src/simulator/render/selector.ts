@@ -12,23 +12,25 @@ const PROFILE_BLURB: Record<Profile, string> = {
 };
 const DIRECTIONS: { value: Direction | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'All directions' },
-  { value: 'CP_TO_CS', label: 'Charge Point → Central System' },
-  { value: 'CS_TO_CP', label: 'Central System → Charge Point' },
-  { value: 'BOTH', label: 'Both' },
+  { value: 'CP_TO_CS', label: 'CP → CS' },
+  { value: 'CS_TO_CP', label: 'CS → CP' },
+  { value: 'BOTH', label: 'Both directions' },
 ];
+
+const CTL = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100';
 
 export function renderSelector(mount: HTMLElement, catalog: MessageDef[], onSelect: (action: string) => void): void {
   mount.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <select data-role="profile" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <select data-role="profile" class="${CTL}">
         <option value="ALL">All profiles</option>
         ${PROFILES.map(p => `<option value="${p}">${p}</option>`).join('')}
       </select>
-      <select data-role="direction" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+      <select data-role="direction" class="${CTL}">
         ${DIRECTIONS.map(d => `<option value="${d.value}">${d.label}</option>`).join('')}
       </select>
-      <select data-role="message" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"></select>
     </div>
+    <select data-role="message" class="${CTL} mt-3"></select>
     <p data-role="profile-blurb" class="text-xs text-gray-500 mt-2"></p>`;
 
   const profileSel = mount.querySelector<HTMLSelectElement>('[data-role="profile"]')!;
@@ -45,7 +47,11 @@ export function renderSelector(mount: HTMLElement, catalog: MessageDef[], onSele
       (d === 'ALL' || m.direction === d || (d !== 'BOTH' && m.direction === 'BOTH')),
     );
     msgSel.innerHTML = filtered
-      .map(m => `<option value="${m.action}">${m.action} (${m.direction === 'CP_TO_CS' ? 'CP→CS' : m.direction === 'CS_TO_CP' ? 'CS→CP' : 'both'})</option>`)
+      .map(m => {
+        const dir = m.direction === 'CP_TO_CS' ? 'CP→CS' : m.direction === 'CS_TO_CP' ? 'CS→CP' : 'both';
+        const label = `${m.action} (${dir})`;
+        return `<option value="${m.action}" title="${label}">${label}</option>`;
+      })
       .join('');
   };
 
