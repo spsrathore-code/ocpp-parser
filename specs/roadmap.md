@@ -15,10 +15,27 @@
 | 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3 + 4a/4b/4d + 6 done; §4 compliance Reviewed+QA'd; 3b-3b/4c/4e parked) | Build→Review | `feat/parser-revamp` | `/review`+`/qa` Phase 6 · fix cross-file id-collision bug · deploy decision (Help modal + parked + `vite base`) |
 | — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
 | 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
-| 4 | **Charger Emulator** | ⚪ Planned (adopt/fork SAP sim) | — | — | Evaluate SAP `e-mobility-charging-stations-simulator` |
+| 4 | **Charger Emulator** (OCPP Simulator) | 🟡 In build — OCPP Simulator (Tab 1) integrated: Phases 0–4 done | Build | `feat/ocpp-simulator` | Optional training polish (Phase 5) · Review/QA · then Tabs 2/3 (own specs) |
 | 5 | **Training Emulator** | ⚪ Planned | — | — | Built on the emulator |
 
 Legend: 🟢 done/live · 🟡 in progress · ⚪ not started.
+
+### Charger Emulator — OCPP Simulator integration (detail)
+
+Branch `feat/ocpp-simulator`. First tool-to-tool integration: the standalone OCPP
+Simulator (Tab 1 of the reference HTML) rebuilt as TS+Vite modules under
+`src/simulator/` with a second Vite page entry (`simulator.html`), consuming the
+Validation Engine and Parser directly. Spec `docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md` ·
+plan `docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md` ·
+requirements `specs/ocpp-simulator/requirements.md` (R1–R8).
+
+- [x] **Phase 0 — Scaffold** (MPA Vite entry; reference HTML archived; `CZ CMS Logs Sample.xlsx` → `data/samples/`).
+- [x] **Phase 1 — Schema-driven catalog** — all **28 OCPP 1.6J operations** built from `typed-ocpp`'s `OCPP16.schemas` (R8), categorized by **Feature Profile + Direction** (R6/R7); schema-driven parameter forms.
+- [x] **Phase 2 — Simulator Only** — offline run validated by the Validation Engine (`validateMessage`); schema-derived faked response (R2/R5).
+- [x] **Phase 3 — CP Mode** — injectable WebSocket client; connect/send/listen/heartbeat with `ExchangeTracker` correlation (R1/R3).
+- [x] **Phase 4 — Parser handoff** — session → Parser log lines → `analyzeLogLines` + `renderResults`; round-trip verified (Start→Stop ⇒ 1 transaction, id 555) (R4).
+- [ ] **Phase 5 — Training polish (optional)** — defaults/descriptions overlay, per-profile lesson blurbs.
+- **State:** 356 tests green (81 files; +31 simulator), `tsc` + `vite build` clean. Not merged. Tabs 2 (Flow replay) & 3 (CMS parser) out of scope — own specs later.
 
 ## Validation Engine — detail
 

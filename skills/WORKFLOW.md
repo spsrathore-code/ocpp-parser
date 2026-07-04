@@ -6,6 +6,34 @@
 
 ---
 
+## Feature: OCPP Simulator — Suite Integration (Charger Emulator seed)  |  Started: 2026-07-03
+
+Goal: rebuild the standalone OCPP Simulator (Tab 1) as TS+Vite modules under
+`src/simulator/` (second Vite entry), expanded to all 28 OCPP 1.6J messages,
+categorized for training, validated by the Validation Engine, with a session→Parser
+handoff. Branch `feat/ocpp-simulator`.
+
+| Phase   | Skill(s)                                  | Status      | Date       |
+|---------|-------------------------------------------|-------------|------------|
+| Think   | /office-hours, /spec (brainstorming)      | ✅ Complete | 2026-07-03 |
+| Plan    | writing-plans                             | ✅ Complete | 2026-07-03 |
+| Build   | executing-plans (inline)                  | ⏳ Active   | 2026-07-04 |
+| Review  | /review + /cso                            | ⬜ Pending  |            |
+| Test    | /qa                                       | ⬜ Pending  |            |
+| Ship    | /ship                                     | ⬜ Pending  |            |
+| Reflect | /retro + /learn                           | ⬜ Pending  |            |
+
+- Spec `docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md` · plan `docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md` · requirements `specs/ocpp-simulator/requirements.md` (R1–R8).
+- [x] **Phase 0** Scaffold (MPA Vite entry, archive HTML, move xlsx).
+- [x] **Phase 1** Schema-driven 28-message catalog (from `OCPP16.schemas`) + profile/direction selector + schema forms.
+- [x] **Phase 2** Simulator Only + Validation Engine wiring.
+- [x] **Phase 3** CP Mode transport (WebSocket send/listen/heartbeat via `ExchangeTracker`).
+- [x] **Phase 4** Session → Parser handoff (round-trip verified).
+- [ ] **Phase 5** Training niceties (optional) + Review/QA/Ship.
+- **State:** 356 tests green, `tsc`+build clean. Not merged.
+
+---
+
 ## Feature: OCPP Validation Engine (L1–L3)  |  Started: 2026-06-13
 
 | Phase   | Skill(s)                                  | Status      | Date       |

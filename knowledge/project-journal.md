@@ -655,3 +655,29 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 2. Run **`/review`+`/cso`+`/qa` on Phase 6** validation.
 3. Deploy decision: Help modal + parked 3b-3b/4c/4e + set `vite.config` `base` for GitHub Pages; optionally add `vite-plugin-singlefile`.
 - All work on `feat/parser-revamp` (pushed; **NOT on `main`**, NOT deployed). HEAD `6b22e00`.
+
+---
+
+## 2026-07-04 — OCPP Simulator suite integration (Charger Emulator seed), Phases 0–4
+
+**Discussed:** Integrating the standalone `OCPP Transaction Simulator Extended V3_17 Aug.html` (3 tabs: OCPP Simulator, Transaction Flow, CMS Log Parser) into the suite. Compared our OCPP Simulator vs SAP `e-mobility-charging-stations-simulator` (ours = interactive workbench; SAP = fleet load generator — complementary, adopt ours as Tool #3).
+
+**Decided:**
+- Scope = **OCPP Simulator (Tab 1) only** for now; Tabs 2/3 get their own specs later.
+- Packaging **Option A** — bring into the Vite app as a second page entry (`simulator.html` → `src/simulator/`), importing the Validation Engine + Parser directly (required for schema-driven catalog R8 + Parser handoff R4; standalone HTML rejected).
+- Expand to **all 28 OCPP 1.6J messages**, categorized by **Feature Profile + Direction** (training goal).
+- **Schema-driven catalog** from `typed-ocpp`'s `OCPP16.schemas` (same source as the engine → zero drift) — not a hand-maintained list.
+
+**Implemented (branch `feat/ocpp-simulator`):**
+- Requirements baseline `specs/ocpp-simulator/requirements.md` (R1–R8), design spec, and task-by-task plan (all registered in md-registry).
+- Phases 0–4: MPA scaffold; 28-message schema-driven catalog + profile/direction selector + schema forms; Simulator-Only mode with engine validation; CP Mode WebSocket (send/listen/heartbeat via `ExchangeTracker`); session→Parser handoff (`analyzeLogLines`+`renderResults`), round-trip verified (Start→Stop ⇒ 1 tx, id 555).
+- Reference HTML archived; `CZ CMS Logs Sample.xlsx` → `data/samples/`.
+- **356 tests green** (81 files; +31 simulator), `tsc`+`vite build` clean.
+
+**Two in-repo API facts confirmed during build (plan-flagged risks):** Parser `Transaction.id` (not `.transactionId`); `renderResults(container, result)` mounts in place. The engine emits a generic `[L2] schema violation` message for missing-field cases (test relaxed to assert the L2 layer, not exact text).
+
+**Next session — pick up here**
+1. Optional **Phase 5** training polish (defaults/descriptions overlay, per-profile lesson blurbs).
+2. **Review/QA** the simulator; then **finishing-a-development-branch** (PR).
+3. Later: Tabs 2 (Flow replay) & 3 (CMS parser) — own specs.
+- Simulator work on `feat/ocpp-simulator` (branched off `feat/parser-revamp`; **NOT on `main`**, NOT deployed).
