@@ -681,3 +681,19 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 2. **Review/QA** the simulator; then **finishing-a-development-branch** (PR).
 3. Later: Tabs 2 (Flow replay) & 3 (CMS parser) — own specs.
 - Simulator work on `feat/ocpp-simulator` (branched off `feat/parser-revamp`; **NOT on `main`**, NOT deployed).
+
+---
+
+## 2026-07-04 (later) — Unify decision: simulator is ONE tool, not a separate page
+
+**Trigger:** On browser test, the user saw the simulator on its own URL (`simulator.html`) and flagged the mismatch — their intent was **one tool**, the simulator integrated with the Parser, not a separate app.
+
+**Decided (via /design-consultation):** Reverse the "second Vite page" approach. Adopt a **two-tier navigation shell** grouped by function:
+- Tier 1: `Parser · Emulator · CMS`; Tier 2: contextual sub-tabs (shown when a group has 2+ views).
+- Placement locked for the whole future suite: **Parser** › Client Log Parser (now) · CMS Log Parser (future Tab 3); **Emulator** › OCPP Simulator (now) · Transaction Flow Simulator (future Tab 2); **CMS** › CSMS dashboard (future Tool #2, slot reserved).
+- **Deciding factor:** CP-Mode holds a live WebSocket → per-view state must persist across switches → rules out an embedded/re-rendered section; tabs win.
+- Future views appear as disabled "coming soon" until built.
+
+**Docs updated (before coding):** design spec §4 rewritten + new §4.1 (IA) + §5.1 nav-shell modules; requirements R9 added; roadmap detail + Phase 6; WORKFLOW Phase 6; this journal; decision record `knowledge/decisions/2026-07-04-unified-nav-shell.md`.
+
+**Next:** implement Phase 6 — nav shell in `src/app/nav/` (navConfig + navShell), remove `simulator.html`, revert Vite to single-entry. All `src/simulator/*` modules unchanged.

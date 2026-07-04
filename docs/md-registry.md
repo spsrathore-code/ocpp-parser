@@ -94,6 +94,15 @@
 
 ---
 
+## knowledge/decisions/
+
+| File | Role | Status | Purpose | Updates when |
+|---|---|---|---|---|
+| [knowledge/decisions/2026-06-21-validation-engine-consumption-model.md](../knowledge/decisions/2026-06-21-validation-engine-consumption-model.md) | `TRACKER` | `ACTIVE` | Decision: how the Parser consumes the Validation Engine (direct monorepo import) | Consumption model revisited |
+| [knowledge/decisions/2026-07-04-unified-nav-shell.md](../knowledge/decisions/2026-07-04-unified-nav-shell.md) | `TRACKER` | `ACTIVE` | Decision: one unified tool via a two-tier nav shell (Parser · Emulator · CMS); supersedes the separate `simulator.html` page | Navigation/IA revisited; new suite view added |
+
+---
+
 ## knowledge/standards/ocpp-1.6/
 
 > All 14 files are `RULEBOOK` / `REFERENCE-ONLY`. They are the canonical OCPP 1.6J spec converted to modular MD. Edit only to correct a transcription error — never to add project-specific interpretation.

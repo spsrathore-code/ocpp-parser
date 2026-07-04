@@ -64,19 +64,58 @@ the training goals. Not chosen.
 
 ## 4. Home, identity, and file moves
 
-- **New home:** `src/simulator/` (modules) + **`simulator.html`** at repo root as
-  the second Vite page entry (`simulator.html` → `src/simulator/main.ts`), mirroring
-  `index.html` → `src/app/main.ts`.
-- **Identity:** the seed of **Tool #3 (Charger Emulator)**; this spec builds its
-  **OCPP Simulator** module.
+> **Revision 2026-07-04 (supersedes the original "second Vite page" plan).** The
+> simulator is **not** a separate page/tool. It is **one unified tool** with the
+> Parser: a single app (`index.html`) with a **navigation shell** that switches
+> between views. The original build (Phases 0–5) created a separate
+> `simulator.html`; that page is being **removed** and its modules re-mounted
+> inside the Parser app. Rationale: user intent was one tool; and CP Mode holds a
+> live WebSocket, which rules out re-rendering embedded approaches. See §4.1.
+
+- **New home:** `src/simulator/` (modules, unchanged) mounted **inside the Parser
+  app** (`index.html` → `src/app/main.ts`) via a navigation shell (§4.1). **No
+  separate `simulator.html`.**
+- **Identity:** the OCPP Simulator is the **Emulator › OCPP Simulator** view of the
+  one unified tool (still the seed of the **Charger Emulator** capability).
 - **Reference copy:** the original
-  `OCPP Transaction Simulator Extended V3_17 Aug.html` is moved to
-  `archive/` as the parity reference (same pattern the legacy Parser followed),
-  and `CMS Logs Sample.xlsx` to `data/samples/` (it feeds Tabs 2/3, out of scope
-  here, but belongs in samples per `project-standard.md`).
-- **Vite change:** switch `vite.config.ts` to a multi-page input:
-  `build.rollupOptions.input = { main: 'index.html', simulator: 'simulator.html' }`.
-  Dev serves both; `npm run build` emits both. No change to the Parser entry.
+  `OCPP Transaction Simulator Extended V3_17 Aug.html` → `archive/`; and
+  `CZ CMS Logs Sample.xlsx` → `data/samples/` (feeds future Flow/CMS-Parser views,
+  out of scope here, but belongs in samples per `project-standard.md`).
+- **Vite:** stays **single-entry** (`index.html`). The second-entry change is
+  reverted; `simulator.html` is deleted.
+
+### 4.1 Navigation & information architecture (2026-07-04 decision)
+
+The unified tool uses **two-tier navigation, grouped by function**, designed to
+scale to every planned suite view (not just today's two):
+
+**Tier 1 — primary nav** (modes of work): `Parser` · `Emulator` · `CMS`.
+**Tier 2 — contextual sub-tabs** (shown only when a group has 2+ views).
+
+| Tier 1 | Tier 2 view | Status |
+|---|---|---|
+| **Parser** | Client Log Parser | ✅ built (current Parser) |
+| | CMS Log Parser | ⏳ future (reference Tab 3) |
+| **Emulator** | OCPP Simulator | ✅ built (reference Tab 1) |
+| | Transaction Flow Simulator | ⏳ future (reference Tab 2) |
+| **CMS** | CSMS dashboard | ⏳ future (Tool #2; may graduate to its own app/backend — slot reserved, may embed or link out) |
+
+**Principles:**
+- Each future piece has a **pre-decided home** — no re-architecture when added.
+- Groups mirror the suite's tool taxonomy (Parser / Charger Emulator / CSMS).
+- Tier-2 stays hidden until a group has 2+ views → today it reads as a simple
+  `Parser | Emulator` bar; future views appear as **disabled "coming soon"**
+  entries so placement is visible and locked in.
+- **Per-view state persists** across Tier-1 switches (critical: CP Mode's live
+  WebSocket must survive switching to Parser and back).
+- **Cross-view link:** the simulator's "Analyze in Parser" switches to
+  **Parser › Client Log Parser** with the session rendered.
+
+**Implementation now:** build the nav shell (Tier 1 + Tier 2) wiring the two live
+views (**Parser › Client Log Parser**, **Emulator › OCPP Simulator**); `CMS`,
+`CMS Logs`, and `Transaction Flow` are declared in the nav config as disabled
+placeholders. Nav shell lives in `src/app/` (see §5.1); all `src/simulator/*`
+modules are unchanged.
 
 ## 5. Architecture
 
@@ -104,6 +143,21 @@ src/simulator/
     ├── payloadView.ts      # request/response JSON panels
     └── logConsole.ts       # SENT/RECEIVED transcript + "Analyze in Parser" button
 ```
+
+**Navigation shell (added 2026-07-04, in `src/app/`) — mounts the unified tool:**
+
+```
+src/app/
+├── main.ts                 # (existing) now boots the nav shell instead of the Parser directly
+└── nav/
+    ├── navConfig.ts        # Tier-1/Tier-2 view registry (id, label, group, enabled) — the single place future views are activated
+    └── navShell.ts         # renders the two-tier nav + a view container; lazy-mounts the active view (Parser render or simulator renderShell); persists last view in localStorage; keeps mounted views alive so CP-Mode WebSocket state survives switches
+```
+
+- The simulator's existing `render/shell.ts` `renderShell(container)` is mounted by
+  `navShell` into the shared container — it is no longer a page entry.
+- `navConfig.ts` is where **Transaction Flow**, **CMS Log Parser**, and **CMS** get
+  activated later (flip `enabled: true` + point at their renderer).
 
 ### 5.2 Data flow
 

@@ -244,6 +244,16 @@ above user experience intact. Concretely:
   on top. This guarantees zero drift between what the simulator sends and what the
   engine validates, and makes future OCPP 2.0.1 support "add a schema set," not
   "hand-write 40 more messages."
+- **R9 — One unified tool (added 2026-07-04).** The simulator is **not** a separate
+  page or app. It is a **view inside the single unified tool** (the Parser app),
+  reached through a **two-tier navigation shell** grouped by function
+  (`Parser` · `Emulator` · `CMS`), designed to also host the future
+  **Transaction Flow Simulator**, **CMS Log Parser**, and **CMS/CSMS** views. There
+  is one URL, one build. Switching views must **preserve each view's state**
+  (notably CP Mode's live WebSocket). The IA and per-view placement are specified in
+  the design spec `docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md` §4.1.
+  *(This supersedes the earlier "second Vite page / separate `simulator.html`"
+  approach used during Phases 0–5.)*
 
 > These requirements are the acceptance baseline for the integration design that
 > follows. The design/plan for *how* to wire this into the suite lives in a

@@ -24,18 +24,33 @@ Legend: 🟢 done/live · 🟡 in progress · ⚪ not started.
 
 Branch `feat/ocpp-simulator`. First tool-to-tool integration: the standalone OCPP
 Simulator (Tab 1 of the reference HTML) rebuilt as TS+Vite modules under
-`src/simulator/` with a second Vite page entry (`simulator.html`), consuming the
-Validation Engine and Parser directly. Spec `docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md` ·
+`src/simulator/`, consuming the Validation Engine and Parser directly. Spec
+`docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md` ·
 plan `docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md` ·
-requirements `specs/ocpp-simulator/requirements.md` (R1–R8).
+requirements `specs/ocpp-simulator/requirements.md` (R1–R9).
+
+**Unified single tool (2026-07-04 decision, supersedes "separate page").** The
+simulator is **one view inside the Parser app**, not a separate `simulator.html`.
+A **two-tier navigation shell** (grouped by function) hosts all suite views and
+reserves homes for the future ones:
+
+| Tier 1 | Tier 2 view | Status |
+|---|---|---|
+| **Parser** | Client Log Parser · CMS Log Parser | ✅ built · ⏳ future (ref Tab 3) |
+| **Emulator** | OCPP Simulator · Transaction Flow Simulator | ✅ built · ⏳ future (ref Tab 2) |
+| **CMS** | CSMS dashboard | ⏳ future (Tool #2; slot reserved) |
+
+Future views are disabled "coming soon" placeholders until built. Per-view state
+persists across switches (CP-Mode WebSocket survives). Design §4.1.
 
 - [x] **Phase 0 — Scaffold** (MPA Vite entry; reference HTML archived; `CZ CMS Logs Sample.xlsx` → `data/samples/`).
 - [x] **Phase 1 — Schema-driven catalog** — all **28 OCPP 1.6J operations** built from `typed-ocpp`'s `OCPP16.schemas` (R8), categorized by **Feature Profile + Direction** (R6/R7); schema-driven parameter forms.
 - [x] **Phase 2 — Simulator Only** — offline run validated by the Validation Engine (`validateMessage`); schema-derived faked response (R2/R5).
 - [x] **Phase 3 — CP Mode** — injectable WebSocket client; connect/send/listen/heartbeat with `ExchangeTracker` correlation (R1/R3).
 - [x] **Phase 4 — Parser handoff** — session → Parser log lines → `analyzeLogLines` + `renderResults`; round-trip verified (Start→Stop ⇒ 1 transaction, id 555) (R4).
-- [ ] **Phase 5 — Training polish (optional)** — defaults/descriptions overlay, per-profile lesson blurbs.
-- **State:** 356 tests green (81 files; +31 simulator), `tsc` + `vite build` clean. Not merged. Tabs 2 (Flow replay) & 3 (CMS parser) out of scope — own specs later.
+- [x] **Phase 5 — Training polish** — defaults/descriptions overlay, per-profile lesson blurbs.
+- [ ] **Phase 6 — Unify into nav shell (2026-07-04)** — remove `simulator.html`; add the two-tier nav shell in `src/app/nav/`; mount Parser + OCPP Simulator as views; declare future views as disabled placeholders; revert Vite to single-entry.
+- **State:** 358 tests green (81 files; +33 simulator), `tsc` + `vite build` clean. Not merged. Tabs 2 (Flow replay) & 3 (CMS parser) out of scope — own specs later.
 
 ## Validation Engine — detail
 
