@@ -52,3 +52,24 @@ describe('STATUS-011 — same fault must report a consistent errorCode', () => {
     expect(s11.status).toBe('pass');
   });
 });
+
+describe('STATUS-012 — an errorCode must map to a consistent vendorErrorCode', () => {
+  it('warns when the same errorCode appears under two vendorErrorCodes (across statuses)', () => {
+    const lines = [
+      L('2026-07-04T08:00:00.000Z', '>>', [2, 'v1', 'StatusNotification', { connectorId: 2, errorCode: 'EVCommunicationError', status: 'SuspendedEV', timestamp: '2026-07-04T08:00:00.000Z', vendorErrorCode: '88' }]),
+      L('2026-07-04T08:01:00.000Z', '>>', [2, 'v2', 'StatusNotification', { connectorId: 2, errorCode: 'EVCommunicationError', status: 'Finishing', timestamp: '2026-07-04T08:01:00.000Z', vendorErrorCode: '99' }]),
+    ];
+    const s12 = resultsFor(lines).find((x) => x.id === 'STATUS-012')!;
+    expect(s12.status).toBe('warn');
+    expect(s12.affected.length).toBe(2);
+  });
+
+  it('passes when the same errorCode keeps one vendorErrorCode across statuses', () => {
+    const lines = [
+      L('2026-07-04T08:00:00.000Z', '>>', [2, 'v1', 'StatusNotification', { connectorId: 2, errorCode: 'EVCommunicationError', status: 'SuspendedEV', timestamp: '2026-07-04T08:00:00.000Z', vendorErrorCode: '88' }]),
+      L('2026-07-04T08:01:00.000Z', '>>', [2, 'v2', 'StatusNotification', { connectorId: 2, errorCode: 'EVCommunicationError', status: 'Finishing', timestamp: '2026-07-04T08:01:00.000Z', vendorErrorCode: '88' }]),
+    ];
+    const s12 = resultsFor(lines).find((x) => x.id === 'STATUS-012')!;
+    expect(s12.status).toBe('pass');
+  });
+});

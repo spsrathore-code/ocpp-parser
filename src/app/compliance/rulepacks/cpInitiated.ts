@@ -701,6 +701,30 @@ const statusRules: ComplianceRule[] = [
         : { status: 'warn', details: `${offenders.length} StatusNotification(s) report the same fault under inconsistent errorCodes`, affected: offenders.map((m) => { const p = payload<FaultPayload>(m); return itemOf(m, `${p.errorCode} · info=${p.info ?? '—'}`); }) };
     },
   },
+  {
+    id: 'STATUS-012', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'A given errorCode SHALL map to a consistent vendorErrorCode (the same vendor code regardless of status)',
+    auditLogic: 'Group non-NoError StatusNotifications by errorCode; the same errorCode reported under more than one vendorErrorCode is flagged (e.g. EVCommunicationError as both 88 and 99, across SuspendedEV and Finishing).',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const errs = ctx.messageGroups.StatusNotification.filter((m) => {
+        const p = payload<FaultPayload>(m);
+        return p.errorCode != null && p.errorCode !== 'NoError' && p.vendorErrorCode != null && p.vendorErrorCode !== '';
+      });
+      if (errs.length === 0) return { status: 'info', details: 'No vendor-error-coded StatusNotifications to check', affected: [] };
+      const byCode = new Map<string, { vcodes: Set<string>; msgs: ParsedMessage[] }>();
+      errs.forEach((m) => {
+        const p = payload<FaultPayload>(m);
+        const g = byCode.get(p.errorCode as string) ?? { vcodes: new Set<string>(), msgs: [] };
+        g.vcodes.add(p.vendorErrorCode as string); g.msgs.push(m); byCode.set(p.errorCode as string, g);
+      });
+      const offenders: ParsedMessage[] = [];
+      byCode.forEach((g) => { if (g.vcodes.size > 1) offenders.push(...g.msgs); });
+      return offenders.length === 0
+        ? { status: 'pass', details: 'Each errorCode maps to a single vendorErrorCode', affected: [] }
+        : { status: 'warn', details: `${offenders.length} StatusNotification(s) where an errorCode is reported under inconsistent vendorErrorCodes`, affected: offenders.map((m) => { const p = payload<FaultPayload>(m); return itemOf(m, `${p.errorCode} · vendorErrorCode=${p.vendorErrorCode}`); }) };
+    },
+  },
 ];
 
 // ---- StopTransaction (§4.10) ----

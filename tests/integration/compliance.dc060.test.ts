@@ -23,4 +23,11 @@ describe('STATUS-010 / STATUS-011 on the DC060 field log', () => {
     // BMSCommunicationTimeout appears as both EVCommunicationError and OtherError.
     expect(s11.affected.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('STATUS-012 flags an errorCode reported under inconsistent vendorErrorCodes', () => {
+    const s12 = byId('STATUS-012');
+    // OtherError appears with vendorErrorCode 1 (BMSCommunicationTimeout) and 19 (PowerFailure).
+    expect(s12.status).toBe('warn');
+    expect(s12.affected.length).toBeGreaterThanOrEqual(2);
+  });
 });
