@@ -665,7 +665,8 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 **Implemented (on `feat/parser-revamp`):**
 - **STATUS-010** (Major, heuristic) — a connector's MeterValues SHALL be preceded by a `StatusNotification(status=Charging)`. Flags charging resuming after an errored session with no Charging status. DC060 has 146 MeterValues, 0 Charging → warns.
 - **STATUS-011** (Major, heuristic) — the same fault (`info`+`vendorErrorCode`) SHALL report a consistent `errorCode`. DC060 reports `BMSCommunicationTimeout`/`vendorErrorCode:1` as both `EVCommunicationError` and `OtherError` → warns.
-- Registry updated (§4 pack **46 → 48 rules**); count assertions bumped.
+- **STATUS-012** (Major, heuristic) — the complement of STATUS-011: a given `errorCode` SHALL map to a consistent `vendorErrorCode` (e.g. `EVCommunicationError`→88 regardless of status). DC060 triggers it too: `OtherError` reported with vendorErrorCode `1` (BMSCommunicationTimeout) and `19` (PowerFailure). *(Note: `OtherError` is a catch-all, so this warn is a "review this" signal, not a hard fault — hence heuristic/warn.)*
+- Registry updated (§4 pack **46 → 49 rules**); count assertions bumped. **335 tests.**
 - **UI #3** — Status Notifications "🔴 Error Code Frequency" table now shows **Info** + **Status** columns (rollup keyed on `info` so vendor faults stay distinct).
 - **UI #4** — Repository **Load & Analyze** now shows a spinner ("Loading & analyzing…") + scrolls + yields a frame before the blocking analyze, so users don't re-click.
 - +6 tests incl. a DC060 field-case regression (`compliance.dc060.test.ts`). **332 tests**, `tsc`+build clean. Commit `309d780`.
