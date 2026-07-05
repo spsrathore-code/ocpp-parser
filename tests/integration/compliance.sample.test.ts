@@ -16,10 +16,10 @@ const SAMPLES = [
 
 describe('§4 compliance over real sample logs', () => {
   for (const f of SAMPLES) {
-    it(`runs without crashing and yields 46 results on ${f}`, () => {
+    it(`runs without crashing and yields 49 results on ${f}`, () => {
       const r = analyzeLogLines(load(f), f);
       const results = r.cpCompliance.groups.flatMap((g) => g.results);
-      expect(results).toHaveLength(46);
+      expect(results).toHaveLength(49);
       // no rule throws → every result has a defined status
       expect(results.every((x) => ['pass', 'warn', 'fail', 'info'].includes(x.status))).toBe(true);
       // weighted score is a valid percent

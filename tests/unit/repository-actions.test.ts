@@ -22,6 +22,18 @@ describe('loadAndAnalyzeFromRepo (FR-189)', () => {
     await loadAndAnalyzeFromRepo(saved!.id, container);
     expect(container.children.length).toBeGreaterThan(0); // renderResults populated it
   });
+
+  it('shows a processing indicator before the analyze completes', async () => {
+    const saved = await saveLogToRepository(SAMPLE, { filename: 's.log', fileSize: SAMPLE.length });
+    const container = document.createElement('div');
+    const promise = loadAndAnalyzeFromRepo(saved!.id, container);
+    // Synchronously — before the awaited yield/analyze — the spinner is shown.
+    expect(container.querySelector('[data-role="repo-loading"]')).not.toBeNull();
+    await promise;
+    // After completion the spinner is replaced by the results.
+    expect(container.querySelector('[data-role="repo-loading"]')).toBeNull();
+    expect(container.children.length).toBeGreaterThan(0);
+  });
 });
 
 describe('delete actions (FR-191/355)', () => {

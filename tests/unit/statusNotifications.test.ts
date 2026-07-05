@@ -40,8 +40,8 @@ describe('computeStatusAnalytics', () => {
     expect(a.rows[2].sessionFlow).toBe('');
   });
 
-  it('rolls up non-NoError codes with their connectors', () => {
-    expect(a.errRows).toEqual([{ errorCode: 'GroundFailure', vendorErrorCode: 'E9', vendorId: 'V1', count: 1, connectors: ['2'] }]);
+  it('rolls up non-NoError codes with their info, status, and connectors', () => {
+    expect(a.errRows).toEqual([{ errorCode: 'GroundFailure', info: '—', statuses: 'Faulted', vendorErrorCode: 'E9', vendorId: 'V1', count: 1, connectors: ['2'] }]);
   });
 });
 

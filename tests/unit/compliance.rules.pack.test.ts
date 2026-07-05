@@ -7,10 +7,10 @@ describe('cpInitiatedPack completeness', () => {
       ['AUTH', 'BOOT', 'DT', 'DIAG', 'FW', 'HEART', 'METER', 'START', 'STATUS', 'STOP'],
     );
   });
-  it('contains exactly 46 rules with unique ids', () => {
+  it('contains exactly 49 rules with unique ids', () => {
     const ids = cpInitiatedPack.groups.flatMap((g) => g.rules.map((r) => r.id));
-    expect(ids).toHaveLength(46);
-    expect(new Set(ids).size).toBe(46);
+    expect(ids).toHaveLength(49);
+    expect(new Set(ids).size).toBe(49);
   });
   it('every rule has verbatim invariant text + a 4.x specRef + a valid severity/tier', () => {
     for (const g of cpInitiatedPack.groups) for (const r of g.rules) {

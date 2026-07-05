@@ -94,6 +94,11 @@ These business cases are derived ONLY from OCPP 1.6J Section 4 - Operations Init
 | STATUS-007 | 4.9 | StatusNotification | Offline synchronization SHALL only report current state and errors | Validate offline recovery behavior | Major |
 | STATUS-008 | 4.9 | StatusNotification | Offline synchronization messages SHALL preserve event order | Validate ordering | Major |
 | STATUS-009 | 4.9 | StatusNotification | EV disconnect behavior SHALL respect StopTransactionOnEVSideDisconnect | Validate configuration behavior | Major |
+| STATUS-010 | 4.9 | StatusNotification | A connector's MeterValues SHALL be preceded by a StatusNotification(status=Charging) on that connector | Per connector with MeterValues, verify a Charging status occurs at/before the first MeterValues; flag MeterValues with no prior Charging (e.g. charging resuming after an errored session) | Major (heuristic) |
+| STATUS-011 | 4.9 | StatusNotification | The same underlying fault (same info + vendorErrorCode) SHALL report a consistent errorCode | Group error StatusNotifications by (info, vendorErrorCode); flag when the same fault is reported under more than one errorCode | Major (heuristic) |
+| STATUS-012 | 4.9 | StatusNotification | A given errorCode SHALL map to a consistent vendorErrorCode (same vendor code regardless of status) | Group error StatusNotifications by errorCode; flag when the same errorCode is reported under more than one vendorErrorCode (e.g. EVCommunicationError as both 88 and 99, across SuspendedEV and Finishing) | Major (heuristic) |
+
+> **Field-derived additions (2026-07-05):** STATUS-010 and STATUS-011 were added from a field log (`data/samples/DC060 After Error Charging happening.txt`) where charging resumed after an errored session with no Charging status, and the same fault (`info=BMSCommunicationTimeout`, `vendorErrorCode=1`) was reported as both `EVCommunicationError` and `OtherError`. This ledger grows as more field cases are shared.
 
 ---
 
