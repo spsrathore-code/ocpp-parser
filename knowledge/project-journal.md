@@ -655,3 +655,19 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 2. Run **`/review`+`/cso`+`/qa` on Phase 6** validation.
 3. Deploy decision: Help modal + parked 3b-3b/4c/4e + set `vite.config` `base` for GitHub Pages; optionally add `vite-plugin-singlefile`.
 - All work on `feat/parser-revamp` (pushed; **NOT on `main`**, NOT deployed). HEAD `6b22e00`.
+
+---
+
+## 2026-07-05 — 2 new §4 compliance checks (from field log) + 2 Status-section UI fixes
+
+**Context:** User is building a growing, field-driven compliance ledger. Confirmed we already maintain it: `docs/business_case_compliance_check.md` (the registry) + `src/app/compliance/rulepacks/cpInitiated.ts` (the rules). Sample logs go in `data/samples/`. Field log this session: `data/samples/DC060 After Error Charging happening.txt`.
+
+**Implemented (on `feat/parser-revamp`):**
+- **STATUS-010** (Major, heuristic) — a connector's MeterValues SHALL be preceded by a `StatusNotification(status=Charging)`. Flags charging resuming after an errored session with no Charging status. DC060 has 146 MeterValues, 0 Charging → warns.
+- **STATUS-011** (Major, heuristic) — the same fault (`info`+`vendorErrorCode`) SHALL report a consistent `errorCode`. DC060 reports `BMSCommunicationTimeout`/`vendorErrorCode:1` as both `EVCommunicationError` and `OtherError` → warns.
+- Registry updated (§4 pack **46 → 48 rules**); count assertions bumped.
+- **UI #3** — Status Notifications "🔴 Error Code Frequency" table now shows **Info** + **Status** columns (rollup keyed on `info` so vendor faults stay distinct).
+- **UI #4** — Repository **Load & Analyze** now shows a spinner ("Loading & analyzing…") + scrolls + yields a frame before the blocking analyze, so users don't re-click.
+- +6 tests incl. a DC060 field-case regression (`compliance.dc060.test.ts`). **332 tests**, `tsc`+build clean. Commit `309d780`.
+
+**How compliance grows (recorded for future):** each field case = 1 row in `docs/business_case_compliance_check.md` + 1 rule in `cpInitiated.ts` + a `data/samples/` fixture, same commit. Next IDs continue the per-message series (STATUS-012, …).

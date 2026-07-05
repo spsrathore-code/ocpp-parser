@@ -3,7 +3,7 @@
 > Living list of granular work. **Suite-level status is in `specs/roadmap.md`** (the
 > dashboard); this file is the finer-grained active task list. Done items also flow
 > to `knowledge/project-journal.md` and (for shipped parser changes) `CHANGELOG.md`.
-> **Last updated:** 2026-06-23
+> **Last updated:** 2026-07-05
 
 ## Open / next (pick up here)
 
@@ -13,6 +13,7 @@
 
 ## Done
 
+- [x] **§4 compliance — 2 field-derived checks + 2 Status-section UI fixes** (2026-07-05, `309d780`) — from field log `data/samples/DC060 After Error Charging happening.txt`. **STATUS-010** (MeterValues must be preceded by a `StatusNotification(Charging)` — flags charging after an errored session) + **STATUS-011** (same fault `info`+`vendorErrorCode` must report a consistent `errorCode`); §4 pack **46→48 rules**, registry rows added. **UI:** Error-Code-Frequency table gains **Info**+**Status** columns (rollup keyed on `info`); **Load & Analyze** spinner + scroll + frame-yield (no more re-clicking). +6 tests (332), incl. DC060 regression. `tsc`+build clean. *(How to grow: 1 registry row + 1 rule + 1 sample, same commit.)*
 - [x] **🐞 Large/multi-file upload crash — FIXED** (2026-06-23, `6b22e00`) — big/multi-file logs showed no results: unbounded-array spread (`push(...lines)`, `Math.max(...validLatencies)`) overflowed V8's arg cap on `MH0135` (315k lines/130k pings); catch-less `try/finally` hid it. Fixed with loop-based `concatChunks`/`appendAll`/`maxOf`/`minOf` across the large-log path + `main.ts` error `catch`. +3 tests (325).
 - [x] **§4 CP-Initiated Operations Compliance** (2026-06-23) — pluggable compliance rule-pack framework (`src/app/compliance/`) + full OCPP 1.6J §4 pack (46 rules, tier-tagged 🟢/🟡/🔴, severity-weighted score). Sibling section after Protocol Compliance (no `protocolCompliance.ts` edit). +49 tests. Spec + plan dated 2026-06-23. **/review ✅ + /qa ✅** (BOOT-002 fail→warn; AUTH-003→indeterminate). 325 tests total, `tsc`+build clean.
 - [x] SSOT consolidation (`requirements.md`), repo standardisation, OCPP schema strategy (§19.7), Validation Engine spec (`docs/TYPEVALIDATION.md`).
