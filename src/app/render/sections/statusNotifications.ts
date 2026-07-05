@@ -18,7 +18,7 @@ export interface StatusRow {
   status: string; errorCode: string; vendorId: string; vendorErrorCode: string; info: string; sessionFlow: string;
 }
 export interface PerConnFlow { cid: string; cf: number; cs: number; ca: number; cflt: number; total: number; }
-export interface ErrRow { errorCode: string; vendorErrorCode: string; vendorId: string; count: number; connectors: string[]; }
+export interface ErrRow { errorCode: string; info: string; statuses: string; vendorErrorCode: string; vendorId: string; count: number; connectors: string[]; }
 export interface StatusAnalytics {
   rows: StatusRow[];
   summary: { totalEvents: number; uniqueStatuses: number; faultedCount: number; errorCount: number; connectorCount: number };
@@ -108,18 +108,21 @@ export function computeStatusAnalytics(messages: ParsedMessage[]): StatusAnalyti
   });
   perConn.sort((a, b) => String(a.cid).localeCompare(String(b.cid), undefined, { numeric: true }));
 
-  // Error-code frequency (non-NoError), keyed by errorCode||vendorErrorCode||vendorId.
-  const errMap = new Map<string, { errorCode: string; vendorErrorCode: string; vendorId: string; connectors: Set<string>; count: number }>();
+  // Error-code frequency (non-NoError), keyed by errorCode||info||vendorErrorCode||vendorId.
+  // `info` is included in the key because it distinguishes otherwise-identical error
+  // codes (e.g. the vendor's BMSCommunicationTimeout); statuses seen are collected.
+  const errMap = new Map<string, { errorCode: string; info: string; statuses: Set<string>; vendorErrorCode: string; vendorId: string; connectors: Set<string>; count: number }>();
   rows.filter((r) => r.errorCode !== 'NoError' && r.errorCode !== DASH).forEach((r) => {
-    const key = `${r.errorCode}||${r.vendorErrorCode}||${r.vendorId}`;
-    if (!errMap.has(key)) errMap.set(key, { errorCode: r.errorCode, vendorErrorCode: r.vendorErrorCode, vendorId: r.vendorId, connectors: new Set(), count: 0 });
+    const key = `${r.errorCode}||${r.info}||${r.vendorErrorCode}||${r.vendorId}`;
+    if (!errMap.has(key)) errMap.set(key, { errorCode: r.errorCode, info: r.info, statuses: new Set(), vendorErrorCode: r.vendorErrorCode, vendorId: r.vendorId, connectors: new Set(), count: 0 });
     const e = errMap.get(key)!;
     e.count++;
     e.connectors.add(r.connectorId);
+    if (r.status && r.status !== DASH) e.statuses.add(r.status);
   });
   const errRows: ErrRow[] = [...errMap.values()]
     .sort((a, b) => b.count - a.count)
-    .map((e) => ({ errorCode: e.errorCode, vendorErrorCode: e.vendorErrorCode, vendorId: e.vendorId, count: e.count, connectors: [...e.connectors].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) }));
+    .map((e) => ({ errorCode: e.errorCode, info: e.info, statuses: [...e.statuses].join(', ') || DASH, vendorErrorCode: e.vendorErrorCode, vendorId: e.vendorId, count: e.count, connectors: [...e.connectors].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) }));
 
   return { rows, summary, sortedStatuses, maxStatusCount, flow: { full, skipped, abandoned, faulted, perConn }, errRows };
 }
@@ -226,6 +229,8 @@ function errorPanel(a: StatusAnalytics): HTMLElement | null {
   const body = a.errRows.map((e) =>
     el('tr', { className: 'border-t border-gray-200 dark:border-gray-600' }, [
       el('td', { className: 'py-1.5 pr-4 font-semibold text-red-700 dark:text-red-300', text: e.errorCode }),
+      el('td', { className: 'py-1.5 pr-4 text-gray-700 dark:text-gray-200', text: e.info }),
+      el('td', { className: 'py-1.5 pr-4 text-gray-600 dark:text-gray-300', text: e.statuses }),
       el('td', { className: 'py-1.5 pr-4 text-gray-700 dark:text-gray-300', text: e.vendorErrorCode }),
       el('td', { className: 'py-1.5 pr-4 text-gray-600 dark:text-gray-400', text: e.vendorId }),
       el('td', { className: 'py-1.5 pr-4 text-center font-mono font-semibold text-gray-800 dark:text-gray-200', text: String(e.count) }),
@@ -236,6 +241,8 @@ function errorPanel(a: StatusAnalytics): HTMLElement | null {
     el('table', { className: 'w-full text-sm' }, [
       el('thead', { className: 'text-xs text-gray-500 dark:text-gray-400 uppercase', html: `<tr>
         <th class="text-left pb-2 pr-4">Error Code</th>
+        <th class="text-left pb-2 pr-4">Info</th>
+        <th class="text-left pb-2 pr-4">Status</th>
         <th class="text-left pb-2 pr-4">Vendor Error Code</th>
         <th class="text-left pb-2 pr-4">Vendor ID</th>
         <th class="text-center pb-2 pr-4">Count</th>

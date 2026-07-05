@@ -447,6 +447,8 @@ const meterRules: ComplianceRule[] = [
 
 // ---- StartTransaction (§4.8) ----
 interface StatusPayload { connectorId?: number; status?: string; errorCode?: string; }
+/** StatusNotification payload incl. the vendor fields used by STATUS-011. */
+interface FaultPayload { errorCode?: string; info?: string; vendorErrorCode?: string; vendorId?: string; }
 const statusOf = (m: ParsedMessage): StatusPayload => payload<StatusPayload>(m);
 
 const startRules: ComplianceRule[] = [
@@ -638,6 +640,66 @@ const statusRules: ComplianceRule[] = [
     auditLogic: 'Config-dependent; the StopTransactionOnEVSideDisconnect setting is not present in the log.',
     severity: 'Major', tier: 'indeterminate',
     evaluate: () => ({ status: 'info', details: 'Indeterminate — depends on StopTransactionOnEVSideDisconnect config, not present in log', affected: [] }),
+  },
+  {
+    id: 'STATUS-010', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'A connector’s MeterValues SHALL be preceded by a StatusNotification(status=Charging) on that connector',
+    auditLogic: 'Per connector with MeterValues, verify at least one Charging StatusNotification occurs at/before the first MeterValues. MeterValues flowing with no prior Charging status (e.g. charging resuming after an errored session) is flagged.',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const mvByConn = new Map<number, ParsedMessage[]>();
+      ctx.messageGroups.MeterValues.forEach((m) => {
+        const c = payload<{ connectorId?: number }>(m).connectorId;
+        if (c == null) return;
+        const arr = mvByConn.get(c) ?? []; arr.push(m); mvByConn.set(c, arr);
+      });
+      if (mvByConn.size === 0) return { status: 'info', details: 'No MeterValues to check', affected: [] };
+      const firstChargingByConn = new Map<number, number>();
+      ctx.messageGroups.StatusNotification.forEach((m) => {
+        const p = statusOf(m);
+        if (p.status !== 'Charging' || p.connectorId == null) return;
+        const t = ms(m.timestamp);
+        const cur = firstChargingByConn.get(p.connectorId);
+        if (cur == null || t < cur) firstChargingByConn.set(p.connectorId, t);
+      });
+      const offenders: ParsedMessage[] = [];
+      mvByConn.forEach((mvs, conn) => {
+        const firstMv = Math.min(...mvs.map((m) => ms(m.timestamp)));
+        const charging = firstChargingByConn.get(conn);
+        if (charging == null || charging > firstMv) {
+          const first = [...mvs].sort((a, b) => ms(a.timestamp) - ms(b.timestamp))[0];
+          offenders.push(first);
+        }
+      });
+      return offenders.length === 0
+        ? { status: 'pass', details: 'All connectors with MeterValues had a preceding Charging status', affected: [] }
+        : { status: 'warn', details: `${offenders.length} connector(s) sent MeterValues without a preceding StatusNotification(Charging)`, affected: offenders.map((m) => itemOf(m, `MeterValues@C${payload<{ connectorId?: number }>(m).connectorId}`)) };
+    },
+  },
+  {
+    id: 'STATUS-011', specRef: '4.9', targetMessage: 'StatusNotification',
+    invariant: 'The same underlying fault (same info + vendorErrorCode) SHALL report a consistent errorCode',
+    auditLogic: 'Group error StatusNotifications by (info, vendorErrorCode); the same fault reported under more than one errorCode is flagged (e.g. BMSCommunicationTimeout reported as both EVCommunicationError and OtherError).',
+    severity: 'Major', tier: 'heuristic',
+    evaluate: (ctx) => {
+      const errs = ctx.messageGroups.StatusNotification.filter((m) => {
+        const p = payload<FaultPayload>(m);
+        return p.errorCode != null && p.errorCode !== 'NoError' && p.info != null && p.info !== '';
+      });
+      if (errs.length === 0) return { status: 'info', details: 'No info-tagged error StatusNotifications to check', affected: [] };
+      const byFault = new Map<string, { codes: Set<string>; msgs: ParsedMessage[] }>();
+      errs.forEach((m) => {
+        const p = payload<FaultPayload>(m);
+        const key = `${p.info}||${p.vendorErrorCode ?? ''}`;
+        const g = byFault.get(key) ?? { codes: new Set<string>(), msgs: [] };
+        g.codes.add(p.errorCode as string); g.msgs.push(m); byFault.set(key, g);
+      });
+      const offenders: ParsedMessage[] = [];
+      byFault.forEach((g) => { if (g.codes.size > 1) offenders.push(...g.msgs); });
+      return offenders.length === 0
+        ? { status: 'pass', details: 'Each fault (info+vendorErrorCode) maps to a single errorCode', affected: [] }
+        : { status: 'warn', details: `${offenders.length} StatusNotification(s) report the same fault under inconsistent errorCodes`, affected: offenders.map((m) => { const p = payload<FaultPayload>(m); return itemOf(m, `${p.errorCode} · info=${p.info ?? '—'}`); }) };
+    },
   },
 ];
 
