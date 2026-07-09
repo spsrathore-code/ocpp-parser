@@ -11,6 +11,9 @@ import { parseLinesAsync } from '../parse/parseLinesAsync';
 import { appendAll } from '../parse/concatChunks';
 import { analyze, mergeParsed, type AnalysisResult } from '../analyze';
 import type { ParsedLines } from '../parse/parseLines';
+import { parseCmsWorkbook } from '../cms/parseCmsWorkbook';
+import { mergeCmsParsed } from '../cms/mergeCmsParsed';
+import type { CmsParsed } from '../cms/types';
 
 export type AnalysisRequest =
   | { kind: 'text'; files: File[] }
@@ -64,6 +67,20 @@ async function handleText(files: File[], progress: ProgressFn): Promise<Analysis
   return { result: analyze(mergeParsed(parts), allLines, names) };
 }
 
-async function handleCms(_files: File[], _progress: ProgressFn): Promise<AnalysisPayload> {
-  throw new Error('cms path implemented in Task 2');
+async function handleCms(files: File[], progress: ProgressFn): Promise<AnalysisPayload> {
+  const parts: CmsParsed[] = [];
+  const outcomes: CmsFileOutcome[] = [];
+  const names: string[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    progress(`Reading ${file.name} (${i + 1}/${files.length})…`);
+    const ab = await file.arrayBuffer();
+    const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name);
+    parts.push(parsed);
+    names.push(file.name);
+    outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length });
+  }
+  progress('Correlating & analyzing…');
+  const { parsed, rawLogLines } = mergeCmsParsed(parts);
+  return { result: analyze(parsed, rawLogLines, names), cms: { outcomes } };
 }
