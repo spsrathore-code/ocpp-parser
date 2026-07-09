@@ -11,6 +11,8 @@ import type { CmsParsed, CmsFormatAdapter } from './types';
 export interface CmsParseOutcome {
   parsed: CmsParsed;
   adapter: CmsFormatAdapter;
+  /** Unique charger ids (sheet names) found in the workbook — for the source banner. */
+  chargers: string[];
 }
 
 /** Parse a CMS Excel workbook into the shared pipeline's ParsedLines. */
@@ -47,6 +49,7 @@ export async function parseCmsWorkbook(
     );
   }
 
+  const chargers = [...new Set(rows.map((r) => r.sheetName).filter(Boolean))];
   const parsed = cmsRowsToParsedLines(rows, fileName);
-  return { parsed, adapter };
+  return { parsed, adapter, chargers };
 }

@@ -15,8 +15,9 @@ describe('parseCmsWorkbook — real CZ sample', () => {
   const ab = toArrayBuffer(readFileSync(SAMPLE));
 
   it('detects the CZ adapter and produces correlated messages', async () => {
-    const { parsed, adapter } = await parseCmsWorkbook(ab, 'CZ CMS Logs Sample.xlsx');
+    const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, 'CZ CMS Logs Sample.xlsx');
     expect(adapter.id).toBe('cz');
+    expect(chargers).toContain('MH0055'); // charger id = sheet name
     expect(parsed.messages.length).toBeGreaterThan(0);
     // one synthesized raw line per emitted message (context viewer contract).
     expect(parsed.rawLogLines.length).toBe(parsed.messages.length);
