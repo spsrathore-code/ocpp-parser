@@ -44,13 +44,36 @@ or render change is in scope, and none should be needed.
 
 ### 3.2 Mahindra adapter (`src/app/cms/adapters/mahindra.ts`)
 
-Built strictly from the sample (per §4c recipe): `detect()` specific enough not to
-collide with CZ; `extractRows()` → `CmsRow[]`; timestamp normalization to UTC ISO
-(reuse `istToUtcIso` if IST wall-clock; else a format-specific converter beside
-`timestamps.ts`). If Mahindra rows are single-message (not paired req/resp), the
-adapter maps accordingly — `CmsRow.responseString` may stay empty (pipeline already
-handles unanswered CALLs). Exact column mapping: **determined from the sample at
-implementation time; the sample analysis gets appended to this doc before coding.**
+**Sample analysis (`data/samples/Mahindra CMS Log Sample.xlsx`, 2026-07-09):**
+- One sheet `Logs_of_charger__MPCMHDC029_639`; **header at row 0** (no CZ preamble).
+- Columns: `Event Name │ Event Type │ Request │ Response │ Created On`.
+  - `Request` = CALL `[2,…]`, `Response` = CALLRESULT `[3,…]` — **paired like CZ**, so
+    `cmsRowsToParsedLines` is unchanged.
+  - `Event Type` = `Charger-CMS` / `CMS-Charger` — confirms direction, but the shared
+    action-based §4/§5 derivation already yields the same result → **no model change**.
+  - `Created On` = single IST timestamp (mirror to both req/resp times, the existing
+    CreatedOn variant).
+
+**Three verified issues this adapter must solve (probe 2026-07-09):**
+- **A — detect collision:** `czAdapter.detect()` returns **true** on the Mahindra
+  workbook (its rule is only "has request + response headers"). Fix both sides:
+  (1) **tighten `czAdapter.detect`** to require a CZ-distinctive signal — `Request
+  String`/`Response String` (the "string" suffix) or `Sr No.` — keeping the CZ sample
+  passing; (2) **`mahindraAdapter.detect`** keys on its distinctive headers
+  (`Event Name` + `Event Type` + `Created On`). Add a cross-detection regression test.
+- **B — timestamp:** `istToUtcIso("2/7/26 15:19")` returns **null** (2-digit year, no
+  seconds), and under the memory-lean read (`cellDates:false`) the cell arrives as an
+  **Excel serial number** (`46060.638…`), not text. New
+  `mahindraTimestampToUtcIso(value: string | number)` beside `timestamps.ts`:
+  handle a serial (`XLSX.SSF`/epoch math → wall-clock components) **and** the
+  `d/m/yy H:MM` string; treat as IST (verified: `15:19` vs payload `09:49:18Z` = +5:30)
+  → UTC ISO. Unit-tested against both forms.
+- **C — charger id:** `extractRows` should surface a clean charger id (strip the
+  `Logs_of_charger__` prefix → `MPCMHDC029_639`) into `CmsRow.sheetName` for the banner.
+
+`extractRows` reads timestamps with the numeric value preserved (so the serial isn't
+stringified before conversion) — e.g. `sheet_to_json(..., { raw: true })` for the
+Created-On column, or convert in the adapter when the cell is a number.
 
 ### 3.3 Selector UI (`renderCmsShell.ts` + `mountCmsParser.ts`)
 
