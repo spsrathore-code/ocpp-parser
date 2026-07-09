@@ -40,6 +40,14 @@ describe('cmsRowsToParsedLines', () => {
     expect(rawLogLines[messages[1].lineNumber - 1]).toContain('currentTime');
   });
 
+  it('leads the synthesized line with the canonical UTC timestamp (not IST), plus IST for humans', () => {
+    // The Debug-Info log-span scan reads the bracketed [timestamp]; it must match the
+    // message timestamp (UTC), otherwise the span is skewed by the IST offset.
+    const { rawLogLines } = cmsRowsToParsedLines([heartbeatRow], 'CZ.xlsx');
+    expect(rawLogLines[0].startsWith('[2025-08-07T18:32:42.000Z]')).toBe(true);
+    expect(rawLogLines[0]).toContain('IST 08/08/2025, 00:02:42'); // human-readable original
+  });
+
   it('derives an Alert from a StatusNotification with a real errorCode', () => {
     const faultRow: CmsRow = {
       requestString: '[2,"uuid-sn","StatusNotification",{"connectorId":1,"errorCode":"GroundFailure","status":"Faulted","info":"BMS Communication Timeout"}]',

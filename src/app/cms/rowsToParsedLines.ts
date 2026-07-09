@@ -41,7 +41,7 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
     const action = call[2] as string;
     const reqTs = istToUtcIso(row.requestTime) ?? istToUtcIso(row.responseTime) ?? '';
 
-    rawLogLines.push(synthLine(row, 'REQ', row.requestTime, row.requestString));
+    rawLogLines.push(synthLine(row, 'REQ', reqTs, row.requestTime, row.requestString));
     messages.push({
       timestamp: reqTs,
       direction: requestDirection(action),
@@ -55,7 +55,7 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
       const result = safeParse(row.responseString);
       if (Array.isArray(result) && result[0] === 3) {
         const respTs = istToUtcIso(row.responseTime) ?? reqTs;
-        rawLogLines.push(synthLine(row, 'RESP', row.responseTime, row.responseString));
+        rawLogLines.push(synthLine(row, 'RESP', respTs, row.responseTime, row.responseString));
         messages.push({
           timestamp: respTs,
           direction: responseDirection(action),
@@ -100,8 +100,13 @@ function safeParse(s: string): OcppRawMessage | null {
   }
 }
 
-/** Human-readable synthesized log line (keeps the original IST time for traceability). */
-function synthLine(row: CmsRow, kind: 'REQ' | 'RESP', wallTime: string, ocpp: string): string {
+/**
+ * Synthesized log line for the context viewer. Leads with the canonical UTC
+ * timestamp (matching ParsedMessage.timestamp, so the Debug-Info span scan agrees)
+ * and appends the original IST wall-clock for human traceability.
+ */
+function synthLine(row: CmsRow, kind: 'REQ' | 'RESP', utcTs: string, wallTime: string, ocpp: string): string {
   const sr = row.srNo ? `#${row.srNo} ` : '';
-  return `[${wallTime || 'N/A'}] ${sr}${row.sheetName} ${kind}: ${ocpp}`;
+  const ist = wallTime ? ` (IST ${wallTime})` : '';
+  return `[${utcTs || 'N/A'}] ${sr}${row.sheetName} ${kind}${ist}: ${ocpp}`;
 }
