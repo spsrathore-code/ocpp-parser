@@ -88,6 +88,40 @@ the existing `correlateMessages()` links `responsePayload` unchanged.
 - [ ] D4d. Docs: `specs/requirements.md` (SSOT), `CLAUDE.md` tool table, `specs/roadmap.md`, `specs/tasks.md`, `CHANGELOG.md`; add **"How to add a new customer CMS format"** guide.
 - [ ] D5g. Branch `feat/cms-log-parser`; `/review` + `/qa` before PR → merge.
 
+## 4b. Build status (2026-07-09) — Phases A–C DONE
+
+Branch `feat/cms-log-parser`. Full suite **410/410**, `tsc` clean. `src/app/cms/`:
+`timestamps · directions · rowsToParsedLines · adapters/cz · registry ·
+parseCmsWorkbook · mergeCmsParsed · renderCmsShell · mountCmsParser`. Nav view
+enabled (lazy-mounted → xlsx stays a 429 kB separate chunk).
+
+**Section-parity audit on the real CZ sample** (`data/samples/CZ CMS Logs Sample.xlsx`,
+3204 messages, charger MH0055) — every relevant section populates:
+
+| Populated ✅ | Empty by nature (Excel lacks the source data) |
+|---|---|
+| Debug Info, Boot (1), Heartbeats (311), Status (124), Start (12), Stop (13), Transaction Summary (12 txns), Connector Stats (2), Meter Values (1082), **Alerts (12, derived from faulted StatusNotifications)**, Downtime (1), Incomplete Tx (1), Energy Dispense (2), Fault Status Summary, Protocol Compliance, CP-Initiated Compliance §4 | **Events** (no free-text event lines), **Power-Restore / Emergency-Stop Sync** (weak signal in Excel), **WebSocket Health** (no WS ping/pong text) |
+
+Debug-Info log span validated: 2025-08-08 00:00 → 2025-08-09 01:59 IST (25h 58m),
+matching the file's stated date range. A Phase-C fix leads synthesized context-viewer
+lines with the canonical UTC timestamp so the span scan isn't skewed by IST.
+
+**Remaining:** Phase D (docs/tracking) + user visual verification + PR.
+
+## 4c. Adding a new customer CMS format
+
+1. Create `src/app/cms/adapters/<id>.ts` exporting a `CmsFormatAdapter`:
+   - `detect(workbook)` — return true only for this customer's layout (be specific
+     enough not to collide with other adapters).
+   - `extractRows(workbook)` — normalize its sheet(s) to `CmsRow[]`
+     (`requestString` / `responseString` / `requestTime` / `responseTime` /
+     `sheetName` / optional `srNo`). Reuse the CZ helpers as a template.
+   - If its wall-clock zone isn't IST, add a timestamp converter alongside
+     `timestamps.ts` and use it in the adapter (store UTC ISO).
+2. Register it in `src/app/cms/registry.ts` (`CMS_ADAPTERS`).
+3. Add a fixture + adapter test mirroring `cms.czAdapter.test.ts`.
+   Nothing downstream changes — the shared pipeline handles the rest.
+
 ## 5. Explicitly out of scope (v1)
 - Non-CZ customer adapters (framework ready; adapters added on demand — point #2 part 2).
 - Fixing the pre-existing cross-file message-id-collision bug (tracked separately).
