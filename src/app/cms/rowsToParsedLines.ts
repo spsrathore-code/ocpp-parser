@@ -27,8 +27,17 @@ interface StatusPayload {
   vendorErrorCode?: string;
 }
 
-/** Turn normalized CMS rows into ParsedLines + the synthesized raw log lines. */
-export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParsed {
+/**
+ * Turn normalized CMS rows into ParsedLines + the synthesized raw log lines.
+ * `toUtcIso` converts a customer's wall-clock string to a UTC ISO instant; it
+ * defaults to the CZ (IST) parser so existing callers are unchanged, and each
+ * adapter passes its own (parseCmsWorkbook wires `adapter.toUtcIso`).
+ */
+export function cmsRowsToParsedLines(
+  rows: CmsRow[],
+  fileName: string,
+  toUtcIso: (raw: string) => string | null = istToUtcIso,
+): CmsParsed {
   const messages: ParsedMessage[] = [];
   const alerts: ParsedAlert[] = [];
   const rawLogLines: string[] = [];
@@ -39,7 +48,7 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
     if (!Array.isArray(call) || call[0] !== 2 || typeof call[2] !== 'string') continue;
 
     const action = call[2] as string;
-    const reqTs = istToUtcIso(row.requestTime) ?? istToUtcIso(row.responseTime) ?? '';
+    const reqTs = toUtcIso(row.requestTime) ?? toUtcIso(row.responseTime) ?? '';
 
     rawLogLines.push(synthLine(row, 'REQ', reqTs, row.requestTime, row.requestString));
     messages.push({
@@ -54,7 +63,7 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
     if (row.responseString) {
       const result = safeParse(row.responseString);
       if (Array.isArray(result) && result[0] === 3) {
-        const respTs = istToUtcIso(row.responseTime) ?? reqTs;
+        const respTs = toUtcIso(row.responseTime) ?? reqTs;
         rawLogLines.push(synthLine(row, 'RESP', respTs, row.responseTime, row.responseString));
         messages.push({
           timestamp: respTs,

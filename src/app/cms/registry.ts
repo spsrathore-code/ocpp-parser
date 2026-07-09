@@ -7,9 +7,10 @@
 import type { WorkBook } from 'xlsx';
 import type { CmsFormatAdapter } from './types';
 import { czAdapter } from './adapters/cz';
+import { mahindraAdapter } from './adapters/mahindra';
 
 /** All registered customer CMS-format adapters, tried in order. */
-export const CMS_ADAPTERS: CmsFormatAdapter[] = [czAdapter];
+export const CMS_ADAPTERS: CmsFormatAdapter[] = [czAdapter, mahindraAdapter];
 
 /** First adapter that recognizes `workbook`, or null if none match. */
 export function detectAdapter(workbook: WorkBook): CmsFormatAdapter | null {
@@ -19,4 +20,9 @@ export function detectAdapter(workbook: WorkBook): CmsFormatAdapter | null {
     } catch { /* a mis-detecting adapter must not break the others */ }
   }
   return null;
+}
+
+/** Look up a registered adapter by id (for user-forced customer selection). */
+export function getAdapter(id: string): CmsFormatAdapter | undefined {
+  return CMS_ADAPTERS.find((a) => a.id === id);
 }
