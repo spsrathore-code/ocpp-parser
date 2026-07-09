@@ -206,24 +206,35 @@ export async function renderTransactionGraphs(container: HTMLElement, rows: Row[
   c._charts = [];
   container.replaceChildren();
 
-  const defs = graphConfigs(txId, extractGraphData(rows, txId));
-  const { Chart } = (await import('chart.js/auto')) as unknown as { Chart: ChartCtor };
+  try {
+    const defs = graphConfigs(txId, extractGraphData(rows, txId));
+    const { Chart } = (await import('chart.js/auto')) as unknown as { Chart: ChartCtor };
 
-  for (const def of defs) {
-    const canvas = el('canvas', { attrs: { id: def.id } }) as HTMLCanvasElement;
-    const enlargeBtn = el('button', { className: 'bg-purple-500 hover:bg-purple-600 text-white py-1 px-2 rounded text-xs', text: '🔍 Enlarge' });
-    const downloadBtn = el('button', { className: 'bg-green-500 hover:bg-green-600 text-white py-1 px-2 rounded text-xs', text: '📥 Download' });
-    container.appendChild(el('div', { className: 'p-4 rounded-lg', attrs: { style: 'background-color:#000000;' } }, [
-      el('div', { className: 'flex justify-between items-center mb-2' }, [
-        el('h4', { className: 'text-md font-semibold text-white', text: def.title }),
-        el('span', { className: 'text-xs text-gray-400', text: `Transaction ID: ${txId}` }),
-      ]),
-      el('div', { className: 'flex justify-end gap-2 mb-2' }, [enlargeBtn, downloadBtn]),
-      el('div', { attrs: { style: 'position:relative;height:300px;background-color:#000000;' } }, [canvas]),
-    ]));
-    const chart = new Chart(canvas, def.config);
-    c._charts.push(chart);
-    enlargeBtn.addEventListener('click', () => openEnlargeModal(Chart, def, txId));
-    downloadBtn.addEventListener('click', () => downloadChartPng(canvas, def.title, txId));
+    for (const def of defs) {
+      const canvas = el('canvas', { attrs: { id: def.id } }) as HTMLCanvasElement;
+      const enlargeBtn = el('button', { className: 'bg-purple-500 hover:bg-purple-600 text-white py-1 px-2 rounded text-xs', text: '🔍 Enlarge' });
+      const downloadBtn = el('button', { className: 'bg-green-500 hover:bg-green-600 text-white py-1 px-2 rounded text-xs', text: '📥 Download' });
+      container.appendChild(el('div', { className: 'p-4 rounded-lg', attrs: { style: 'background-color:#000000;' } }, [
+        el('div', { className: 'flex justify-between items-center mb-2' }, [
+          el('h4', { className: 'text-md font-semibold text-white', text: def.title }),
+          el('span', { className: 'text-xs text-gray-400', text: `Transaction ID: ${txId}` }),
+        ]),
+        el('div', { className: 'flex justify-end gap-2 mb-2' }, [enlargeBtn, downloadBtn]),
+        el('div', { attrs: { style: 'position:relative;height:300px;background-color:#000000;' } }, [canvas]),
+      ]));
+      const chart = new Chart(canvas, def.config);
+      c._charts.push(chart);
+      enlargeBtn.addEventListener('click', () => openEnlargeModal(Chart, def, txId));
+      downloadBtn.addEventListener('click', () => downloadChartPng(canvas, def.title, txId));
+    }
+  } catch (err) {
+    // Surface failures instead of silently rendering nothing (the caller `void`s
+    // this promise — without this catch a Chart.js load/construct error leaves a
+    // blank graphs area with no trace; field report 2026-07-09).
+    console.error('Transaction Analysis Graphs failed:', err);
+    container.replaceChildren(el('div', {
+      className: 'col-span-2 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg',
+      text: `Failed to render analysis graphs: ${err instanceof Error ? err.message : String(err)}`,
+    }));
   }
 }
