@@ -1,21 +1,19 @@
 // Mounts the CMS Log Parser view: upload Excel CMS logs -> shared analysis.
-//
-// Mirrors nav/mountParser.ts but for Excel: each file is read as an ArrayBuffer,
-// parsed by the customer-detected adapter (parseCmsWorkbook), merged, then handed
-// to the SAME analyze()/renderResults() the Client parser uses.
+// Compute (arrayBuffer read, XLSX.read, adapters, analyze) runs in the analysis
+// Web Worker via runAnalysis() — the spinner now actually spins during parsing
+// (spec: 2026-07-09-analysis-worker-design.md).
 
 import { renderCmsShell } from './renderCmsShell';
-import { parseCmsWorkbook } from './parseCmsWorkbook';
-import { mergeCmsParsed } from './mergeCmsParsed';
-import { analyze } from '../analyze';
+import { runAnalysis } from '../worker/runner';
 import { renderResults } from '../render/renderResults';
-import type { CmsParsed } from './types';
+import type { CmsFileOutcome } from '../worker/protocol';
 
-interface FileOutcome {
-  name: string;
-  label: string;
-  sheet: string;
-  rows: number;
+/** Yield one frame so the spinner can repaint before the (heavy) DOM render. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 0);
+  });
 }
 
 export function mountCmsParser(mountEl: HTMLElement): void {
@@ -31,22 +29,12 @@ export function mountCmsParser(mountEl: HTMLElement): void {
     container.innerHTML = '';
 
     try {
-      const parts: CmsParsed[] = [];
-      const outcomes: FileOutcome[] = [];
-      const names: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        progress.text.textContent = `Reading ${file.name} (${i + 1}/${files.length})…`;
-        const ab = await file.arrayBuffer();
-        const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name);
-        parts.push(parsed);
-        names.push(file.name);
-        outcomes.push({ name: file.name, label: adapter.label, sheet: chargers.join(', ') || file.name, rows: parsed.messages.length });
-      }
-
-      const { parsed, rawLogLines } = mergeCmsParsed(parts);
-      const result = analyze(parsed, rawLogLines, names);
-      renderSourceInfo(sourceInfo, outcomes, result.messages.length, result.alerts.length);
+      const { result, cms } = await runAnalysis({ kind: 'cms', files }, (label) => {
+        progress.text.textContent = label;
+      });
+      progress.text.textContent = 'Rendering…';
+      await nextFrame();
+      renderSourceInfo(sourceInfo, cms?.outcomes ?? [], result.messages.length, result.alerts.length);
       renderResults(container, result);
     } catch (err) {
       console.error('CMS parse/analyze failed:', err);
@@ -60,10 +48,10 @@ export function mountCmsParser(mountEl: HTMLElement): void {
 }
 
 /** Show a banner summarizing the detected customer format and per-file counts. */
-function renderSourceInfo(host: HTMLElement, files: FileOutcome[], totalMessages: number, totalAlerts: number): void {
+function renderSourceInfo(host: HTMLElement, files: CmsFileOutcome[], totalMessages: number, totalAlerts: number): void {
   const labels = Array.from(new Set(files.map((f) => f.label))).join(', ');
   const fileRows = files
-    .map((f) => `<li><span class="font-medium">${f.name}</span> — ${f.label} · charger <span class="font-mono">${f.sheet}</span> · ${f.rows} messages</li>`)
+    .map((f) => `<li><span class="font-medium">${f.name}</span> — ${f.label} · charger <span class="font-mono">${f.chargers.join(', ') || f.name}</span> · ${f.rows} messages</li>`)
     .join('');
   host.innerHTML = `
     <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-200">

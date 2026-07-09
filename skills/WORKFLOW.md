@@ -37,6 +37,31 @@ handoff. Branch `feat/ocpp-simulator`.
 
 ---
 
+## Feature: Analysis Web Worker (large-file freeze fix)  |  Started: 2026-07-09
+
+Goal: fix assessment finding P1 — move parse + xlsx read + `analyze()` off the
+main thread into a Web Worker so large files no longer freeze the browser.
+Branch `feat/perf-analysis-worker` (off `feat/cms-log-parser`).
+
+| Phase   | Skill(s)                                  | Status      | Date       |
+|---------|-------------------------------------------|-------------|------------|
+| Think   | brainstorming (P1 → approach A)           | ✅ Complete | 2026-07-09 |
+| Plan    | writing-plans (7 TDD tasks)               | ✅ Complete | 2026-07-09 |
+| Build   | executing-plans (inline)                  | ✅ Complete | 2026-07-09 |
+| Review  | /review                                   | ✅ Complete | 2026-07-09 |
+| Test    | /qa                                       | ✅ Complete | 2026-07-09 |
+| Ship    | /ship (PR)                                | ⏳ Active   | 2026-07-09 |
+| Reflect | /retro + /learn                           | ⬜ Pending  |            |
+
+- Spec `docs/superpowers/specs/2026-07-09-analysis-worker-design.md` · plan `docs/superpowers/plans/2026-07-09-analysis-worker.md`.
+- **Review + /qa (2026-07-09):** 0 bugs. Mechanical clean (no index.html/console.log/any); worker is pure transport (no OCPP logic touched); 422 tests incl. protocol equivalence + clone-integrity + mount wiring; `tsc`+build clean, worker separate chunk. Browser-verified by user. Low-sev note (no fix): cancelled worker's promise dangles, but the new run owns button state. Also carries the graphs error-surfacing fix (3b91d7d) + the multi-customer design docs.
+- Built: `src/app/worker/` — `protocol.ts` (pure `handleRequest`, both pipelines + progress), `analysis.worker.ts` (dispatch-only), `runner.ts` (spawn/relay/fallback/cancel). Both mounts now compute via `runAnalysis`; repo Load&Analyze + Simulator handoff untouched (spec §3, verified by diff check).
+- Guarantees delivered: structured-clone integrity test on both real samples; QA baselines (CZ 3204/12/12) re-asserted through the worker protocol; error-message fidelity; direct fallback = pre-worker behavior; cancellation on re-run.
+- **State:** **421 tests** (417 + 11 new, 7 legacy-equivalent replaced), `tsc` + `vite build` clean; `analysis.worker-*.js` separate chunk. Note: xlsx now bundles into the worker chunk (CZ adapter static import) — main bundle unaffected; Export-to-Excel lazily pulls the worker chunk (~80 kB more, cached).
+- [ ] Next: **user browser verification** (large text log + CZ sample: UI stays interactive; repo Load&Analyze + Sim handoff unaffected) → /review → /qa → PR into `feat/cms-log-parser`.
+
+---
+
 ## Feature: CMS Log Parser (Excel ingestion)  |  Started: 2026-07-08
 
 Goal: build the reference HTML's CMS parser (Tab 3) as a new Excel **ingestion
