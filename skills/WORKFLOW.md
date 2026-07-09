@@ -37,6 +37,34 @@ handoff. Branch `feat/ocpp-simulator`.
 
 ---
 
+## Feature: CMS Log Parser (Excel ingestion)  |  Started: 2026-07-08
+
+Goal: build the reference HTML's CMS parser (Tab 3) as a new Excel **ingestion
+adapter** feeding the Client parser's existing `analyze()`/`renderResults()` — CMS
+`.xlsx` → `ParsedLines` → all 21 sections reused. Scales to other customers via a
+pluggable adapter registry (CZ first). Branch `feat/cms-log-parser`.
+
+| Phase   | Skill(s)                                  | Status      | Date       |
+|---------|-------------------------------------------|-------------|------------|
+| Think   | brainstorming (design + decisions)        | ✅ Complete | 2026-07-08 |
+| Plan    | inline (spec = to-do list)                | ✅ Complete | 2026-07-08 |
+| Build   | TDD (Phases A–C)                          | ✅ Complete | 2026-07-09 |
+| Review  | /review                                   | ✅ Complete | 2026-07-09 |
+| Test    | /qa                                       | ✅ Complete | 2026-07-09 |
+| Ship    | /ship (PR)                                | ⬜ Pending  |            |
+| Reflect | /retro + /learn                           | ⬜ Pending  |            |
+
+- Spec/to-do `docs/superpowers/specs/2026-07-08-cms-log-parser-design.md` (incl. add-a-customer guide §4c).
+- [x] **Phase A** Ingestion adapter (`src/app/cms/`): timestamps (IST→UTC) · directions (§4/§5) · rowsToParsedLines (CALL+CALLRESULT + derived Alerts) · CZ adapter · registry · parseCmsWorkbook.
+- [x] **Phase B** View: renderCmsShell · mountCmsParser · mergeCmsParsed · nav enabled (lazy → xlsx a separate chunk).
+- [x] **Phase C** Section-parity audit on real CZ sample (3204 msgs, MH0055) — all relevant sections populate; Debug-Info span fix.
+- **State:** **410 tests** green, `tsc`+`vite build` clean. Commits `68944bc`·`fc1411e`·`73e06a2`·`9daccbd`·`b377be5`.
+- **Review (2026-07-09):** 0 bugs, 0 auto-fixes, 0 blocking flags. OCPP type-IDs (2/3) + StatusNotification field names schema-correct; direction mapping verified on real data (DataTransfer/Authorize = sent); error handling graceful. Notes: CMS UUID msgIds make the cross-file id-collision bug moot; xlsx code-split confirmed.
+- **Test /qa (2026-07-09):** 0 bugs. 15 assertions on the real CZ sample, all pass — incl. OCPP validity: StatusNotification.status §7.7, derived-alert §7.6 ChargePointErrorCodes, ISO-8601 UTC §3.15; 12 txns sane; correlation attaches responsePayload; empty-by-nature sections confirmed. Notes `scratchpad/qa-cms/QA-NOTES.md`. Full suite 410/410.
+- [ ] Next: /ship (PR).
+
+---
+
 ## Feature: OCPP Validation Engine (L1–L3)  |  Started: 2026-06-13
 
 | Phase   | Skill(s)                                  | Status      | Date       |

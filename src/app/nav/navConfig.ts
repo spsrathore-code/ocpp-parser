@@ -25,7 +25,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Parser',
     views: [
       { id: 'client-logs', label: 'Client Log Parser', enabled: true, mount: mountParser },
-      { id: 'cms-logs', label: 'CMS Log Parser', enabled: false },
+      // Lazy-mounted so the Excel (xlsx) + CMS subtree stays a separate chunk,
+      // loaded only when the CMS view is first opened.
+      { id: 'cms-logs', label: 'CMS Log Parser', enabled: true, mount: (c) => { void import('../cms/mountCmsParser').then((m) => m.mountCmsParser(c)); } },
     ],
   },
   {

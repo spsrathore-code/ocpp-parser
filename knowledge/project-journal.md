@@ -735,3 +735,23 @@ Trackers had drifted (the metrics rework wasn't in tasks/roadmap/WORKFLOW/journa
 ## 2026-07-06 — Consolidated: merged `feat/parser-revamp` → `feat/ocpp-simulator`
 
 Brought the compliance work (STATUS-010/011/012 + Error-Code-Frequency Info/Status + Load & Analyze spinner) onto the unified-tool branch so the Emulator **and** the new Parser compliance/UX all run in one app at `localhost:5173/`. Resolved doc conflicts in `tasks.md` + this journal (kept both histories). This branch (`feat/ocpp-simulator`) is now the superset going forward.
+
+---
+
+## 2026-07-08/09 — CMS Log Parser: Excel ingestion adapter (Phases A–C), branch `feat/cms-log-parser`
+
+**Context:** Build the reference HTML's CMS parser (Tab 3) into the suite. User's framing: same parser as the Client Log Parser, but the log is a customer **Excel** file of actual CMS-side OCPP logs; today only customer **CZ** (`data/samples/CZ CMS Logs Sample.xlsx`), must scale to other customers later; and all relevant Client-parser sections must appear. Follow `operating-principles.md` (the archive's version wasn't modular).
+
+**Key insight (why it's a port, not a rewrite):** the whole analysis + 21 render sections run on one contract — `ParsedLines = { messages, events, alerts, internalTxMap }`. So CMS = a new **ingestion adapter** feeding the existing `analyze()`/`renderResults()`. The archive re-parsed each message type into bespoke structures (the non-modular code the user flagged); we discarded that and reused the modern pipeline.
+
+**Decisions (user-confirmed):** D1 derive **Alerts from StatusNotification `errorCode ≠ NoError`** (Excel has no free-text event/alert lines); D2 timestamps stored **UTC ISO**, rendered **IST** (the render layer already does UTC→IST — proven by the sample: Request Time IST = payload `currentTime` UTC + 5:30); D3 **synthesize** one context-viewer line per row.
+
+**Verified-not-assumed findings:** several active modules (`detectDowntimes`, `render/timeline`, `compliance/cpInitiated`) filter on `direction === 'sent'` from the **charger's perspective** → CMS adapter maps OCPP §4 (CP-initiated) requests to `'sent'`, §5 (CS-initiated) to `'received'`. Debug-Info computes its log span by scanning `rawLogLines` for `[timestamp]`; leading synth lines with IST skewed it +5:30, so they now lead with canonical UTC (Phase-C fix).
+
+**Built (`src/app/cms/`):** `timestamps · directions · rowsToParsedLines · adapters/cz · registry · parseCmsWorkbook · mergeCmsParsed · renderCmsShell · mountCmsParser`. Nav `cms-logs` enabled, **lazy-mounted** so xlsx (429 kB) + CMS subtree is a separate chunk. Multi-customer scales by adding one adapter (registry seam; guide in spec §4c).
+
+**Audit on real CZ sample (3204 msgs, MH0055):** 12 transactions, 1082 meter values, **12 derived alerts** (OtherError/EVCommunicationError/InternalError), connector stats, downtime, compliance — all populate. Debug span 2025-08-08 00:00 → 2025-08-09 01:59 IST (25h 58m), matching the file range. Empty-by-nature: Events, Power/Emergency sync, WebSocket Health (Excel lacks that source data).
+
+**State:** **410 tests** (TDD throughout), `tsc` + `vite build` clean. Commits `68944bc` (A), `fc1411e` (B), `73e06a2` (C fix), `9daccbd` (spec). Spec `docs/superpowers/specs/2026-07-08-cms-log-parser-design.md`.
+
+**Next:** Phase D tracker docs (this) → `/review` + `/qa` → PR. Out of scope v1: non-CZ adapters, cross-file id-collision bug, CSMS dashboard.

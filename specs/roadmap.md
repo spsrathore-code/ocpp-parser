@@ -5,7 +5,7 @@
 > Per-branch phase detail lives in `skills/WORKFLOW.md`; per-tool detail in each
 > tool's spec. The suite is one mega-repo; tools ship independently.
 >
-> **Last updated:** 2026-06-23
+> **Last updated:** 2026-07-09
 
 ## Suite status board
 
@@ -36,7 +36,7 @@ reserves homes for the future ones:
 
 | Tier 1 | Tier 2 view | Status |
 |---|---|---|
-| **Parser** | Client Log Parser · CMS Log Parser | ✅ built · ⏳ future (ref Tab 3) |
+| **Parser** | Client Log Parser · CMS Log Parser | ✅ built · ✅ built (CZ; multi-customer adapter framework) |
 | **Emulator** | OCPP Simulator · Transaction Flow Simulator | ✅ built · ⏳ future (ref Tab 2) |
 | **CMS** | CSMS dashboard | ⏳ future (Tool #2; slot reserved) |
 
@@ -52,6 +52,30 @@ persists across switches (CP-Mode WebSocket survives). Design §4.1.
 - [x] **Phase 6 — Unify into nav shell (2026-07-04)** — removed `simulator.html`; two-tier nav shell in `src/app/nav/` (`navConfig` + `navShell`); Parser + OCPP Simulator mounted as views (lazy + kept alive so CP-Mode WebSocket survives); future views declared as disabled "coming soon"; Vite reverted to single-entry.
 - [x] **UI fixes (2026-07-04, post-browser-test)** — (a) dark-mode colors on simulator form controls (white-on-white dropdowns); (b) **restored the original two-column layout** — Operating Mode (top) · left: OCPP Message → Description → Message Format · right: Request Parameters → Request/Response Payload · Log (bottom); added per-message Descriptions (all 28) + Message Format tables; (c) **global 🌓 theme toggle in the nav bar** (works on every tab; light + dark).
 - **State:** **370 tests green** (85 files), `tsc` + `vite build` clean. Not merged (branch `feat/ocpp-simulator`). Tabs 2 (Flow replay) & 3 (CMS parser) out of scope — own specs later.
+
+### CMS Log Parser — detail (2026-07-09)
+
+Branch `feat/cms-log-parser`. The reference HTML's CMS parser (Tab 3) rebuilt the
+right way: **not a second parser** but a new Excel **ingestion adapter** feeding the
+Client parser's existing `analyze()` → 21-section pipeline. Spec/to-do
+`docs/superpowers/specs/2026-07-08-cms-log-parser-design.md`.
+
+- [x] **Phase A — Ingestion adapter** (`src/app/cms/`): IST→UTC timestamps ·
+  OCPP §4/§5 direction mapping · row→`ParsedMessage[]` (+ Alerts derived from
+  faulted StatusNotifications) · CZ adapter (sheet-scoring, header/column detect,
+  CreatedOn variant) · pluggable **adapter registry** (multi-customer seam) ·
+  `parseCmsWorkbook` orchestrator (lazy xlsx, memory-lean read).
+- [x] **Phase B — Wire the view**: lean Excel shell (`.xlsx`, source-info banner) ·
+  `mountCmsParser` (upload → merge → shared `analyze`/`renderResults`) · nav view
+  enabled (lazy-mounted; xlsx stays a 429 kB separate chunk) · multi-file merge.
+- [x] **Phase C — Section-parity audit** on the real CZ sample (3204 msgs, MH0055):
+  all relevant sections populate (12 txns, 1082 meter values, 12 derived alerts,
+  compliance, downtime…); Events / Power-Emergency-sync / WebSocket-Health are
+  empty-by-nature (Excel lacks that source). Fixed a Debug-Info span skew.
+- [ ] **Phase D — Docs/tracking** (in progress) · `/review`+`/qa` · PR.
+- **State:** **410 tests green**, `tsc`+`vite build` clean. Scales to other customers
+  by adding one adapter (guide in the spec §4c). Out of scope v1: non-CZ adapters,
+  cross-file id-collision bug, CSMS dashboard.
 
 ## Validation Engine — detail
 
