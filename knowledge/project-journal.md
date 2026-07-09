@@ -755,3 +755,21 @@ Brought the compliance work (STATUS-010/011/012 + Error-Code-Frequency Info/Stat
 **State:** **410 tests** (TDD throughout), `tsc` + `vite build` clean. Commits `68944bc` (A), `fc1411e` (B), `73e06a2` (C fix), `9daccbd` (spec). Spec `docs/superpowers/specs/2026-07-08-cms-log-parser-design.md`.
 
 **Next:** Phase D tracker docs (this) → `/review` + `/qa` → PR. Out of scope v1: non-CZ adapters, cross-file id-collision bug, CSMS dashboard.
+
+---
+
+## 2026-07-09 (later) — Analysis Web Worker: large-file freeze fix (assessment P1), branch `feat/perf-analysis-worker`
+
+**Context:** The read-only engineering assessment (docs/engineering-assessment-2026-07-09.md) scored Performance 7/10, finding P1: `analyze()` runs synchronously on the main thread (text path), and the CMS path blocks entirely (XLSX.read + analyze) — large files freeze the tab. User chose approach A (Web Worker) over chunk-yield; new branch off `feat/cms-log-parser`.
+
+**Built (7 TDD tasks, inline execution):** `src/app/worker/` — **protocol.ts** (pure `handleRequest` for both pipelines, progress labels, `AnalysisPayload` with CMS outcomes), **analysis.worker.ts** (dispatch-only), **runner.ts** (per-run spawn, progress relay, direct in-thread fallback when Worker unavailable, cancellation via terminate on re-run). Both mounts (`mountParser`, `mountCmsParser`) now call `runAnalysis({kind, files})`; `File` objects cross the worker boundary (structured-cloneable) so file READING also leaves the main thread. rAF yield before render so "Rendering…" paints.
+
+**Deliberately untouched (regression protection):** the pure core, the whole render layer, repo Load & Analyze (FR-189, stays in-thread), Simulator→Parser handoff (R4) — enforced by a diff check in the plan's Task 7.
+
+**Guarantees shipped as tests:** structured-clone integrity of `AnalysisResult` on both real samples (pins the worker boundary forever); CZ QA baselines (3204 msgs/12 tx/12 alerts) re-asserted through the worker protocol; error-message fidelity (verbatim "Unrecognized CMS log format…"); autosave still called; progress format preserved.
+
+**Gotchas recorded:** jsdom's `File` lacks `.text()`/`.arrayBuffer()` (stand-in objects in tests; real browsers fine). Vite bundles xlsx INTO the worker chunk now (CZ adapter statically imports it) — main bundle unaffected; Export-to-Excel lazily pulls the worker chunk (~80 kB more, cached).
+
+**State:** **421 tests** green, `tsc` + `vite build` clean, `analysis.worker-*.js` separate chunk. Commits: protocol text `1628e13` · CMS `9ad66d9` · clone test `a70fb38` · worker+runner `c33049f` · mountParser `1bcdac1` · mountCmsParser `6d05beb`.
+
+**Next:** user browser verification (large log + CZ sample: UI interactive; repo Load&Analyze + Sim handoff unaffected) → `/review` → `/qa` → PR into `feat/cms-log-parser`. Note: CMS branch's own PR (into `feat/ocpp-simulator`) still on hold for the same browser check.
