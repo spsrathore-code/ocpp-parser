@@ -50,7 +50,7 @@ pluggable adapter registry (CZ first). Branch `feat/cms-log-parser`.
 | Plan    | inline (spec = to-do list)                | ✅ Complete | 2026-07-08 |
 | Build   | TDD (Phases A–C)                          | ✅ Complete | 2026-07-09 |
 | Review  | /review                                   | ✅ Complete | 2026-07-09 |
-| Test    | /qa                                       | ⬜ Pending  |            |
+| Test    | /qa                                       | ✅ Complete | 2026-07-09 |
 | Ship    | /ship (PR)                                | ⬜ Pending  |            |
 | Reflect | /retro + /learn                           | ⬜ Pending  |            |
 
@@ -60,7 +60,8 @@ pluggable adapter registry (CZ first). Branch `feat/cms-log-parser`.
 - [x] **Phase C** Section-parity audit on real CZ sample (3204 msgs, MH0055) — all relevant sections populate; Debug-Info span fix.
 - **State:** **410 tests** green, `tsc`+`vite build` clean. Commits `68944bc`·`fc1411e`·`73e06a2`·`9daccbd`·`b377be5`.
 - **Review (2026-07-09):** 0 bugs, 0 auto-fixes, 0 blocking flags. OCPP type-IDs (2/3) + StatusNotification field names schema-correct; direction mapping verified on real data (DataTransfer/Authorize = sent); error handling graceful. Notes: CMS UUID msgIds make the cross-file id-collision bug moot; xlsx code-split confirmed.
-- [ ] Next: /qa → PR.
+- **Test /qa (2026-07-09):** 0 bugs. 15 assertions on the real CZ sample, all pass — incl. OCPP validity: StatusNotification.status §7.7, derived-alert §7.6 ChargePointErrorCodes, ISO-8601 UTC §3.15; 12 txns sane; correlation attaches responsePayload; empty-by-nature sections confirmed. Notes `scratchpad/qa-cms/QA-NOTES.md`. Full suite 410/410.
+- [ ] Next: /ship (PR).
 
 ---
 
