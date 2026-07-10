@@ -33,8 +33,13 @@ describe('renderHeartbeats — Response Time (ms)', () => {
     expect(firstResponseCell(renderHeartbeats(resultWith([hb({ responseTimestamp: undefined })])))).toBe('N/A');
   });
 
-  it('shows N/A when request and response timestamps are equal (unmeasurable)', () => {
+  it('shows 0 when request and response timestamps are equal (CZ: has response time, second-granularity)', () => {
     const el = renderHeartbeats(resultWith([hb({ timestamp: '2025-08-08T00:02:42.000Z', responseTimestamp: '2025-08-08T00:02:42.000Z' })]));
+    expect(firstResponseCell(el)).toBe('0');
+  });
+
+  it('shows N/A when there is no response timestamp source (Mahindra: single Created On)', () => {
+    const el = renderHeartbeats(resultWith([hb({ timestamp: '2026-07-02T09:49:18.000Z', responseTimestamp: '' })]));
     expect(firstResponseCell(el)).toBe('N/A');
   });
 });

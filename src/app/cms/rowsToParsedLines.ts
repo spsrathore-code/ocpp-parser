@@ -63,7 +63,11 @@ export function cmsRowsToParsedLines(
     if (row.responseString) {
       const result = safeParse(row.responseString);
       if (Array.isArray(result) && result[0] === 3) {
-        const respTs = toUtcIso(row.responseTime) ?? reqTs;
+        // Empty responseTime = format has no separate response time (e.g. Mahindra's
+        // single Created On) → leave the response timestamp blank so the Response
+        // Time (ms) reads N/A rather than a fabricated 0. Formats with a real
+        // response-time column (CZ) parse to a value and read 0 when equal.
+        const respTs = toUtcIso(row.responseTime) ?? '';
         rawLogLines.push(synthLine(row, 'RESP', respTs, row.responseTime, row.responseString));
         messages.push({
           timestamp: respTs,

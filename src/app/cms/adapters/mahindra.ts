@@ -56,12 +56,14 @@ export const mahindraAdapter: CmsFormatAdapter = {
       const row = data[r] || [];
       const requestString = cellAt(row, reqCol);
       if (!requestString || !CALL_RE.test(requestString)) continue; // only OCPP CALL rows
-      const created = cellAt(row, createdCol); // single timestamp → both req/resp
+      const created = cellAt(row, createdCol); // single 'Created On' timestamp
       out.push({
         requestString,
         responseString: cellAt(row, respCol),
         requestTime: created,
-        responseTime: created,
+        // Mahindra logs one 'Created On' per message — there is NO separate response
+        // time, so leave it blank (→ Response Time (ms) reads N/A, not a fake 0).
+        responseTime: '',
         sheetName: charger,
       });
     }

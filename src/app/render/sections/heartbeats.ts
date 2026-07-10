@@ -1,8 +1,10 @@
 // Heartbeats section — faithful port of HTML 2275-2288, plus (a) a real Response
 // Time (ms) per row and (b) a Heartbeat Summary panel above the table.
 //
-// Response Time (ms) = correlated CallResult timestamp − request timestamp, shown
-// when measurable (> 0), else 'N/A'.
+// Response Time (ms) = correlated CallResult timestamp − request timestamp. Shown
+// (including 0) when a response timestamp exists and the diff is ≥ 0; 'N/A' when
+// there is no response-timestamp source (unanswered, or a single-timestamp format
+// like Mahindra) or the diff is invalid.
 // Heartbeat Summary = interval stats between consecutive Heartbeat.conf `currentTime`
 // values (the authoritative CS timestamp), with missed-heartbeat highlighting.
 
@@ -21,7 +23,7 @@ export function responseTimeMs(msg: ParsedMessage): string {
   const res = new Date(msg.responseTimestamp).getTime();
   if (Number.isNaN(req) || Number.isNaN(res)) return 'N/A';
   const diff = res - req;
-  return diff > 0 ? String(diff) : 'N/A';
+  return diff >= 0 ? String(diff) : 'N/A';
 }
 
 const fmt = (n: number | null): string => (n == null ? 'N/A' : n.toFixed(3));

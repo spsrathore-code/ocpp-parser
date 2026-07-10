@@ -43,12 +43,12 @@ describe('cross-detection (no ambiguity after CZ detect tightening)', () => {
 
 describe('mahindraAdapter.extractRows', () => {
   const rows = mahindraAdapter.extractRows(mahindraWorkbook());
-  it('extracts CmsRows with the single Created-On mirrored to both times', () => {
+  it('extracts CmsRows with Created-On as request time and NO separate response time', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       requestString: '[2,"h","Heartbeat",{}]',
       requestTime: '2/7/26 15:19',
-      responseTime: '2/7/26 15:19',
+      responseTime: '', // single Created On — no distinct response time (→ Response Time (ms) N/A)
     });
     expect(rows[0].responseString).toContain('currentTime');
   });
