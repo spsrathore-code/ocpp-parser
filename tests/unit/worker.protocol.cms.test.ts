@@ -26,6 +26,12 @@ describe('handleRequest — cms', () => {
     expect(labels.some((l) => l.includes('CZ.xlsx'))).toBe(true);
   });
 
+  it('threads a forced adapterId — wrong customer on a CZ file errors sharply', async () => {
+    await expect(
+      handleRequest({ kind: 'cms', files: [fileFrom(readFileSync(SAMPLE), 'CZ.xlsx')], adapterId: 'mahindra' }, () => {}),
+    ).rejects.toThrow(/doesn't match the Mahindra CMS format/i);
+  });
+
   it('propagates the unrecognized-format error message verbatim', async () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['a', 'b'], [1, 2]]), 'S');
