@@ -18,6 +18,9 @@ export interface ParsedMessage {
   lineNumber: number;
   fileName: string;
   responsePayload?: unknown;
+  /** Timestamp of the correlated CallResult (set by `correlateMessages`), used to
+   *  compute request→response latency. Absent when the request is unanswered. */
+  responseTimestamp?: string;
 }
 
 /** A parsed `handling [OCPP] event {...}` line. */
