@@ -773,3 +773,19 @@ Brought the compliance work (STATUS-010/011/012 + Error-Code-Frequency Info/Stat
 **State:** **421 tests** green, `tsc` + `vite build` clean, `analysis.worker-*.js` separate chunk. Commits: protocol text `1628e13` · CMS `9ad66d9` · clone test `a70fb38` · worker+runner `c33049f` · mountParser `1bcdac1` · mountCmsParser `6d05beb`.
 
 **Next:** user browser verification (large log + CZ sample: UI interactive; repo Load&Analyze + Sim handoff unaffected) → `/review` → `/qa` → PR into `feat/cms-log-parser`. Note: CMS branch's own PR (into `feat/ocpp-simulator`) still on hold for the same browser check.
+
+---
+
+## 2026-07-10 — CMS multi-customer: Mahindra adapter + registry-driven selector, branch `feat/cms-multi-customer`
+
+**Context:** Add a second CMS customer (Mahindra) to the CMS Log Parser, plus a per-customer selector, with the invariant that **output is identical** (same 21 sections/analysis) — only ingestion differs. User dropped `data/samples/Mahindra CMS Log Sample.xlsx`. Also merged PR #3 (CMS parser) and PR #4 (analysis worker) into `feat/ocpp-simulator` first, collapsing the branch stack.
+
+**Mahindra format:** header row 0; cols `Event Name | Event Type | Request | Response | Created On`. Paired req/resp like CZ (so `cmsRowsToParsedLines` unchanged). Event Type (Charger-CMS/CMS-Charger) merely confirms direction — the shared §4/§5 action-based mapping already derives it.
+
+**The hard finding (systematic investigation, not a guess):** Mahindra's "Created On" is an Excel **serial number** whose decoded date is month/day-swapped — serial 46060 = Feb 7, but the OCPP payload for that row proves the event is **2 July**. Verified by cross-checking every row's Created-On against its payload date: **d/m interpretation matched 295/460, m/d matched 0/460**. So: the adapter reads Created On as the **display string** ("2/7/26 15:19") via `sheet_to_json(raw:false)` and parses it as **d/m**, and `mahindraTimestampToUtcIso` **rejects raw numeric serials** (they'd give the wrong month). `parseCmsWorkbook` keeps **`cellNF:true`** (cheap — format codes are interned) so the display string is available under the otherwise memory-lean read. Confirmed IST: 15:19 vs payload 09:49Z = +5:30.
+
+**Design changes:** extracted shared sheet helpers to `adapters/sheetUtils.ts` (CZ refactored onto it, DRY); **tightened CZ `detect`** to require `…String`/`Sr No.` so it no longer wrongly matches Mahindra (cross-detection tests pin no ambiguity); added **`CmsFormatAdapter.toUtcIso`** so each customer owns its timestamp format (threaded through `cmsRowsToParsedLines`, default = CZ for back-compat); `registry.getAdapter(id)` + `parseCmsWorkbook({adapterId})` with a **detect-gated** forced path (wrong customer → sharp error); worker protocol threads `adapterId`; **registry-driven selector** (`Auto-detect · CZ · Mahindra`) so future customers appear with zero UI change (Option B).
+
+**QA (headless, both real samples):** CZ unregressed (3204 msgs / 12 tx / 12 alerts / MH0055); Mahindra auto-detects (458 heartbeats, charger MPCMHDC029_639, all timestamps 2026-07 not the Feb serial trap); forcing CZ on Mahindra errors sharply; forcing Mahindra on Mahindra works. **440 tests**, `tsc`+`vite build` clean.
+
+**Next:** push + PR into `feat/ocpp-simulator`. MSIL out of scope until its sample arrives (framework + selector slot ready). Also still open from prior session: the "Transaction Analysis Graphs not coming" report — instrumented (errors now surface) but root cause needs the user's browser observation of what the graphs area shows for a specific transaction.
