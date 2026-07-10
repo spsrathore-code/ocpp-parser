@@ -11,6 +11,7 @@
 //  - D3: one synthesized raw text line per message powers the context viewer.
 
 import { parseJsonSafely } from '../parse/parseJsonSafely';
+import { repairTruncatedJson } from './repairTruncatedJson';
 import { istToUtcIso } from './timestamps';
 import { requestDirection, responseDirection } from './directions';
 import type { CmsRow, CmsParsed } from './types';
@@ -103,12 +104,21 @@ export function cmsRowsToParsedLines(
   return { messages, alerts, events: [], internalTxMap: new Map(), rawLogLines };
 }
 
-/** Parse an OCPP string, returning null instead of throwing on malformed JSON. */
+/** Parse an OCPP string, returning null instead of throwing on malformed JSON.
+ *  If the string is truncated (some CMS exports cap long cells, e.g. Mahindra at
+ *  4000 chars, cutting large MeterValues mid-array), salvage the valid prefix. */
 function safeParse(s: string): OcppRawMessage | null {
   try {
     const v = parseJsonSafely(s);
     return Array.isArray(v) ? (v as OcppRawMessage) : null;
   } catch {
+    const repaired = repairTruncatedJson(s);
+    if (repaired) {
+      try {
+        const v = JSON.parse(repaired);
+        return Array.isArray(v) ? (v as OcppRawMessage) : null;
+      } catch { /* fall through */ }
+    }
     return null;
   }
 }
