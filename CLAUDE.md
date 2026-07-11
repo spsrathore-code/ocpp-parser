@@ -7,13 +7,13 @@
 
 A **mega-repo for an OCPP tool suite** (Ador Digatron · DC fast chargers · OCPP 1.6J). Five tools share one OCPP core:
 
-| # | Tool | Status | Where |
-|---|---|---|---|
-| 1 | **OCPP Validation Engine** — type-aware validation (L1–L3) on `typed-ocpp` | 📋 Specced, not built | `docs/TYPEVALIDATION.md` |
-| 2 | **CMS (CSMS)** — own central system | ⏳ Planned | — |
-| 3 | **Charger Emulator** — candidate: adopt/fork SAP `e-mobility-charging-stations-simulator` | ⏳ Planned | — |
-| 4 | **Training Emulator** | ⏳ Planned | — |
-| 5 | **Parser** — log analysis (the only tool with code today) | ✅ Live | `src/app/OCPP_Parser_Complete_ 21 Jan'26.html` |
+| #   | Tool                                                                                      | Status                                         | Where                                                         |
+| --- | ----------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| 1   | **OCPP Validation Engine** — type-aware validation (L1–L3) on `typed-ocpp`                | 🟢 Built · merged into parser branch (Phase 6) | `src/services/validation/` · `docs/TYPEVALIDATION.md`         |
+| 2   | **CMS (CSMS)** — own central system                                                       | ⏳ Planned                                      | —                                                             |
+| 3   | **Charger Emulator** — candidate: adopt/fork SAP `e-mobility-charging-stations-simulator` | ⏳ Planned                                      | —                                                             |
+| 4   | **Training Emulator**                                                                     | ⏳ Planned                                      | —                                                             |
+| 5   | **Parser** — log analysis · live; TS+Vite revamp (Phases 0–6 done; not deployed)          | ✅ Live · 🟡 revamp on branch                   | `src/app/` (TS, `feat/parser-revamp`) · legacy HTML on `main` |
 
 ## Canonical artifacts (don't confuse copies for sources)
 
@@ -33,7 +33,16 @@ A **mega-repo for an OCPP tool suite** (Ador Digatron · DC fast chargers · OCP
 
 ## Deploy (Parser)
 
-After editing `src/app/OCPP_Parser_Complete_ 21 Jan'26.html`: copy it to root `index.html`, commit, push — GitHub Pages auto-deploys. Full steps in `specs/requirements.md` → *Deploy Workflow*.
+**Legacy (live, `main`):** after editing `src/app/OCPP_Parser_Complete_ 21 Jan'26.html`, copy it to root `index.html`, commit, push — GitHub Pages auto-deploys. Full steps in `specs/requirements.md` → *Deploy Workflow*.
+
+## How to run (revamp — `feat/parser-revamp`)
+
+The revamp is a **bundled TS+Vite app**, not a single openable HTML file (you can't double-click it — browsers block ES modules over `file://`). It always needs a tiny local server:
+- **Dev:** `npm install` (once), then `npm run dev` → `http://localhost:5173` (hot reload). Entry = root `index.html` → `src/app/main.ts`.
+- **Run the prod build locally:** `npm run build` (→ `dist/`), then `npm run preview` → `http://localhost:4173`.
+- **No-localhost / shareable:** host `dist/` on GitHub Pages or any static host (= the planned **Phase 5 deploy swap**; will need `vite.config` `base` set for the Pages subpath).
+- Other scripts: `npm run typecheck` (`tsc --noEmit`), `npm test` (`vitest run`).
+- **Want the old "open one file" UX back?** add `vite-plugin-singlefile` to inline everything into one self-contained `index.html` (not yet wired — ask to do it).
 
 ## Skill Chain (Think → Plan → Build → Review → Test → Ship → Reflect)
 
@@ -49,13 +58,30 @@ design. See `skills/WORKFLOW.md` for current feature state.
 - Safety tools available any time: `/careful`, `/freeze`, `/guard`, `/unfreeze`.
 - Never skip phases without recording the skip in `skills/WORKFLOW.md`.
 - Session journal: say "update the journal" → appends to `knowledge/project-journal.md`.
+- **Keep tracking current as you go — do NOT defer it to Ship/Reflect.** Update `specs/roadmap.md` (the live suite dashboard — the single "how far / how long" view of all 5 tools) at **every phase / sub-phase boundary**; refresh `specs/tasks.md` as items move; append to `knowledge/project-journal.md` each session. Long multi-phase builds must not run with stale trackers.
 
 ## Where things live
 
 `specs/` plan · `src/` build (`app/` parser · `schemas/` OCPP schemas · future `services/` = validation engine) · `tests/` · `docs/` (incl. validation spec) · `knowledge/` (standards, principles, diagnostics L-001/2/3) · `data/samples/` logs · `assets/` images · `archive/` · `scratchpad/`.
 
-## Status (6 Jun 2026)
+## Status (11 Jul 2026)
 
-Repo standardised to `knowledge/project-standard.md`. Nothing in the suite is implemented yet **except the live Parser**. Next when building: the Validation Engine — start with the `typed-ocpp` browser-bundling spike (`docs/TYPEVALIDATION.md` §7).
+> **Branch train collapsed into `feat/ocpp-simulator`** (integration branch): Simulator + Validation Engine + **CMS Parser (PR #3 merged)** + **Analysis Worker (PR #4 merged)**. Active: `feat/cms-multi-customer` (**PR #5 open** — Mahindra + heartbeat/meter-value fixes). Nothing on `main` yet. **460 tests**, `tsc`+`vite build` clean.
+> - **CMS multi-customer** — Mahindra adapter + **registry-driven customer selector** (Auto-detect · CZ · Mahindra). Finding: Mahindra Excel date serial is m/d-swapped → parse the d/m display string. `feat/cms-multi-customer`.
+> - **Heartbeat Response Time (ms)** — real latency (correlation keeps the CallResult timestamp): CZ=0, Mahindra=N/A, client=real ms. **Heartbeat Summary** panel — interval stats from `Heartbeat.conf.currentTime`, missed-HB flags (expected = BootNotification.conf.interval else median).
+> - **🐞 MeterValues truncation recovery** — the Mahindra export caps cells at 4000 chars, cutting large MeterValues mid-JSON; `cms/repairTruncatedJson.ts` salvages the valid prefix. Mahindra MeterValues **0 → 39** (897 readings). CZ unchanged.
+> - **Analysis Web Worker** — fixed assessment P1 (large-file main-thread freeze): parse + xlsx read + `analyze()` run in a Worker; direct fallback + cancellation. Also carries the graphs error-surfacing fix (confirmed fixed).
+> - **Deploy** ⏸️ **parked** — Pages serves `main` (legacy) raw; the Vite app needs an Actions build→Pages workflow + `base:'/ocpp-parser/'`.
+
+### Status (23 Jun 2026)
+
+> **Live suite dashboard: `specs/roadmap.md`** — the at-a-glance board for all 5 tools (status · phase · branch · next). Keep this section short; the dashboard is the source of truth for progress.
+
+- **Parser revamp** — all on `feat/parser-revamp` (**pushed to GitHub; NOT merged to `main`** — `main` still has only the legacy HTML). **325 tests**, `tsc` + `vite build` clean. Done: Phases 0–3 (all 19 §19.4 sections + charts + Excel + context-viewer), **4a/4b** (Log Repository — local IndexedDB + panel), **4d** (Session Timeline modal), restored async/chunked parse, Phase 5 **parity-gate audit**, and **Phase 6 — Validation Engine integration**. **⏸️ Parked:** 3b-3b RemoteStart · 4c Drive sync · 4e API download · the **Help modal** (parity gap found at the gate). **Drift (source-canonical):** 21-vs-24 protocol checks · 10-vs-11 timeline markers.
+- **Validation Engine** — Phase 1 (L1–L3) built/QA'd; **merged into `feat/parser-revamp`** (`src/services/validation/`, `8c5cc9f`) and consumed by the Parser via **direct monorepo import** (Phase 6). New **"Type-Aware Validation (L1–L3)"** section (#20): on-demand, lazy/code-split, renders the full `docs/Type Validation Metrics.md` KPI set + per-row Reason + Preview/Download log-context (yellow-highlighted discrepancy line). **L4** = engine Phase 2 (stub). Not on `main`.
+- **§4 CP-Initiated Compliance** (23 Jun) — new spec-cited compliance sub-report strengthening Protocol Compliance. Pluggable rule-pack framework (`src/app/compliance/`) + full OCPP 1.6J §4 pack: **46 business-case rules** (`docs/business_case_compliance_check.md`) tier-tagged 🟢 deterministic / 🟡 heuristic / 🔴 indeterminate, severity-weighted score. Rendered as a **sibling top-level section** after Protocol Compliance (new `SECTION_ORDER` entry — no `protocolCompliance.ts` edit), Excel + Preview/Download context reused. Parallel to the existing 21 heuristic checks. Spec/plan dated 2026-06-23. Framework is pack-extensible (§5 CS-Initiated etc. next). **`/review` ✅ + `/qa` ✅ done** (BOOT-002 fail→warn; AUTH-003 → indeterminate — both false-positive fixes). QA notes `scratchpad/qa-cp-compliance/QA-NOTES.md`.
+- **🐞 Fixed (23 Jun) — multi-file / large-file upload showed NO results.** Root cause: spreading unbounded arrays into variadic calls (`push(...lines)`, `Math.max/min(...arr)`) overflows V8's arg cap on big logs (the `MH0135` sample = 315k lines / 130,845 WS pings; the confirmed throw was `Math.max(...validLatencies)` in `wsHealth`). `main.ts`'s catch-less `try/finally` hid it → blank. Fixed with spread-safe helpers (`src/app/parse/concatChunks.ts`: `concatChunks`/`appendAll`/`maxOf`/`minOf`), replaced every unbounded spread on the large-log path, + added a `catch` in `main.ts` that surfaces errors. +3 regression tests. **Still OPEN (separate, not yet fixed):** cross-file **message-ID collisions** corrupt correlation (two logs reusing ids 1,2,3… → a transaction can be dropped) — needs its own fix.
+- **CMS Log Parser** (2026-07-09, branch `feat/cms-log-parser`) — the reference HTML's CMS parser (Tab 3) rebuilt as an Excel **ingestion adapter**, NOT a second parser: CMS `.xlsx` → `ParsedLines` → the Client parser's existing `analyze()`/`renderResults()` (all 21 sections reused). `src/app/cms/` — IST→UTC timestamps, OCPP §4/§5 direction mapping, row→CALL+CALLRESULT (Alerts **derived** from faulted StatusNotifications), CZ adapter (sheet-scoring/header-detect/CreatedOn), **pluggable multi-customer registry**, lazy-xlsx orchestrator, multi-file merge, nav view enabled (lazy-mounted → xlsx a 429 kB chunk). **Verified on `data/samples/CZ CMS Logs Sample.xlsx`** (3204 msgs, MH0055: 12 txns, 1082 meter values, 12 alerts). Events/Power-Emergency-sync/WS-Health empty-by-nature. **+31 tests (410)**, `tsc`+build clean. Phases A–C + `/review`✅ + `/qa`✅ done; **PR #3 merged into `feat/ocpp-simulator` (2026-07-09)**. Spec `docs/superpowers/specs/2026-07-08-cms-log-parser-design.md`. Multi-customer follow-ups (Mahindra + heartbeat/meter-value) → see the 11 Jul summary above.
+- **Next:** merge **PR #5** (CMS multi-customer); deploy swap (⏸️ parked); `/review`+`/cso`+`/qa` on **Phase 6** (validation engine); fix the cross-file id-collision bug; optional MSIL adapter. **CSMS · Training Emulator** — planned.
 
 > ⚠️ A leftover empty folder `OCPP Client Parser MD Collection/` could not be auto-deleted (it is the shell's locked working directory). It is git-ignored; delete it manually when convenient.

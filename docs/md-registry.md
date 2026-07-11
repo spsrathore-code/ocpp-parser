@@ -48,6 +48,7 @@
 | [specs/vision.md](../specs/vision.md) | `BLUEPRINT` | `ACTIVE` | Why the OCPP tool suite exists; long-term direction across all 5 tools | Suite scope or direction changes |
 | [specs/roadmap.md](../specs/roadmap.md) | `BLUEPRINT` | `DRAFT` | Planned future work across all 5 suite tools in priority order | Roadmap decisions or priorities change |
 | [specs/tasks.md](../specs/tasks.md) | `TRACKER` | `ACTIVE` | Current work items — Next / In Progress / Done | `/learn` at session end; work items added or completed manually |
+| [specs/ocpp-simulator/requirements.md](../specs/ocpp-simulator/requirements.md) | `BLUEPRINT` | `DRAFT` | OCPP Simulator (Tab 1) current-state user-facing spec — baseline for suite integration (Validation Engine + Parser); documents the Simulator Only vs Charge Point (CP) modes | Integration scope changes; simulator behavior re-baselined; design spec supersedes it |
 
 ---
 
@@ -71,6 +72,7 @@
 |---|---|---|---|---|
 | [docs/superpowers/plans/2026-06-06-skill-chain-implementation.md](superpowers/plans/2026-06-06-skill-chain-implementation.md) | `BLUEPRINT` | `ACTIVE` | Step-by-step plan to create all 30 SKILL.md files and supporting scaffolding | Skill chain implementation is executed (tasks checked off) |
 | [docs/superpowers/plans/2026-06-08-md-registry-implementation.md](superpowers/plans/2026-06-08-md-registry-implementation.md) | `BLUEPRINT` | `ACTIVE` | Step-by-step plan to create docs/md-registry.md | This implementation is executed (becomes DORMANT after) |
+| [docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md](superpowers/plans/2026-07-03-ocpp-simulator-integration.md) | `BLUEPRINT` | `ACTIVE` | Task-by-task TDD plan to build the OCPP Simulator into the suite (Phases 0–5): MPA Vite entry, schema-driven 28-message catalog, both modes, engine + Parser wiring | Plan tasks executed (→ DORMANT after); design spec changes |
 
 ---
 
@@ -80,6 +82,7 @@
 |---|---|---|---|---|
 | [docs/superpowers/specs/2026-06-07-ocpp-md-ssot-requirements.md](superpowers/specs/2026-06-07-ocpp-md-ssot-requirements.md) | `BLUEPRINT` | `DRAFT` | Pre-brainstorm requirements for OCPP MD-as-SSOT compiler architecture | Full compiler brainstorm session runs |
 | [docs/superpowers/specs/2026-06-08-md-registry-design.md](superpowers/specs/2026-06-08-md-registry-design.md) | `BLUEPRINT` | `ACTIVE` | Approved design spec for this registry — columns, roles, status, maintenance rules | Implementation complete (status changes to DORMANT) |
+| [docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md](superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md) | `BLUEPRINT` | `DRAFT` | Design for integrating the OCPP Simulator (Tab 1) into the suite as Tool #3 seed — Vite Option A, schema-driven 28-message catalog, Validation Engine + Parser wiring, build phasing | Integration design changes; implementation plan supersedes; phases executed |
 
 ---
 
@@ -88,6 +91,15 @@
 | File | Role | Status | Purpose | Updates when |
 |---|---|---|---|---|
 | [knowledge/project-journal.md](../knowledge/project-journal.md) | `TRACKER` | `ACTIVE` | Session-by-session record of discussions, decisions, and next steps | `/learn` at session end; "update the journal" command |
+
+---
+
+## knowledge/decisions/
+
+| File | Role | Status | Purpose | Updates when |
+|---|---|---|---|---|
+| [knowledge/decisions/2026-06-21-validation-engine-consumption-model.md](../knowledge/decisions/2026-06-21-validation-engine-consumption-model.md) | `TRACKER` | `ACTIVE` | Decision: how the Parser consumes the Validation Engine (direct monorepo import) | Consumption model revisited |
+| [knowledge/decisions/2026-07-04-unified-nav-shell.md](../knowledge/decisions/2026-07-04-unified-nav-shell.md) | `TRACKER` | `ACTIVE` | Decision: one unified tool via a two-tier nav shell (Parser · Emulator · CMS); supersedes the separate `simulator.html` page | Navigation/IA revisited; new suite view added |
 
 ---
 

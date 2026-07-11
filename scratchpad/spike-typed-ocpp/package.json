@@ -1,0 +1,17 @@
+{
+  "name": "spike-typed-ocpp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Throwaway spike: verify typed-ocpp works in Node and bundles for the browser (TYPEVALIDATION.md §7).",
+  "scripts": {
+    "node-test": "node node-test.mjs",
+    "bundle": "esbuild browser-entry.mjs --bundle --format=esm --platform=browser --outfile=dist/bundle.js --metafile=dist/meta.json --log-level=info"
+  },
+  "dependencies": {
+    "typed-ocpp": "1.5.6"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}

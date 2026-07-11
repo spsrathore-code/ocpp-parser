@@ -1,0 +1,28 @@
+{
+  "name": "@ador/ocpp-parser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OCPP 1.6J client-log parser — modular TypeScript + Vite revamp of the v2026.05.14 single-file tool. Feature/UI parity, optimized. Bundles the in-repo OCPP Validation Engine (src/services/validation, consumed via direct monorepo import).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^25.0.1",
+    "typescript": "5.7.2",
+    "vite": "5.4.21",
+    "vitest": "2.1.8"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "typed-ocpp": "1.5.6",
+    "xlsx": "^0.18.5"
+  }
+}
