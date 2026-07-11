@@ -9,19 +9,19 @@
 
 ## Suite status board
 
-> **Branch train collapsed into `feat/ocpp-simulator`** (the integration branch): it
-> now carries Simulator + Validation Engine + **CMS Parser (PR #3)** + **Analysis
-> Worker (PR #4)**. Active work: `feat/cms-multi-customer` (PR #5, open). Nothing on
-> `main` yet — `main` still serves the legacy parser. **460 tests.**
+> **🚀 LIVE (2026-07-11):** the whole train merged to `main` (PR #5 → `feat/ocpp-simulator`
+> → PR #6 → `main`) and **deployed to https://spsrathore-code.github.io/ocpp-parser/**
+> via GitHub Actions. The Vite app replaced the legacy parser; legacy tagged
+> `legacy-parser-v2026.05.14`. **460 tests.** Runbook `docs/DEPLOY.md`.
 
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
-| 1 | **Validation Engine** (L1–L3) | 🟢 Built · integrated into Parser (Phase 6) | Done (L1–L3) | in `feat/ocpp-simulator`; not on `main` | Phase 6 `/review`+`/qa`; L4 catalog; land on `main` |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build — Phases 0–6 + §4 compliance + **CMS Parser** + **Analysis Worker** done | Build→Ship | `feat/ocpp-simulator` (+ `feat/cms-multi-customer` PR #5) | merge PR #5 · deploy swap (⏸️ parked) · fix cross-file id-collision |
-| — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until the deploy swap |
-| 2b | **CMS Log Parser** (Parser view) | 🟢 Built — CZ + **Mahindra**; registry-driven customer selector | Built | `feat/cms-multi-customer` | merge PR #5 · MSIL adapter when sampled |
+| 1 | **Validation Engine** (L1–L3) | 🟢 Built · integrated into Parser (Phase 6) · **on `main`/live** | Done (L1–L3) | `main` | Phase 6 `/review`+`/qa`; L4 catalog |
+| 2 | **Parser — revamp** (TS+Vite) | 🟢 **LIVE** — Phases 0–6 + §4 compliance + CMS Parser + Analysis Worker | Shipped | `main` / GitHub Pages | fix cross-file id-collision · compiled-Tailwind hardening |
+| — | Parser — *legacy v2026.05.14* | ⚪ Retired | — | tag `legacy-parser-v2026.05.14` | rollback only |
+| 2b | **CMS Log Parser** (Parser view) | 🟢 **LIVE** — CZ + Mahindra; registry-driven customer selector | Shipped | `main` | MSIL adapter when sampled |
 | 3 | **CMS (CSMS dashboard)** | ⚪ Planned | — | — | Slot reserved in nav |
-| 4 | **Charger Emulator** (OCPP Simulator) | 🟢 Built — Tab 1 integrated (Phases 0–6) | Build→Ship | `feat/ocpp-simulator` | Tabs 2/3 (own specs) |
+| 4 | **Charger Emulator** (OCPP Simulator) | 🟢 **LIVE** — Tab 1 integrated (Phases 0–6) | Shipped | `main` | Tabs 2/3 (own specs) |
 | 5 | **Training Emulator** | ⚪ Planned | — | — | Built on the emulator |
 
 Legend: 🟢 done/live · 🟡 in progress · ⚪ not started.
