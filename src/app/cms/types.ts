@@ -33,8 +33,11 @@ export interface CmsFormatAdapter {
   label: string;
   /** True if this adapter recognizes the workbook's layout. */
   detect(workbook: WorkBook): boolean;
-  /** Pull normalized rows out of the workbook. */
+  /** Pull normalized rows out of the workbook (with raw customer wall-clock times). */
   extractRows(workbook: WorkBook): CmsRow[];
+  /** Convert this customer's wall-clock time string to a UTC ISO instant (or null).
+   *  Each customer owns its format; the shared mapper stays format-agnostic. */
+  toUtcIso(raw: string): string | null;
 }
 
 /** `ParsedLines` plus the synthesized raw text lines the context-viewer needs. */

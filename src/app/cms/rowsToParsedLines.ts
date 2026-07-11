@@ -11,6 +11,7 @@
 //  - D3: one synthesized raw text line per message powers the context viewer.
 
 import { parseJsonSafely } from '../parse/parseJsonSafely';
+import { repairTruncatedJson } from './repairTruncatedJson';
 import { istToUtcIso } from './timestamps';
 import { requestDirection, responseDirection } from './directions';
 import type { CmsRow, CmsParsed } from './types';
@@ -27,8 +28,17 @@ interface StatusPayload {
   vendorErrorCode?: string;
 }
 
-/** Turn normalized CMS rows into ParsedLines + the synthesized raw log lines. */
-export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParsed {
+/**
+ * Turn normalized CMS rows into ParsedLines + the synthesized raw log lines.
+ * `toUtcIso` converts a customer's wall-clock string to a UTC ISO instant; it
+ * defaults to the CZ (IST) parser so existing callers are unchanged, and each
+ * adapter passes its own (parseCmsWorkbook wires `adapter.toUtcIso`).
+ */
+export function cmsRowsToParsedLines(
+  rows: CmsRow[],
+  fileName: string,
+  toUtcIso: (raw: string) => string | null = istToUtcIso,
+): CmsParsed {
   const messages: ParsedMessage[] = [];
   const alerts: ParsedAlert[] = [];
   const rawLogLines: string[] = [];
@@ -39,7 +49,7 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
     if (!Array.isArray(call) || call[0] !== 2 || typeof call[2] !== 'string') continue;
 
     const action = call[2] as string;
-    const reqTs = istToUtcIso(row.requestTime) ?? istToUtcIso(row.responseTime) ?? '';
+    const reqTs = toUtcIso(row.requestTime) ?? toUtcIso(row.responseTime) ?? '';
 
     rawLogLines.push(synthLine(row, 'REQ', reqTs, row.requestTime, row.requestString));
     messages.push({
@@ -54,7 +64,11 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
     if (row.responseString) {
       const result = safeParse(row.responseString);
       if (Array.isArray(result) && result[0] === 3) {
-        const respTs = istToUtcIso(row.responseTime) ?? reqTs;
+        // Empty responseTime = format has no separate response time (e.g. Mahindra's
+        // single Created On) → leave the response timestamp blank so the Response
+        // Time (ms) reads N/A rather than a fabricated 0. Formats with a real
+        // response-time column (CZ) parse to a value and read 0 when equal.
+        const respTs = toUtcIso(row.responseTime) ?? '';
         rawLogLines.push(synthLine(row, 'RESP', respTs, row.responseTime, row.responseString));
         messages.push({
           timestamp: respTs,
@@ -90,12 +104,21 @@ export function cmsRowsToParsedLines(rows: CmsRow[], fileName: string): CmsParse
   return { messages, alerts, events: [], internalTxMap: new Map(), rawLogLines };
 }
 
-/** Parse an OCPP string, returning null instead of throwing on malformed JSON. */
+/** Parse an OCPP string, returning null instead of throwing on malformed JSON.
+ *  If the string is truncated (some CMS exports cap long cells, e.g. Mahindra at
+ *  4000 chars, cutting large MeterValues mid-array), salvage the valid prefix. */
 function safeParse(s: string): OcppRawMessage | null {
   try {
     const v = parseJsonSafely(s);
     return Array.isArray(v) ? (v as OcppRawMessage) : null;
   } catch {
+    const repaired = repairTruncatedJson(s);
+    if (repaired) {
+      try {
+        const v = JSON.parse(repaired);
+        return Array.isArray(v) ? (v as OcppRawMessage) : null;
+      } catch { /* fall through */ }
+    }
     return null;
   }
 }

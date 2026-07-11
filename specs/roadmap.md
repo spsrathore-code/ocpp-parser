@@ -5,17 +5,23 @@
 > Per-branch phase detail lives in `skills/WORKFLOW.md`; per-tool detail in each
 > tool's spec. The suite is one mega-repo; tools ship independently.
 >
-> **Last updated:** 2026-07-09
+> **Last updated:** 2026-07-11
 
 ## Suite status board
 
+> **Branch train collapsed into `feat/ocpp-simulator`** (the integration branch): it
+> now carries Simulator + Validation Engine + **CMS Parser (PR #3)** + **Analysis
+> Worker (PR #4)**. Active work: `feat/cms-multi-customer` (PR #5, open). Nothing on
+> `main` yet — `main` still serves the legacy parser. **460 tests.**
+
 | # | Tool | Status | Phase | Branch | Next milestone |
 |---|---|---|---|---|---|
-| 1 | **Validation Engine** (L1–L3) | 🟢 Built · **integrated into Parser (Phase 6)** | Done (L1–L3) | merged into `feat/parser-revamp` (`src/services/validation/`); not on `main` | L4 (Phase 2) catalog; eventually land on `main` |
-| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build (Phase 3 + 4a/4b/4d + 6 done; §4 compliance Reviewed+QA'd; 3b-3b/4c/4e parked) | Build→Review | `feat/parser-revamp` | `/review`+`/qa` Phase 6 · fix cross-file id-collision bug · deploy decision (Help modal + parked + `vite base`) |
-| — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until revamp reaches parity (Phase 5) |
-| 3 | **CMS (CSMS)** | ⚪ Planned | — | — | Starts after Parser revamp |
-| 4 | **Charger Emulator** (OCPP Simulator) | 🟡 In build — OCPP Simulator (Tab 1) integrated: Phases 0–4 done | Build | `feat/ocpp-simulator` | Optional training polish (Phase 5) · Review/QA · then Tabs 2/3 (own specs) |
+| 1 | **Validation Engine** (L1–L3) | 🟢 Built · integrated into Parser (Phase 6) | Done (L1–L3) | in `feat/ocpp-simulator`; not on `main` | Phase 6 `/review`+`/qa`; L4 catalog; land on `main` |
+| 2 | **Parser — revamp** (TS+Vite) | 🟡 In build — Phases 0–6 + §4 compliance + **CMS Parser** + **Analysis Worker** done | Build→Ship | `feat/ocpp-simulator` (+ `feat/cms-multi-customer` PR #5) | merge PR #5 · deploy swap (⏸️ parked) · fix cross-file id-collision |
+| — | Parser — *legacy v2026.05.14* | 🟢 Live | — | `main` / GitHub Pages | Stays live until the deploy swap |
+| 2b | **CMS Log Parser** (Parser view) | 🟢 Built — CZ + **Mahindra**; registry-driven customer selector | Built | `feat/cms-multi-customer` | merge PR #5 · MSIL adapter when sampled |
+| 3 | **CMS (CSMS dashboard)** | ⚪ Planned | — | — | Slot reserved in nav |
+| 4 | **Charger Emulator** (OCPP Simulator) | 🟢 Built — Tab 1 integrated (Phases 0–6) | Build→Ship | `feat/ocpp-simulator` | Tabs 2/3 (own specs) |
 | 5 | **Training Emulator** | ⚪ Planned | — | — | Built on the emulator |
 
 Legend: 🟢 done/live · 🟡 in progress · ⚪ not started.
@@ -72,10 +78,11 @@ Client parser's existing `analyze()` → 21-section pipeline. Spec/to-do
   all relevant sections populate (12 txns, 1082 meter values, 12 derived alerts,
   compliance, downtime…); Events / Power-Emergency-sync / WebSocket-Health are
   empty-by-nature (Excel lacks that source). Fixed a Debug-Info span skew.
-- [ ] **Phase D — Docs/tracking** (in progress) · `/review`+`/qa` · PR.
-- **State:** **410 tests green**, `tsc`+`vite build` clean. Scales to other customers
-  by adding one adapter (guide in the spec §4c). Out of scope v1: non-CZ adapters,
-  cross-file id-collision bug, CSMS dashboard.
+- [x] **Phase D — Docs + `/review`✅ + `/qa`✅ + PR #3 → merged** into `feat/ocpp-simulator` (2026-07-09).
+- [x] **Multi-customer (Mahindra) + selector** (2026-07-10, `feat/cms-multi-customer`, PR #5) — `adapters/sheetUtils.ts` (shared) + `adapters/mahindra.ts` (+`mahindraTimestamps.ts`); CZ `detect` tightened (no collision); `CmsFormatAdapter.toUtcIso`; `getAdapter`+`parseCmsWorkbook({adapterId})` detect-gated; **registry-driven customer selector** (Auto-detect · CZ · Mahindra). Finding: Mahindra date serial is m/d-swapped → parse the d/m display string.
+- [x] **Heartbeat Response Time (ms)** — real latency from correlated CallResult timestamp; CZ=0, Mahindra=N/A, client=real ms. **Heartbeat Summary** panel (interval stats from `currentTime`, missed-HB flags; configured interval from BootNotification.conf).
+- [x] **MeterValues truncation recovery** — Mahindra export caps cells at 4000 chars, cutting large MeterValues mid-JSON; `repairTruncatedJson` salvages the valid prefix. Mahindra MeterValues **0 → 39** (897 readings). CZ unchanged.
+- **State:** **460 tests green**, `tsc`+`vite build` clean. Adding a customer = 1 adapter + registry row + fixture (selector auto-updates; guide in spec §4c). Out of scope: MSIL adapter (until sampled), cross-file id-collision bug, CSMS dashboard.
 
 ## Validation Engine — detail
 

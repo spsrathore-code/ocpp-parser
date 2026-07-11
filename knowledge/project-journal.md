@@ -773,3 +773,37 @@ Brought the compliance work (STATUS-010/011/012 + Error-Code-Frequency Info/Stat
 **State:** **421 tests** green, `tsc` + `vite build` clean, `analysis.worker-*.js` separate chunk. Commits: protocol text `1628e13` · CMS `9ad66d9` · clone test `a70fb38` · worker+runner `c33049f` · mountParser `1bcdac1` · mountCmsParser `6d05beb`.
 
 **Next:** user browser verification (large log + CZ sample: UI interactive; repo Load&Analyze + Sim handoff unaffected) → `/review` → `/qa` → PR into `feat/cms-log-parser`. Note: CMS branch's own PR (into `feat/ocpp-simulator`) still on hold for the same browser check.
+
+---
+
+## 2026-07-10 — CMS multi-customer: Mahindra adapter + registry-driven selector, branch `feat/cms-multi-customer`
+
+**Context:** Add a second CMS customer (Mahindra) to the CMS Log Parser, plus a per-customer selector, with the invariant that **output is identical** (same 21 sections/analysis) — only ingestion differs. User dropped `data/samples/Mahindra CMS Log Sample.xlsx`. Also merged PR #3 (CMS parser) and PR #4 (analysis worker) into `feat/ocpp-simulator` first, collapsing the branch stack.
+
+**Mahindra format:** header row 0; cols `Event Name | Event Type | Request | Response | Created On`. Paired req/resp like CZ (so `cmsRowsToParsedLines` unchanged). Event Type (Charger-CMS/CMS-Charger) merely confirms direction — the shared §4/§5 action-based mapping already derives it.
+
+**The hard finding (systematic investigation, not a guess):** Mahindra's "Created On" is an Excel **serial number** whose decoded date is month/day-swapped — serial 46060 = Feb 7, but the OCPP payload for that row proves the event is **2 July**. Verified by cross-checking every row's Created-On against its payload date: **d/m interpretation matched 295/460, m/d matched 0/460**. So: the adapter reads Created On as the **display string** ("2/7/26 15:19") via `sheet_to_json(raw:false)` and parses it as **d/m**, and `mahindraTimestampToUtcIso` **rejects raw numeric serials** (they'd give the wrong month). `parseCmsWorkbook` keeps **`cellNF:true`** (cheap — format codes are interned) so the display string is available under the otherwise memory-lean read. Confirmed IST: 15:19 vs payload 09:49Z = +5:30.
+
+**Design changes:** extracted shared sheet helpers to `adapters/sheetUtils.ts` (CZ refactored onto it, DRY); **tightened CZ `detect`** to require `…String`/`Sr No.` so it no longer wrongly matches Mahindra (cross-detection tests pin no ambiguity); added **`CmsFormatAdapter.toUtcIso`** so each customer owns its timestamp format (threaded through `cmsRowsToParsedLines`, default = CZ for back-compat); `registry.getAdapter(id)` + `parseCmsWorkbook({adapterId})` with a **detect-gated** forced path (wrong customer → sharp error); worker protocol threads `adapterId`; **registry-driven selector** (`Auto-detect · CZ · Mahindra`) so future customers appear with zero UI change (Option B).
+
+**QA (headless, both real samples):** CZ unregressed (3204 msgs / 12 tx / 12 alerts / MH0055); Mahindra auto-detects (458 heartbeats, charger MPCMHDC029_639, all timestamps 2026-07 not the Feb serial trap); forcing CZ on Mahindra errors sharply; forcing Mahindra on Mahindra works. **440 tests**, `tsc`+`vite build` clean.
+
+**Next:** push + PR into `feat/ocpp-simulator`. MSIL out of scope until its sample arrives (framework + selector slot ready). Also still open from prior session: the "Transaction Analysis Graphs not coming" report — instrumented (errors now surface) but root cause needs the user's browser observation of what the graphs area shows for a specific transaction.
+
+---
+
+## 2026-07-10/11 — CMS multi-customer follow-ups: heartbeat fidelity + MeterValues truncation recovery; PRs #3/#4 merged
+
+**Branch train collapsed.** PR #3 (CMS Log Parser) and PR #4 (Analysis Web Worker) merged into `feat/ocpp-simulator` — the integration branch now carries Simulator + Validation Engine + CMS parser + worker. Active work continues on `feat/cms-multi-customer` (PR #5, open). **460 tests.**
+
+**Heartbeat Response Time (ms)** (`11029b1`, `67544ad`) — was hardcoded `N/A` (legacy parity), and `correlateMessages` discarded the CallResult timestamp (kept only its payload), so latency was uncomputable. Now correlation also attaches `responseTimestamp`; Heartbeats renders `respTs − reqTs`. Per user decision on the equal-timestamp case: **CZ shows 0** (it has separate Request/Response Time columns, equal at second granularity), **Mahindra shows N/A** (single `Created On` — the adapter leaves `responseTime` blank so no fake 0), **client shows real ms**. The distinguishing signal is at the adapter (does the format provide a separate response time), not a diff heuristic. Verified: client 118/45/67…, CZ 0×306 + 1000×5, Mahindra N/A×458.
+
+**Heartbeat Summary** (`8cdfe56`, `416c18c`) — new panel atop the Heartbeats section (Client + both CMS customers via shared `renderResults`). Key insight: key off `Heartbeat.conf.currentTime` (the authoritative CS timestamp, present in 100% of responses across all three formats) so it works even for Mahindra, which lacks separate req/resp wall-clock times. `health/heartbeatSummary.ts` (pure, worker-clone-safe): Total · Avg/Min/Max interval (s) · Expected = `BootNotification.conf.interval` (CZ 300, Mahindra 120) else median · flags intervals ≥1.5× expected as likely missed heartbeats with a `round(interval/expected)−1` estimate. Verified: Client avg 85.4s with a 1501s gap (~24 missed); CZ configured 300s; Mahindra configured 120s (matches the user's 120.088s example, 240.9s gap ~1 missed). Spec `docs/superpowers/specs/2026-07-10-heartbeat-summary-design.md`.
+
+**MeterValues truncation recovery** (`74bcc26`) — user reported Mahindra Meter Values / graphs / Transaction Summary / Debug-Info counts all blank. Systematic-debugging root cause (confirmed in the raw xlsx XML, not a parser bug): **the Mahindra export truncates long cell values at exactly 4000 chars**, cutting large MeterValues payloads mid-JSON → all 39 failed to parse (unterminated). Fix `cms/repairTruncatedJson.ts`: scans for the last position where every open bracket can be cleanly closed, truncates there, appends the outstanding closers; guarded by `JSON.parse` so it recovers the valid prefix or returns null (row skipped) — strictly never worse. `cms safeParse` retries via it on parse failure. Verified: Mahindra MeterValues **0 → 39** (897 readings, 23/msg, all 8 measurands), 2 transactions with meter data, graphs/pivot populated; CZ unchanged (1082). **The tail beyond 4000 chars is genuinely lost — a source-export limit** (told user: fix at Mahindra's export, or optional Debug-Info "N truncated" note).
+
+**Also confirmed fixed by user:** the earlier "Transaction Analysis Graphs not coming" report (my error-surfacing instrumentation in `renderTransactionGraphs`, `3b91d7d`).
+
+**Deployment** — user asked about going live at https://spsrathore-code.github.io/ocpp-parser/ ; I explained Pages currently serves `main` (legacy) raw with no build, so the Vite app needs a GitHub Actions build→Pages workflow + `base:'/ocpp-parser/'` (keep Tailwind Play CDN for v1). **Parked by user for now.**
+
+**Next:** merge PR #5 when ready; deploy (parked); Phase 6 validation `/review`+`/qa`; cross-file id-collision bug; optional MSIL adapter + Debug-Info truncation note.

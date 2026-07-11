@@ -11,9 +11,11 @@ function msg(over: Partial<ParsedMessage> & { message: unknown[] }): ParsedMessa
   return { timestamp: '2025-08-22T00:00:00.000Z', direction: 'received', lineNumber: 1, fileName: 'log.txt', ...over } as ParsedMessage;
 }
 
+const EMPTY_HB_SUMMARY = { total: 0, intervalCount: 0, avgSeconds: null, minSeconds: null, maxSeconds: null, expectedSeconds: null, expectedSource: 'none', intervals: [], flagged: [] };
+
 /** Minimal AnalysisResult carrying only the groups a section reads. */
 function bundle(over: Partial<AnalysisResult>): AnalysisResult {
-  return { messageGroups: { BootNotification: [], Heartbeat: [], StatusNotification: [], StartTransaction: [], StopTransaction: [], MeterValues: [], Other: [] }, internalTxMap: new Map(), ...over } as AnalysisResult;
+  return { messageGroups: { BootNotification: [], Heartbeat: [], StatusNotification: [], StartTransaction: [], StopTransaction: [], MeterValues: [], Other: [] }, internalTxMap: new Map(), heartbeatSummary: EMPTY_HB_SUMMARY, ...over } as AnalysisResult;
 }
 
 describe('renderHeartbeats', () => {

@@ -17,7 +17,7 @@ import type { CmsParsed } from '../cms/types';
 
 export type AnalysisRequest =
   | { kind: 'text'; files: File[] }
-  | { kind: 'cms'; files: File[] };
+  | { kind: 'cms'; files: File[]; adapterId?: string };
 
 /** Per-file CMS outcome for the source-info banner. */
 export interface CmsFileOutcome {
@@ -42,7 +42,7 @@ export type WorkerReply =
 /** Run the requested pipeline. Throws on failure (caller converts to 'error'). */
 export async function handleRequest(req: AnalysisRequest, progress: ProgressFn): Promise<AnalysisPayload> {
   if (req.kind === 'text') return handleText(req.files, progress);
-  return handleCms(req.files, progress);
+  return handleCms(req.files, progress, req.adapterId);
 }
 
 async function handleText(files: File[], progress: ProgressFn): Promise<AnalysisPayload> {
@@ -67,7 +67,7 @@ async function handleText(files: File[], progress: ProgressFn): Promise<Analysis
   return { result: analyze(mergeParsed(parts), allLines, names) };
 }
 
-async function handleCms(files: File[], progress: ProgressFn): Promise<AnalysisPayload> {
+async function handleCms(files: File[], progress: ProgressFn, adapterId?: string): Promise<AnalysisPayload> {
   const parts: CmsParsed[] = [];
   const outcomes: CmsFileOutcome[] = [];
   const names: string[] = [];
@@ -75,7 +75,7 @@ async function handleCms(files: File[], progress: ProgressFn): Promise<AnalysisP
     const file = files[i];
     progress(`Reading ${file.name} (${i + 1}/${files.length})…`);
     const ab = await file.arrayBuffer();
-    const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name);
+    const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name, { adapterId });
     parts.push(parsed);
     names.push(file.name);
     outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length });

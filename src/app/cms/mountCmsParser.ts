@@ -17,7 +17,7 @@ function nextFrame(): Promise<void> {
 }
 
 export function mountCmsParser(mountEl: HTMLElement): void {
-  const { fileInput, parseBtn, container, sourceInfo, progress } = renderCmsShell(mountEl);
+  const { fileInput, parseBtn, customerSelect, container, sourceInfo, progress } = renderCmsShell(mountEl);
 
   parseBtn.addEventListener('click', async () => {
     const files = Array.from(fileInput.files ?? []);
@@ -28,8 +28,10 @@ export function mountCmsParser(mountEl: HTMLElement): void {
     sourceInfo.classList.add('hidden');
     container.innerHTML = '';
 
+    // Empty value = Auto-detect → undefined adapterId (registry detection).
+    const adapterId = customerSelect.value || undefined;
     try {
-      const { result, cms } = await runAnalysis({ kind: 'cms', files }, (label) => {
+      const { result, cms } = await runAnalysis({ kind: 'cms', files, adapterId }, (label) => {
         progress.text.textContent = label;
       });
       progress.text.textContent = 'Rendering…';

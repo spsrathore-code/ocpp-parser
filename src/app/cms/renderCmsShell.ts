@@ -6,6 +6,7 @@
 // charger / rows) once a file is parsed. Global theme toggle lives in the nav bar.
 
 import { el } from '../render/dom';
+import { CMS_ADAPTERS } from './registry';
 
 export interface CmsProgressRefs {
   container: HTMLElement;
@@ -15,6 +16,7 @@ export interface CmsProgressRefs {
 export interface CmsShellRefs {
   fileInput: HTMLInputElement;
   parseBtn: HTMLButtonElement;
+  customerSelect: HTMLSelectElement;
   container: HTMLDivElement;
   sourceInfo: HTMLDivElement;
   progress: CmsProgressRefs;
@@ -40,11 +42,28 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
     parseBtn.disabled = !(fileInput.files && fileInput.files.length > 0);
   });
 
+  // Customer selector — options are generated from the adapter registry, so adding
+  // a new customer adapter surfaces its option here with zero UI changes.
+  // Auto-detect (empty value) is the default; a specific choice forces that adapter.
+  const customerSelect = el('select', {
+    className: 'text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500',
+    attrs: { id: 'cms-customer-select' },
+  }) as HTMLSelectElement;
+  customerSelect.appendChild(el('option', { text: 'Auto-detect', attrs: { value: '' } }));
+  for (const a of CMS_ADAPTERS) {
+    customerSelect.appendChild(el('option', { text: a.label, attrs: { value: a.id } }));
+  }
+
   const uploadCard = el('section', { className: 'mb-8' }, [
     el('div', { className: 'max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700' }, [
       el('h2', { className: 'text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4', text: '📊 Upload CMS Log (Excel)' }),
-      el('p', { className: 'text-sm text-gray-600 dark:text-gray-400 mb-4', text: 'Select one or more CMS log files (.xlsx). The customer format is auto-detected.' }),
-      el('div', { className: 'flex items-center space-x-4' }, [fileInput, parseBtn]),
+      el('p', { className: 'text-sm text-gray-600 dark:text-gray-400 mb-4', text: 'Select one or more CMS log files (.xlsx). Choose the customer, or leave on Auto-detect.' }),
+      el('div', { className: 'flex items-center gap-4 flex-wrap' }, [
+        el('label', { className: 'text-sm font-medium text-gray-700 dark:text-gray-300', text: 'Customer:', attrs: { for: 'cms-customer-select' } }),
+        customerSelect,
+        fileInput,
+        parseBtn,
+      ]),
     ]),
   ]);
 
@@ -64,7 +83,7 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
 
   root.append(header, uploadCard, progressContainer, sourceInfo, container);
   return {
-    fileInput, parseBtn, container, sourceInfo,
+    fileInput, parseBtn, customerSelect, container, sourceInfo,
     progress: { container: progressContainer, text: progressText },
   };
 }

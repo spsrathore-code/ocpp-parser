@@ -16,6 +16,7 @@ import { analyzeEnergyDispense } from './health/energyDispense';
 import { runProtocolValidation } from './protocol/runProtocolValidation';
 import { detectPhantomConnectionPattern } from './protocol/phantom';
 import { analyzeWebSocketHealth } from './ws/wsHealth';
+import { computeHeartbeatSummary, type HeartbeatSummary } from './health/heartbeatSummary';
 import { runCompliance } from './compliance/runCompliance';
 import { cpInitiatedPack } from './compliance/rulepacks/cpInitiated';
 import type { ComplianceReport } from './compliance/types';
@@ -44,6 +45,7 @@ export interface AnalysisResult {
   cpCompliance: ComplianceReport;
   phantom: PhantomResult;
   wsHealth: WsHealth;
+  heartbeatSummary: HeartbeatSummary;
   rawLogLines: string[];
   filesProcessed: string[];
 }
@@ -81,12 +83,25 @@ export function analyze(parsed: ParsedLines, rawLogLines: string[], filesProcess
   const phantom = detectPhantomConnectionPattern(messageGroups.BootNotification, rawLogLines);
   const wsHealth = analyzeWebSocketHealth(wsEvents);
 
+  // Configured heartbeat interval = the first BootNotification.conf `interval` (seconds).
+  const bootInterval = firstBootInterval(messageGroups.BootNotification);
+  const heartbeatSummary = computeHeartbeatSummary(messageGroups.Heartbeat, bootInterval);
+
   return {
     messages, events, alerts, internalTxMap, messageGroups, transactions,
     downtimes, incompleteTransactions, powerRestoreSync, emergencyStopSync,
     connectorStats, energyDispense, protocol, cpCompliance, phantom, wsHealth,
-    rawLogLines, filesProcessed,
+    heartbeatSummary, rawLogLines, filesProcessed,
   };
+}
+
+/** First `interval` (seconds) from any BootNotification.conf, or null. */
+function firstBootInterval(bootNotifications: ParsedMessage[]): number | null {
+  for (const m of bootNotifications) {
+    const interval = (m.responsePayload as { interval?: unknown } | null | undefined)?.interval;
+    if (typeof interval === 'number' && interval > 0) return interval;
+  }
+  return null;
 }
 
 /** Convenience: parse + analyze a single file's lines. */

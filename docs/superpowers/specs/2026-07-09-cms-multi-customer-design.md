@@ -95,6 +95,24 @@ Created-On column, or convert in the adapter when the cell is a number.
   vice-versa (regression pin against ambiguity).
 - Full CZ regression suite stays green (baselines 3204/12/12).
 
+## 4d. Build status (2026-07-10) — DONE (Mahindra + selector), branch `feat/cms-multi-customer`
+
+All Phase-3 items built + QA'd. **440 tests**, `tsc` + `vite build` clean.
+- `adapters/sheetUtils.ts` (shared helpers, CZ refactored onto it) · `adapters/mahindra.ts`
+  + `adapters/mahindraTimestamps.ts` · CZ `detect` tightened (no Mahindra collision) ·
+  `CmsFormatAdapter.toUtcIso` (adapter-owned timestamps) threaded through the mapper ·
+  `registry` (mahindra + `getAdapter`) · `parseCmsWorkbook({adapterId})` detect-gated +
+  `cellNF:true` · worker protocol `adapterId` · registry-driven **customer selector**
+  (`Auto-detect · CZ · Mahindra`).
+- **The one hard finding:** Mahindra's "Created On" Excel *serial* decodes to the wrong
+  month (serial 46060 = Feb 7) while the OCPP payload proves 2 July. Verified d/m
+  matched the payload 295/460 rows, m/d 0/460 → the adapter parses the **display
+  string as d/m** and *rejects* raw serials; `parseCmsWorkbook` keeps `cellNF:true` so
+  the display string is available under the memory-lean read.
+- **QA (headless, both samples):** CZ unregressed (3204 msgs / 12 tx / 12 alerts,
+  MH0055); Mahindra auto-detects (458 heartbeats, charger MPCMHDC029_639, all
+  timestamps July-2026 not the Feb trap); forcing the wrong customer errors sharply.
+
 ## 5. Success criteria
 
 1. Mahindra sample → same analysis sections populated as CZ (values per its data).
