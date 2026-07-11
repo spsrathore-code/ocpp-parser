@@ -6,13 +6,14 @@ A mega-repo for an **OCPP 1.6J tool suite** for Ador Digatron DC fast chargers (
 
 | Tool | Status | Location |
 |---|---|---|
-| **Parser** (log analysis & diagnostics) | ✅ Live | `src/app/` → deployed at https://spsrathore-code.github.io/ocpp-parser/ |
-| **OCPP Validation Engine** (type-aware validation) | 📋 Specced | `docs/TYPEVALIDATION.md` |
-| **CMS (CSMS)** | ⏳ Planned | — |
-| **Charger Emulator** | ⏳ Planned (SAP simulator candidate) | — |
+| **Parser** (Client + CMS log analysis & diagnostics) | 🟢 **LIVE** | `src/app/` → deployed at https://spsrathore-code.github.io/ocpp-parser/ |
+| **CMS Log Parser** (Excel CMS logs — CZ + Mahindra, customer selector) | 🟢 **LIVE** (a Parser view) | `src/app/cms/` |
+| **OCPP Validation Engine** (type-aware validation L1–L3) | 🟢 **LIVE** (integrated, Phase 6) | `src/services/validation/` · `docs/TYPEVALIDATION.md` |
+| **Charger Emulator** (OCPP Simulator, Tab 1) | 🟢 **LIVE** (integrated) | `src/simulator/` |
+| **CMS (CSMS dashboard)** | ⏳ Planned | nav slot reserved |
 | **Training Emulator** | ⏳ Planned | — |
 
-The five tools share one OCPP core (types, schemas, validation).
+The tools share one OCPP core (types, schemas, validation). Deploy/runbook: `docs/DEPLOY.md`.
 
 ## Repository map
 

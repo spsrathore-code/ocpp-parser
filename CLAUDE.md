@@ -7,13 +7,14 @@
 
 A **mega-repo for an OCPP tool suite** (Ador Digatron · DC fast chargers · OCPP 1.6J). Five tools share one OCPP core:
 
-| #   | Tool                                                                                      | Status                                         | Where                                                         |
-| --- | ----------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
-| 1   | **OCPP Validation Engine** — type-aware validation (L1–L3) on `typed-ocpp`                | 🟢 Built · merged into parser branch (Phase 6) | `src/services/validation/` · `docs/TYPEVALIDATION.md`         |
-| 2   | **CMS (CSMS)** — own central system                                                       | ⏳ Planned                                      | —                                                             |
-| 3   | **Charger Emulator** — candidate: adopt/fork SAP `e-mobility-charging-stations-simulator` | ⏳ Planned                                      | —                                                             |
-| 4   | **Training Emulator**                                                                     | ⏳ Planned                                      | —                                                             |
-| 5   | **Parser** — log analysis · live; TS+Vite revamp (Phases 0–6 done; not deployed)          | ✅ Live · 🟡 revamp on branch                   | `src/app/` (TS, `feat/parser-revamp`) · legacy HTML on `main` |
+| #   | Tool | Status | Where |
+| --- | --- | --- | --- |
+| 1   | **Parser** — log analysis (Client + CMS logs) · TS+Vite revamp | 🟢 **LIVE** — deployed (Phases 0–6) | `src/app/` on `main` → https://spsrathore-code.github.io/ocpp-parser/ |
+| 1b  | **CMS Log Parser** — Excel CMS logs (CZ + Mahindra; customer selector) | 🟢 **LIVE** — a Parser view | `src/app/cms/` |
+| 2   | **OCPP Validation Engine** — type-aware validation (L1–L3) on `typed-ocpp` | 🟢 **LIVE** — integrated (Phase 6) | `src/services/validation/` · `docs/TYPEVALIDATION.md` |
+| 3   | **Charger Emulator** — OCPP Simulator (Tab 1) | 🟢 **LIVE** — integrated | `src/simulator/` |
+| 4   | **CMS (CSMS dashboard)** — own central system | ⏳ Planned | nav slot reserved |
+| 5   | **Training Emulator** | ⏳ Planned | — |
 
 ## Canonical artifacts (don't confuse copies for sources)
 

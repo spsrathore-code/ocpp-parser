@@ -1,14 +1,35 @@
-# OCPP Parser – Impact Analysis Log
+# OCPP Suite — Changelog
 
-Every time a change is made to `OCPP_Parser_Complete_ 21 Jan'26.html`, a full impact check is run and the verdict is recorded here.
+Run-by-run change log for the **deployed Vite OCPP Suite** (`src/app/` → https://spsrathore-code.github.io/ocpp-parser/). Add an entry per shipped change to `main`. Detailed per-session narrative lives in `knowledge/project-journal.md`; the live progress board is `specs/roadmap.md`.
+
+> **Log split (11 Jul 2026):** the revamped Vite app **replaced** the legacy single-file HTML parser, which is retired at tag `legacy-parser-v2026.05.14`. Entries from here down to *"Legacy log"* track the Vite suite. The older **Impact Analysis Log** (Runs #1–#27, changes to the retired `OCPP_Parser_Complete_ 21 Jan'26.html`) is preserved unchanged below the divider for history.
 
 ---
 
-## How to Read This Log
+## 2026-07-11 — 🚀 Deploy swap: OCPP Suite revamp LIVE on GitHub Pages ✅
 
-- **PASS** ✅ — No regression, logic intact
-- **FAIL** ❌ — Regression found, fix applied before shipping
-- **WARN** ⚠️ — Non-breaking concern noted, monitored
+**Shipped:** the Vite OCPP Suite (Client + CMS parsers · OCPP Simulator · Validation Engine L1–L3) replaced the legacy single-file parser at https://spsrathore-code.github.io/ocpp-parser/ (PRs #5→#6, CI fixes #7/#8, docs #9).
+
+- **Deploy pipeline** — added `.github/workflows/deploy.yml` (build→Pages on push to `main`) + `vite.config` `base:'/ocpp-parser/'`; Pages source switched to GitHub Actions. Legacy `main` tagged `legacy-parser-v2026.05.14` for rollback. Runbook: `docs/DEPLOY.md`.
+- **CI fix** — Linux build failed on the missing `@rollup/rollup-linux-x64-gnu` native binary (Windows-generated lockfile, npm/cli#4828); workflow now does `rm -f package-lock.json && npm install`.
+- **CMS multi-customer** — Mahindra adapter + registry-driven customer selector (Auto-detect · CZ · Mahindra); Mahindra Excel date-serial m/d-swap handled via the display string.
+- **Heartbeat** — real Response Time (ms) via correlation keeping the CallResult timestamp (CZ 0 · Mahindra N/A · client real ms); new Heartbeat Summary panel (interval stats + missed-HB flags off `Heartbeat.conf.currentTime`).
+- **MeterValues truncation recovery** — `cms/repairTruncatedJson.ts` salvages the valid JSON prefix from Mahindra's 4000-char cell cap (Mahindra MeterValues 0→39).
+- **Analysis Web Worker** — large-file parse/xlsx/analyze moved off the main thread (P1 freeze fix) with direct fallback + cancellation.
+
+**State:** 460 tests green, `tsc` + `vite build` clean. **Verdict: PASS ✅** — live site verified (base-path-correct chunks 200).
+
+**Known open:** cross-file message-ID collision in correlation; Phase 6 validation `/review`+`/qa`; compiled-Tailwind hardening (Play CDN kept for v1); optional MSIL adapter.
+
+---
+
+---
+
+# Legacy log — Impact Analysis Log (retired HTML, `OCPP_Parser_Complete_ 21 Jan'26.html`)
+
+> Historical. Every time a change was made to the single-file HTML parser, a full impact check was run and the verdict recorded here. The HTML is retired at tag `legacy-parser-v2026.05.14`; no new entries are added below.
+
+**How to read:** **PASS** ✅ no regression · **FAIL** ❌ regression found, fixed before shipping · **WARN** ⚠️ non-breaking concern noted.
 
 ---
 
