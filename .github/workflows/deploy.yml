@@ -28,7 +28,11 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # `npm install` (not `npm ci`): the committed package-lock.json is generated on
+      # Windows, and npm has a known bug (npm/cli#4828) where `npm ci` on Linux skips
+      # the platform-specific optional dep @rollup/rollup-linux-x64-gnu, breaking the
+      # vite/rollup build. `npm install` re-resolves optional deps for this platform.
+      - run: npm install --no-audit --no-fund
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
