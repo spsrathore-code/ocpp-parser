@@ -56,8 +56,7 @@ handoff. Branch `feat/ocpp-simulator`.
 - [x] **Phase 5** Training niceties (defaults overlay + per-profile blurbs).
 - [x] **Phase 6 (2026-07-04)** **Unified into one tool** — two-tier nav shell (`Parser · Emulator · CMS`) in `src/app/nav/` (`navConfig` + `navShell`); Parser + OCPP Simulator mounted as views (lazy + kept alive → CP-Mode WebSocket survives switches); future views = disabled "coming soon"; `simulator.html` removed; Vite single-entry. Design §4.1 · requirements R9.
 - [x] **UI fixes (post-browser-test)** — dark-mode control colors (white-on-white dropdowns); **original two-column layout restored** (Operating Mode · Description · Message Format · payload cards · Log) incl. per-message Descriptions + Message Format tables; **global 🌓 theme toggle in nav bar** (light+dark, every tab; `initTheme` made idempotent).
-- [ ] Next: Review/QA/Ship (finish branch → merge to `feat/parser-revamp` or PR).
-- **State:** **370 tests green** (85 files), `tsc`+build clean. Branch `feat/ocpp-simulator`, not merged.
+- **Shipped:** merged to `main` via the deploy swap (PR #6, 2026-07-11) — **LIVE** at https://spsrathore-code.github.io/ocpp-parser/. Tabs 2/3 (Flow replay, CMS) remain future work.
 
 ---
 
@@ -128,7 +127,7 @@ pluggable adapter registry (CZ first). Branch `feat/cms-log-parser`.
 | Ship    | /ship + /document-release + /canary       | ⏳ Active   |            |
 | Reflect | /retro + /learn                           | ⬜ Pending  |            |
 
-Engine code: `src/services/validation/` (L1–L3, 25 tests). **Merged into `feat/parser-revamp` 2026-06-22** to begin **Parser Phase 6 integration** (direct monorepo import — `knowledge/decisions/2026-06-21-validation-engine-consumption-model.md`). Not yet merged to `main`.
+Engine code: `src/services/validation/` (L1–L3, 25 tests). Merged into the parser line 2026-06-22 (Phase 6 integration, direct monorepo import — `knowledge/decisions/2026-06-21-validation-engine-consumption-model.md`). **On `main` / LIVE since the 2026-07-11 deploy swap.**
 
 ---
 

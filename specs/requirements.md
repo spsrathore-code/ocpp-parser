@@ -1,32 +1,30 @@
 # OCPP Client Log Parser — Master Requirements & Project Status
 
-**Doc Version**: 2.7 | **Requirements Last Updated**: 6 June 2026
-**Tool File (canonical source)**: `src/app/OCPP_Parser_Complete_ 21 Jan'26.html` — **in-tool version `2026.05.14` (14 May 2026) · 9,813 lines · 620 KB**. Root `index.html` is its deploy copy.
-**Live URL**: `https://spsrathore-code.github.io/ocpp-parser/`
+**Doc Version**: 2.8 | **Requirements Last Updated**: 11 July 2026
+**Canonical source (parser)**: the **TS + Vite app** under `src/app/` (decomposed modules — no source file > 2000 lines; entry `src/app/main.ts` via root `index.html`). The legacy single-file `src/app/OCPP_Parser_Complete_ 21 Jan'26.html` (in-tool `2026.05.14`, 9,813 lines) is **retired**, preserved at git tag `legacy-parser-v2026.05.14`.
+**Live URL**: `https://spsrathore-code.github.io/ocpp-parser/` — the deployed Vite build (auto-built by GitHub Actions on every push to `main`).
 **GitHub Repo**: `https://github.com/spsrathore-code/ocpp-parser` | Branch: `main`
 **Target Hardware**: DC Fast Chargers (QUENCH Chargers) — OCPP 1.6J
 
-> **v2.7 (6 Jun 2026) — SSOT reconciliation against tool source.** Read the actual implementation and closed the documented gaps: full **Downtime Detection engine + 4 fault types** (Section 9 rewritten), **Events / Alerts / Debug Information** sections + **API folder-save, download-progress, and repository bulk/manual-sync** features (Section 18), and the **Architecture & Data Model SSOT core** — parsing contract, data model, render order, dependency manifest (Section 19). Corrected Section 16 status to ✅. **No change made to the tool HTML.**
+> **v2.8 (11 Jul 2026) — Deploy-swap reconciliation.** The revamped **Vite OCPP Suite replaced the legacy single-file parser** and is **LIVE** on GitHub Pages (build→Pages via `.github/workflows/deploy.yml`, `vite base '/ocpp-parser/'`). The suite now ships four live tools sharing one OCPP core — the **Parser** (Client + **CMS Log Parser**, CZ + Mahindra customer selector), the **Validation Engine** (type-aware L1–L3, Phase 6 integrated), and the **Charger Emulator / OCPP Simulator** (Tab 1). **460 tests**, `tsc` + `vite build` clean. Runbook + rollback: `docs/DEPLOY.md`. The functional requirements below (Sections 2–19) describe parser behavior and **remain accurate** — the revamp is a faithful parity port; only the **architecture, canonical-source, and deploy** framing changed (updated in §Deploy Workflow and §1). *Prior:* v2.7 (6 Jun 2026) reconciled the doc against the then-canonical HTML source (Downtime engine + 4 fault types, Events/Alerts/Debug, API/repository features, Architecture SSOT core).
 
-> **Terminology** — **Canonical** = the single authoritative version of an artifact; everything else is a copy or derivation (the source HTML is canonical, `index.html` is a deploy copy; the 56 `.json` schemas are the canonical *reference* set — runtime validation uses `typed-ocpp`'s bundled schemas, see §19.7). **SSOT (single source of truth)** = this document's role as the one authoritative reference for requirements, status, and architecture.
+> **Terminology** — **Canonical** = the single authoritative version of an artifact; everything else is a copy or derivation (the Vite app under `src/app/` is the canonical parser; the retired HTML lives only at its git tag; the 56 `.json` schemas are the canonical *reference* set — runtime validation uses `typed-ocpp`'s bundled schemas, see §19.7). **SSOT (single source of truth)** = this document's role as the one authoritative reference for requirements, status, and architecture.
 
 ---
 
 ## Deploy Workflow
 
-After every change to the HTML file, run:
+The live site is the **Vite production build**, deployed automatically by **GitHub Actions** — merge to `main` and it ships:
 
-```bash
-cd "C:\Users\SPRATHORE\OneDrive - Ador Digatron Pvt. Ltd\Desktop\Desktop\Claude Tools\P4_OCPP Client Parser"
-powershell -Command "Copy-Item 'src\app\OCPP_Parser_Complete_ 21 Jan''26.html' 'index.html'"
-git add index.html
-git commit -m "<description of change>"
-git push origin main
-```
+- Merge to `main` → `.github/workflows/deploy.yml` runs (`rm -f package-lock.json && npm install` → `npm run build` → `upload-pages-artifact` → `deploy-pages`).
+- `vite.config.ts` sets **`base: '/ocpp-parser/'`** for the production build only (dev/preview stay `/`), so every asset path resolves under the Pages subpath.
+- Pages "source" is set to **GitHub Actions** (not branch-raw). Live within ~1–2 minutes of the run finishing.
 
-> GitHub Pages auto-deploys within ~2 minutes. **Always edit the canonical source file, never the `index.html` deploy copy.**
+**Rollback:** the pre-swap legacy `main` is tagged `legacy-parser-v2026.05.14`. Full runbook: `docs/DEPLOY.md`.
 
-> **Local `file://` use**: All parsing and IndexedDB storage work offline. Google Drive sync requires the hosted `https://` URL.
+> **CI note:** the workflow deletes the committed `package-lock.json` before `npm install` because it was generated on Windows and omits the Linux rollup native binary (npm/cli#4828), which broke the Linux build.
+
+> **Run locally:** `npm install` once, then `npm run dev` (→ `http://localhost:5173`, hot reload) or `npm run build && npm run preview` (→ `http://localhost:4173`). The app is bundled ES modules — it can **not** be opened via `file://` (browsers block ES modules there).
 
 ---
 
@@ -112,17 +110,16 @@ Create a standalone, web-based OCPP Client Log Parser. Users upload a raw OCPP c
 
 ### 1.2 Architecture & Self-Containment
 
-Single HTML file with no external dependencies or terminal commands required.
+A **TS + Vite single-page app** (decomposed `src/` modules — no source file > 2000 lines), built to static assets and served from GitHub Pages. Runs entirely client-side; there is no backend.
 
-- **Browser-Based Execution**: Runs in any modern web browser
-- **No Server Setup**: No Node.js, Python, or other backend
-- **No Package Installation**: All dependencies via CDN
-- **No Build Process**: Open directly or serve from any web server
+- **Browser-Based Execution**: all parsing/analysis runs in the browser (a Web Worker handles large-file analysis off the main thread)
+- **No Server-Side Logic**: no Node.js/Python backend — the build output is static files
+- **Build step**: `vite build` bundles the TS app (dev via `npm run dev`); the old "open one HTML file" flow is retired
 - **Cross-Platform**: Windows, Mac, Linux, mobile
 - **Responsive Design**: Mobile-friendly layout
 - **Dark/Light Theme**: `localStorage` persistence
 
-**Deployment Options**: Local file (double-click) · Web server · GitHub Pages / Netlify / AWS S3
+**Deployment**: GitHub Actions → GitHub Pages (see §Deploy Workflow). Any static host works if `vite base` is set for the path.
 
 ### 1.3 Target Hardware Scope
 
@@ -134,12 +131,12 @@ Designed exclusively for **DC fast chargers** (QUENCH Chargers). All transaction
 |---|---|
 | **Live URL** | `https://spsrathore-code.github.io/ocpp-parser/` |
 | **GitHub Repository** | `https://github.com/spsrathore-code/ocpp-parser` |
-| **Branch** | `main` |
-| **Deployed file** | `index.html` (copy of source file) |
-| **Canonical source file** | `src/app/OCPP_Parser_Complete_ 21 Jan'26.html` — the authoritative file; edit this, never the root `index.html` deploy copy |
-| **GitHub Pages** | Auto-deploys within ~2 minutes of every push to `main` |
+| **Branch** | `main` (always deployable) |
+| **What's deployed** | the **Vite production build** (`dist/`), built in CI — not a hand-copied file |
+| **Canonical source** | the TS app under `src/app/`; the legacy HTML is retired at tag `legacy-parser-v2026.05.14` |
+| **Pipeline** | GitHub Actions (`.github/workflows/deploy.yml`) on push to `main` → build → Pages; live in ~1–2 min |
 
-> **Note — Log Repository Cloud Sync**: Google Drive integration requires the tool hosted on a static `https://` URL. All other tool functionality works from `file://`.
+> **Note — Log Repository Cloud Sync**: Google Drive integration (legacy feature) requires an `https://` host; in the revamp, Drive sync is **parked** (local IndexedDB repository is live). The app is bundled ES modules and cannot run from `file://`.
 
 ### 1.5 Google OAuth Setup (One-Time — Completed)
 

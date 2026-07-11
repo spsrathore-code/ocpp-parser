@@ -1,6 +1,6 @@
 # MD File Registry — OCPP Tool Suite
 
-> **Last reviewed:** 2026-06-08 (skills/ section populated after skill chain implementation)
+> **Last reviewed:** 2026-07-11 (full sync after the deploy swap — added 22 missing docs/plan/spec rows; tool statuses refreshed to LIVE)
 > One row per MD file. Add a row in the same commit as any new MD file. Remove a row when a file is deleted.
 
 ---
@@ -32,7 +32,7 @@
 |---|---|---|---|---|
 | [CLAUDE.md](../CLAUDE.md) | `RULES` | `ACTIVE` | AI session entry point — primary instructions and hard constraints | `operating-principles.md` or `project-standard.md` change; tool status changes; new hard constraint decided |
 | [README.md](../README.md) | `GUIDE` | `ACTIVE` | Human entry point — project overview and live deployment link | Major milestones ship; deployed tool URL changes |
-| [CHANGELOG.md](../CHANGELOG.md) | `TRACKER` | `ACTIVE` | Run-by-run record of every code change to the Parser HTML | `/document-release` runs; any Parser HTML is committed |
+| [CHANGELOG.md](../CHANGELOG.md) | `TRACKER` | `ACTIVE` | Run-by-run record of shipped changes to the Vite OCPP Suite (fresh log since the 2026-07-11 deploy swap; legacy HTML impact-log Runs #1–#27 archived below the divider) | `/document-release` runs; a change ships to `main` |
 | [project-standard.md](../project-standard.md) | `RULES` | `ACTIVE` | Universal repo structure rules and folder tree for all Claude projects | Repo structure changes; new file types; new governance rules |
 | [operating-principles.md](../operating-principles.md) | `RULES` | `ACTIVE` | 13 operating principles governing how Claude works in this repo | New constraint decided; workflow rule added |
 
@@ -63,6 +63,11 @@
 | [docs/architecture.md](architecture.md) | `GUIDE` | `ACTIVE` | System architecture and component relationships across the suite | Architecture decisions; new tool or integration added |
 | [docs/workflow.md](workflow.md) | `GUIDE` | `ACTIVE` | Git workflow and deploy process — Branch→PR→Merge rules | Workflow rules change; new deploy steps added |
 | [docs/user-guide.md](user-guide.md) | `GUIDE` | `ACTIVE` | End-user instructions for using the Parser | Parser UI or workflow changes that affect the user |
+| [docs/DEPLOY.md](DEPLOY.md) | `GUIDE` | `ACTIVE` | Deploy runbook — GitHub Actions build→Pages, `base` path, rollback tag, CDN deferrals | Deploy pipeline or Pages config changes |
+| [docs/business_case_compliance_check.md](business_case_compliance_check.md) | `BLUEPRINT` | `ACTIVE` | §4 CP-Initiated compliance rule registry (business cases → rules) | A field case adds/edits a compliance rule |
+| [docs/Type Validation Metrics.md](Type%20Validation%20Metrics.md) | `BLUEPRINT` | `ACTIVE` | Validation Engine KPI/metric catalog rendered by the Type-Aware Validation section | Validation metrics/KPIs change |
+| [docs/parser-revamp-comparison.md](parser-revamp-comparison.md) | `GUIDE` | `DORMANT` | Legacy-vs-revamp feature-parity comparison (parity gate) | Historical — parity gate closed |
+| [docs/engineering-assessment-2026-07-09.md](engineering-assessment-2026-07-09.md) | `GUIDE` | `DORMANT` | Point-in-time read-only engineering assessment (architecture/quality/security/risk) | Frozen; a new assessment = a new dated file |
 
 ---
 
@@ -72,7 +77,16 @@
 |---|---|---|---|---|
 | [docs/superpowers/plans/2026-06-06-skill-chain-implementation.md](superpowers/plans/2026-06-06-skill-chain-implementation.md) | `BLUEPRINT` | `ACTIVE` | Step-by-step plan to create all 30 SKILL.md files and supporting scaffolding | Skill chain implementation is executed (tasks checked off) |
 | [docs/superpowers/plans/2026-06-08-md-registry-implementation.md](superpowers/plans/2026-06-08-md-registry-implementation.md) | `BLUEPRINT` | `ACTIVE` | Step-by-step plan to create docs/md-registry.md | This implementation is executed (becomes DORMANT after) |
-| [docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md](superpowers/plans/2026-07-03-ocpp-simulator-integration.md) | `BLUEPRINT` | `ACTIVE` | Task-by-task TDD plan to build the OCPP Simulator into the suite (Phases 0–5): MPA Vite entry, schema-driven 28-message catalog, both modes, engine + Parser wiring | Plan tasks executed (→ DORMANT after); design spec changes |
+| [docs/superpowers/plans/2026-07-03-ocpp-simulator-integration.md](superpowers/plans/2026-07-03-ocpp-simulator-integration.md) | `BLUEPRINT` | `DORMANT` | Task-by-task TDD plan for the OCPP Simulator integration (Phases 0–5) | Executed — shipped/live |
+| [docs/superpowers/plans/2026-06-13-validation-engine-phase1.md](superpowers/plans/2026-06-13-validation-engine-phase1.md) | `BLUEPRINT` | `DORMANT` | Task plan — Validation Engine L1–L3 build | Executed — shipped |
+| [docs/superpowers/plans/2026-06-15-parser-phase3a-shell.md](superpowers/plans/2026-06-15-parser-phase3a-shell.md) | `BLUEPRINT` | `DORMANT` | Task plan — Parser Phase 3a shell/theme/orchestrator | Executed |
+| [docs/superpowers/plans/2026-06-16-parser-phase3b1-generic-tables.md](superpowers/plans/2026-06-16-parser-phase3b1-generic-tables.md) | `BLUEPRINT` | `DORMANT` | Task plan — Phase 3b-1 generic table + message-group sections | Executed |
+| [docs/superpowers/plans/2026-06-18-parser-phase3b2-debug-boot.md](superpowers/plans/2026-06-18-parser-phase3b2-debug-boot.md) | `BLUEPRINT` | `DORMANT` | Task plan — Phase 3b-2 Debug Info + Boot Notifications | Executed |
+| [docs/superpowers/plans/2026-06-20-parser-phase4a-repository-core.md](superpowers/plans/2026-06-20-parser-phase4a-repository-core.md) | `BLUEPRINT` | `DORMANT` | Task plan — Phase 4a Log Repository core (IndexedDB) | Executed |
+| [docs/superpowers/plans/2026-06-20-parser-phase4b-repository-panel.md](superpowers/plans/2026-06-20-parser-phase4b-repository-panel.md) | `BLUEPRINT` | `DORMANT` | Task plan — Phase 4b Repository panel UI | Executed |
+| [docs/superpowers/plans/2026-06-21-parser-phase4d-session-timeline.md](superpowers/plans/2026-06-21-parser-phase4d-session-timeline.md) | `BLUEPRINT` | `DORMANT` | Task plan — Phase 4d Session Timeline modal | Executed |
+| [docs/superpowers/plans/2026-06-23-cp-initiated-compliance.md](superpowers/plans/2026-06-23-cp-initiated-compliance.md) | `BLUEPRINT` | `DORMANT` | Task plan — §4 CP-Initiated compliance rule-pack | Executed |
+| [docs/superpowers/plans/2026-07-09-analysis-worker.md](superpowers/plans/2026-07-09-analysis-worker.md) | `BLUEPRINT` | `DORMANT` | Task plan (7 TDD tasks) — analysis Web Worker | Executed — shipped/live |
 
 ---
 
@@ -82,7 +96,15 @@
 |---|---|---|---|---|
 | [docs/superpowers/specs/2026-06-07-ocpp-md-ssot-requirements.md](superpowers/specs/2026-06-07-ocpp-md-ssot-requirements.md) | `BLUEPRINT` | `DRAFT` | Pre-brainstorm requirements for OCPP MD-as-SSOT compiler architecture | Full compiler brainstorm session runs |
 | [docs/superpowers/specs/2026-06-08-md-registry-design.md](superpowers/specs/2026-06-08-md-registry-design.md) | `BLUEPRINT` | `ACTIVE` | Approved design spec for this registry — columns, roles, status, maintenance rules | Implementation complete (status changes to DORMANT) |
-| [docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md](superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md) | `BLUEPRINT` | `DRAFT` | Design for integrating the OCPP Simulator (Tab 1) into the suite as Tool #3 seed — Vite Option A, schema-driven 28-message catalog, Validation Engine + Parser wiring, build phasing | Integration design changes; implementation plan supersedes; phases executed |
+| [docs/superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md](superpowers/specs/2026-07-03-ocpp-simulator-integration-design.md) | `BLUEPRINT` | `DORMANT` | Design — OCPP Simulator integration (Tab 1) | Shipped/live |
+| [docs/superpowers/specs/2026-06-15-parser-phase3-render-design.md](superpowers/specs/2026-06-15-parser-phase3-render-design.md) | `BLUEPRINT` | `DORMANT` | Design — Parser Phase 3 render/UI (19 sections) | Shipped |
+| [docs/superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md](superpowers/specs/2026-06-19-PARKED-remotestart-diagnostic.md) | `BLUEPRINT` | `DORMANT` | Parked resume-notes — Repeated-RemoteStart diagnostic (3b-3b) | Resumed later |
+| [docs/superpowers/specs/2026-06-22-parser-phase6-validation-integration-arch.md](superpowers/specs/2026-06-22-parser-phase6-validation-integration-arch.md) | `BLUEPRINT` | `DORMANT` | Architecture — Phase 6 Validation Engine integration | Shipped/live |
+| [docs/superpowers/specs/2026-06-23-cp-initiated-compliance-design.md](superpowers/specs/2026-06-23-cp-initiated-compliance-design.md) | `BLUEPRINT` | `DORMANT` | Design — §4 CP-Initiated compliance framework | Shipped/live |
+| [docs/superpowers/specs/2026-07-08-cms-log-parser-design.md](superpowers/specs/2026-07-08-cms-log-parser-design.md) | `BLUEPRINT` | `DORMANT` | Design + add-a-customer guide — CMS Log Parser (Excel ingestion) | Shipped/live |
+| [docs/superpowers/specs/2026-07-09-analysis-worker-design.md](superpowers/specs/2026-07-09-analysis-worker-design.md) | `BLUEPRINT` | `DORMANT` | Design — analysis Web Worker (P1 large-file freeze fix) | Shipped/live |
+| [docs/superpowers/specs/2026-07-09-cms-multi-customer-design.md](superpowers/specs/2026-07-09-cms-multi-customer-design.md) | `BLUEPRINT` | `DORMANT` | Design — Mahindra adapter + registry-driven customer selector | Shipped/live |
+| [docs/superpowers/specs/2026-07-10-heartbeat-summary-design.md](superpowers/specs/2026-07-10-heartbeat-summary-design.md) | `BLUEPRINT` | `DORMANT` | Design — Heartbeat Summary (currentTime intervals) | Shipped/live |
 
 ---
 
