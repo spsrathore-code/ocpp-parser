@@ -6,6 +6,30 @@
 
 ---
 
+## Feature: CMS multi-customer (Mahindra) + Heartbeat/MeterValues fixes  |  Started: 2026-07-09
+
+Goal: add Mahindra as a second CMS customer (with a per-customer selector) and fix
+heartbeat / meter-value data fidelity across both parsers. Branch
+`feat/cms-multi-customer` → PR #5 (open) into `feat/ocpp-simulator`.
+
+| Phase   | Skill(s)                                  | Status      | Date       |
+|---------|-------------------------------------------|-------------|------------|
+| Think   | brainstorming / systematic-debugging      | ✅ Complete | 2026-07-09 |
+| Plan    | inline (specs)                            | ✅ Complete | 2026-07-09 |
+| Build   | TDD (inline)                              | ✅ Complete | 2026-07-10 |
+| Review  | inline (per-change)                       | ✅ Complete | 2026-07-10 |
+| Test    | headless QA on real samples               | ✅ Complete | 2026-07-10 |
+| Ship    | PR #5 (open)                              | ⏳ Active   | 2026-07-10 |
+| Reflect | /retro + /learn                           | ⬜ Pending  |            |
+
+- [x] **Mahindra adapter + registry-driven customer selector** (Auto-detect · CZ · Mahindra); shared `sheetUtils.ts`; CZ `detect` tightened; `toUtcIso` per adapter; forced `adapterId` (detect-gated). Finding: Mahindra date serial m/d-swapped → parse d/m display string. Spec `2026-07-09-cms-multi-customer-design.md`.
+- [x] **Heartbeat Response Time (ms)** — real latency (correlation now keeps CallResult timestamp); CZ=0, Mahindra=N/A, client=real ms.
+- [x] **Heartbeat Summary** — interval stats from `Heartbeat.conf.currentTime`; missed-HB flags; expected = BootNotification.conf.interval else median. Spec `2026-07-10-heartbeat-summary-design.md`.
+- [x] **MeterValues truncation recovery** (systematic-debugging) — Mahindra export caps cells at 4000 chars; `repairTruncatedJson` salvages the prefix. Mahindra MeterValues 0 → 39 (897 readings).
+- **State:** **460 tests**, `tsc`+`vite build` clean. Browser-verified working (user). Next: merge PR #5.
+
+---
+
 ## Feature: OCPP Simulator — Suite Integration (Charger Emulator seed)  |  Started: 2026-07-03
 
 Goal: rebuild the standalone OCPP Simulator (Tab 1) as TS+Vite modules under
@@ -50,7 +74,7 @@ Branch `feat/perf-analysis-worker` (off `feat/cms-log-parser`).
 | Build   | executing-plans (inline)                  | ✅ Complete | 2026-07-09 |
 | Review  | /review                                   | ✅ Complete | 2026-07-09 |
 | Test    | /qa                                       | ✅ Complete | 2026-07-09 |
-| Ship    | /ship (PR)                                | ⏳ Active   | 2026-07-09 |
+| Ship    | PR #4 → merged into `feat/ocpp-simulator` | ✅ Complete | 2026-07-10 |
 | Reflect | /retro + /learn                           | ⬜ Pending  |            |
 
 - Spec `docs/superpowers/specs/2026-07-09-analysis-worker-design.md` · plan `docs/superpowers/plans/2026-07-09-analysis-worker.md`.
@@ -58,7 +82,7 @@ Branch `feat/perf-analysis-worker` (off `feat/cms-log-parser`).
 - Built: `src/app/worker/` — `protocol.ts` (pure `handleRequest`, both pipelines + progress), `analysis.worker.ts` (dispatch-only), `runner.ts` (spawn/relay/fallback/cancel). Both mounts now compute via `runAnalysis`; repo Load&Analyze + Simulator handoff untouched (spec §3, verified by diff check).
 - Guarantees delivered: structured-clone integrity test on both real samples; QA baselines (CZ 3204/12/12) re-asserted through the worker protocol; error-message fidelity; direct fallback = pre-worker behavior; cancellation on re-run.
 - **State:** **421 tests** (417 + 11 new, 7 legacy-equivalent replaced), `tsc` + `vite build` clean; `analysis.worker-*.js` separate chunk. Note: xlsx now bundles into the worker chunk (CZ adapter static import) — main bundle unaffected; Export-to-Excel lazily pulls the worker chunk (~80 kB more, cached).
-- [ ] Next: **user browser verification** (large text log + CZ sample: UI stays interactive; repo Load&Analyze + Sim handoff unaffected) → /review → /qa → PR into `feat/cms-log-parser`.
+- **Shipped:** browser-verified by user; **PR #4 merged into `feat/ocpp-simulator` (2026-07-10)**.
 
 ---
 
@@ -76,8 +100,10 @@ pluggable adapter registry (CZ first). Branch `feat/cms-log-parser`.
 | Build   | TDD (Phases A–C)                          | ✅ Complete | 2026-07-09 |
 | Review  | /review                                   | ✅ Complete | 2026-07-09 |
 | Test    | /qa                                       | ✅ Complete | 2026-07-09 |
-| Ship    | /ship (PR)                                | ⬜ Pending  |            |
+| Ship    | PR #3 → merged into `feat/ocpp-simulator` | ✅ Complete | 2026-07-09 |
 | Reflect | /retro + /learn                           | ⬜ Pending  |            |
+
+> Follow-on work (Mahindra + heartbeat + meter-value fixes) tracked in the **CMS multi-customer** feature block above (`feat/cms-multi-customer`, PR #5).
 
 - Spec/to-do `docs/superpowers/specs/2026-07-08-cms-log-parser-design.md` (incl. add-a-customer guide §4c).
 - [x] **Phase A** Ingestion adapter (`src/app/cms/`): timestamps (IST→UTC) · directions (§4/§5) · rowsToParsedLines (CALL+CALLRESULT + derived Alerts) · CZ adapter · registry · parseCmsWorkbook.
