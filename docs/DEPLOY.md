@@ -1,6 +1,7 @@
 # Deploy — OCPP Suite → GitHub Pages
 
 Live URL: **https://spsrathore-code.github.io/ocpp-parser/**
+**Live since 2026-07-11** (deploy swap: the revamp replaced the legacy single-file parser).
 
 ## How it works (since 2026-07-11)
 
@@ -10,7 +11,9 @@ builds it and publishes `dist/` to Pages.
 
 - **Trigger:** every push to `main` (or manual `workflow_dispatch`). See
   `.github/workflows/deploy.yml`.
-- **Build:** `npm ci && npm run build` → `dist/`.
+- **Build:** `rm -f package-lock.json && npm install && npm run build` → `dist/`.
+  (The lockfile is removed first: it is generated on Windows and npm/cli#4828 makes
+  `npm ci`/`npm install` skip the Linux `@rollup/rollup-linux-x64-gnu` binary otherwise.)
 - **Base path:** `vite.config.ts` sets `base: '/ocpp-parser/'` for the production
   build only (Pages serves under the repo subpath). Dev/preview stay at `/`.
 - **Pages setting:** Settings → Pages → Build and deployment → **Source: GitHub

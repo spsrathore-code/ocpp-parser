@@ -807,3 +807,21 @@ Brought the compliance work (STATUS-010/011/012 + Error-Code-Frequency Info/Stat
 **Deployment** — user asked about going live at https://spsrathore-code.github.io/ocpp-parser/ ; I explained Pages currently serves `main` (legacy) raw with no build, so the Vite app needs a GitHub Actions build→Pages workflow + `base:'/ocpp-parser/'` (keep Tailwind Play CDN for v1). **Parked by user for now.**
 
 **Next:** merge PR #5 when ready; deploy (parked); Phase 6 validation `/review`+`/qa`; cross-file id-collision bug; optional MSIL adapter + Debug-Info truncation note.
+
+---
+
+## 2026-07-11 — 🚀 DEPLOY SWAP: OCPP Suite revamp is LIVE on GitHub Pages
+
+The revamp replaced the legacy single-file parser at **https://spsrathore-code.github.io/ocpp-parser/**. User decisions: full swap to `main`; go live now.
+
+**Mechanism:** Pages previously served `main` (legacy HTML) raw — no build. The Vite app needs building, so added a **GitHub Actions build→Pages** workflow (`.github/workflows/deploy.yml`: install → `npm run build` → upload-pages-artifact → deploy-pages, on push to `main`) + `vite.config` **`base:'/ocpp-parser/'`** (production build only; dev/preview stay `/`). Switched Pages "source" to GitHub Actions (`build_type: workflow`) via `gh api`.
+
+**Sequence:** tagged legacy `main` as `legacy-parser-v2026.05.14` (rollback) → merged PR #5 (`feat/cms-multi-customer`) into `feat/ocpp-simulator` → PR #6 (`feat/ocpp-simulator` → `main`, the deploy swap) → workflow deployed.
+
+**CI hiccup (systematic-debugging):** first two runs failed — `npm ci`/`npm install` on the Linux runner couldn't find `@rollup/rollup-linux-x64-gnu` because the committed `package-lock.json` was generated on Windows (npm/cli#4828 optional-deps bug). Fixed (PR #7 then #8) by `rm -f package-lock.json && npm install` in the workflow (fresh platform-correct resolution — the exact remedy the error prints). Third run succeeded.
+
+**Verified live:** `curl` of the site returns the Vite `index.html`; index + entry chunk (`/ocpp-parser/assets/index-*.js`) + the analysis-worker chunk all 200, all `/ocpp-parser/`-prefixed (the base-path correctness that most Pages deploys get wrong). Build output pre-verified locally before the swap.
+
+**Deferred (v1, noted in `docs/DEPLOY.md`):** Tailwind Play CDN kept at runtime (compiling it would break the dynamic `text-${color}` classes without a safelist — hardening step later); Google Fonts CDN; no SRI (assessment S3).
+
+**Next:** compiled-Tailwind hardening; fix cross-file id-collision; Phase 6 validation `/review`+`/qa`; optional MSIL adapter + Debug-Info truncation note. Suite is now shipping from `main` = production.

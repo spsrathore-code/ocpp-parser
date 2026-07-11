@@ -33,7 +33,7 @@ A **mega-repo for an OCPP tool suite** (Ador Digatron · DC fast chargers · OCP
 
 ## Deploy (Parser)
 
-**Legacy (live, `main`):** after editing `src/app/OCPP_Parser_Complete_ 21 Jan'26.html`, copy it to root `index.html`, commit, push — GitHub Pages auto-deploys. Full steps in `specs/requirements.md` → *Deploy Workflow*.
+**Live (since 2026-07-11):** the revamped Vite app auto-deploys to https://spsrathore-code.github.io/ocpp-parser/ via **GitHub Actions** on every push to `main` (`.github/workflows/deploy.yml`). Just merge to `main`. Runbook + rollback: **`docs/DEPLOY.md`**. *(The old legacy flow — edit the HTML, copy to `index.html` — is retired; legacy is tagged `legacy-parser-v2026.05.14`.)*
 
 ## How to run (revamp — `feat/parser-revamp`)
 
@@ -66,7 +66,7 @@ design. See `skills/WORKFLOW.md` for current feature state.
 
 ## Status (11 Jul 2026)
 
-> **Branch train collapsed into `feat/ocpp-simulator`** (integration branch): Simulator + Validation Engine + **CMS Parser (PR #3 merged)** + **Analysis Worker (PR #4 merged)**. Active: `feat/cms-multi-customer` (**PR #5 open** — Mahindra + heartbeat/meter-value fixes). Nothing on `main` yet. **460 tests**, `tsc`+`vite build` clean.
+> **🚀 LIVE — the revamp is deployed.** The whole train merged to `main` (PR #5 → `feat/ocpp-simulator` → **PR #6 → `main`**) and auto-deploys to **https://spsrathore-code.github.io/ocpp-parser/** via GitHub Actions (`.github/workflows/deploy.yml`, `vite base '/ocpp-parser/'`). The Vite OCPP Suite (Client + CMS parsers · Simulator · Validation Engine) **replaced the legacy single-file parser**; legacy preserved at tag `legacy-parser-v2026.05.14`. **460 tests.** Runbook `docs/DEPLOY.md`. *(CI note: the deploy workflow does `rm -f package-lock.json && npm install` — the Windows lockfile broke the Linux rollup build, npm/cli#4828.)*
 > - **CMS multi-customer** — Mahindra adapter + **registry-driven customer selector** (Auto-detect · CZ · Mahindra). Finding: Mahindra Excel date serial is m/d-swapped → parse the d/m display string. `feat/cms-multi-customer`.
 > - **Heartbeat Response Time (ms)** — real latency (correlation keeps the CallResult timestamp): CZ=0, Mahindra=N/A, client=real ms. **Heartbeat Summary** panel — interval stats from `Heartbeat.conf.currentTime`, missed-HB flags (expected = BootNotification.conf.interval else median).
 > - **🐞 MeterValues truncation recovery** — the Mahindra export caps cells at 4000 chars, cutting large MeterValues mid-JSON; `cms/repairTruncatedJson.ts` salvages the valid prefix. Mahindra MeterValues **0 → 39** (897 readings). CZ unchanged.
