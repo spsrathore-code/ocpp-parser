@@ -1,7 +1,11 @@
 // Minimal RFC 4180 reader for CMS CSV exports.
 //
-// We do NOT use `xlsx` for CSV: it materializes the whole file, and these exports
-// run to ~100 MB. Fields hold OCPP JSON, so doubled-quote escapes and newlines
+// We do NOT use `xlsx` for CSV. The caller already reads the whole file into one
+// string via file.text(), and this reader itself builds a complete string[][], so
+// "avoids materializing the file" isn't the win — xlsx materializes it too. The
+// real win is skipping xlsx's per-cell object overhead and its date/number-format
+// pass (irrelevant to raw CSV text), and keeping a ~100 MB export off the workbook
+// code path entirely. Fields hold OCPP JSON, so doubled-quote escapes and newlines
 // inside quoted fields must both be honoured — a naive line/comma split corrupts
 // every MeterValues row.
 

@@ -1017,6 +1017,14 @@ offline (4,763/4,763) and encoded as a unit test. Running it on every row in pro
 would cost a regex pass over every response for a counter nobody reads. If a timezone
 regression is a real worry later, add it then.
 
+**Deviation from spec §4.** The spec asked to "count salvaged and unsalvageable rows
+separately; report both." Truncation recovery itself works and is asserted end-to-end
+(Task 6: recovers truncated MeterValues instead of dropping them), but no per-row
+salvaged/unsalvageable counters are surfaced in the source banner or anywhere else —
+only the Event Type mismatch count is reported. This is a plain deviation, not an
+oversight to silently fix; add the counters if someone needs visibility into how many
+rows were repaired vs. dropped.
+
 **Open question still outstanding.** Spec §10 asks whether the mismatch count should
 also appear per-row in the context viewer. Task 9 does the banner only. Per-row
 flagging is deferred until someone asks for it.

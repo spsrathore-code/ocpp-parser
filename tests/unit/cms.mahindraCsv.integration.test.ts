@@ -42,6 +42,16 @@ describe('Mahindra CSV end-to-end', () => {
     for (const r of results) expect(r.timestamp).toBe('');
   });
 
+  it('gives mislabelled rows the direction the action implies, not the label', async () => {
+    // RemoteStartTransaction is CSMS-initiated. The export labels many of these
+    // rows "Charger-CMS"; direction must still come from the action. If someone
+    // makes the adapter trust Event Type, this fails while the counter tests do not.
+    const { parsed } = await parseCmsCsv(text, 'x.csv');
+    const rs = parsed.messages.filter((m) => m.message[2] === 'RemoteStartTransaction');
+    expect(rs.length).toBeGreaterThan(0);
+    for (const m of rs) expect(m.direction).toBe('received');
+  });
+
   it('feeds analyze() and produces a populated report', async () => {
     const { parsed } = await parseCmsCsv(text, 'x.csv');
     const result = analyze(parsed, parsed.rawLogLines, ['mahindra-sample.csv']);

@@ -8,8 +8,12 @@
 // on the real export (42 RemoteStartTransaction, 29 RemoteStopTransaction,
 // 6 TriggerMessage = 77 rows), while every CP-initiated action is labelled
 // correctly — so trusting it looks right on 96% of rows and then mis-threads every
-// remote-start. Direction comes from the action via ../directions.ts. Disagreements
-// are counted so the CMS-side data-quality issue is reported, not hidden.
+// remote-start. The mismatch COUNTER below reads the `Event Type` column, purely
+// for reporting; the EMITTED direction is derived from the OCPP action inside the
+// Request JSON (`call[2]`) by rowsToParsedLines via ../directions.ts. The two agree
+// on every row observed so far, but they are computed independently — the counter
+// never feeds back into what direction gets emitted. Disagreements are counted so
+// the CMS-side data-quality issue is reported, not hidden.
 //
 // Caveat: the count is indicative, not exact. ../directions.ts assumes
 // `DataTransfer` is always CP-initiated, though OCPP 1.6J allows it in either
@@ -67,7 +71,7 @@ export const mahindraCsvAdapter: CmsCsvFormatAdapter = {
       if (!CALL_RE.test(requestString)) continue; // only OCPP CALL rows
 
       const action = String(row[nameCol] ?? '').trim();
-      const labelled = norm(row[typeCol] ?? '');
+      const labelled = norm(row[typeCol] ?? '').replace(/\s+/g, '');
       if (labelled) {
         const expected = isCpInitiated(action) ? 'charger-cms' : 'cms-charger';
         if (labelled !== expected) directionMismatches++;

@@ -55,7 +55,7 @@ function renderSourceInfo(host: HTMLElement, files: CmsFileOutcome[], totalMessa
   const fileRows = files
     .map((f) => {
       const mismatchNote = f.directionMismatches
-        ? ` · <span class="text-amber-600 dark:text-amber-400">${f.directionMismatches} rows with a mislabelled Event Type</span>`
+        ? ` · <span class="text-amber-600 dark:text-amber-400" title="Indicative only: the Event Type column is not used for parsing — direction is always derived from the OCPP action. A legitimately Central-System-originated DataTransfer can also register as a false positive.">${f.directionMismatches} rows with a mislabelled Event Type</span>`
         : '';
       return `<li><span class="font-medium">${f.name}</span> — ${f.label} · charger <span class="font-mono">${f.chargers.join(', ') || f.name}</span> · ${f.rows} messages${mismatchNote}</li>`;
     })
