@@ -825,3 +825,106 @@ The revamp replaced the legacy single-file parser at **https://spsrathore-code.g
 **Deferred (v1, noted in `docs/DEPLOY.md`):** Tailwind Play CDN kept at runtime (compiling it would break the dynamic `text-${color}` classes without a safelist — hardening step later); Google Fonts CDN; no SRI (assessment S3).
 
 **Next:** compiled-Tailwind hardening; fix cross-file id-collision; Phase 6 validation `/review`+`/qa`; optional MSIL adapter + Debug-Info truncation note. Suite is now shipping from `main` = production.
+
+## 2026-08-24 — Mahindra CSV adapter + a live CSMS blackout found in the logs
+
+### Discussed
+
+Started as "add another parser for Mahindra" plus a request to process a QFLEX
+device-log bundle. The bundle turned out not to be a CMS export at all but a
+charger-side Linux log set (28 services, 692 MB uncompressed, three different log
+formats). Reading it surfaced a live production incident, so the session split into
+two tracks: diagnose the outage first (user's call), then build the parser.
+
+Mid-session the user supplied the actual target — a Mahindra CMS **CSV** export —
+and later a 20-sheet analysis workbook (`DC052_ DC053 CMS Logs.xlsx`).
+
+### Decided
+
+- **Diagnose before building.** The outage was costing real availability; the parser
+  could wait an hour.
+- **A separate CSV adapter, not a branch inside the xlsx one.** The xlsx path carries
+  an Excel date workaround the CSV must not inherit (below).
+- **Uptime/outage analysis is out of scope** for this branch. `Analysis_Spec_MD` in
+  the workbook specifies a full method (300 s fault clustering, Offline windows from
+  BootNotification gaps, overlap-adjusted uptime %, PowerFailure 60 s simultaneity,
+  14 reconciliation gates, a validation baseline). It becomes its own spec — and its
+  gates give ready-made acceptance tests against known-good DC052/DC053 numbers.
+- **Dropped the spec's runtime `currentTime` cross-check** — the validation was done
+  offline and encoded as a unit test; a per-row regex for a counter nobody reads is
+  speculative. Recorded as a deviation in the plan.
+
+### Implemented
+
+**🔴 Incident diagnosis (no code).** `qnch-box-mahindra-180` last got a CSMS reply at
+2026-08-21 13:40:05 UTC, then sent **3,561 BootNotifications over 43.3 h with zero
+answers**. The trigger was an unanswered Heartbeat; the socket then closed `1011` in
+*both* directions. Ruled out charger-side causes with evidence: network up in 11/11
+samples across the break window; **3,788 WebSocket upgrades succeeded** during the
+outage (HTTP 101, `ocpp1.6` negotiated); firmware `1.V.140` had run fine for 4h23m
+before; CSMS URL unchanged; the only local config edit landed 23 s *after* the CSMS
+had already gone silent. Prior log generation shows 29,010 replies over 14 months, so
+it is a regression, not a never-worked case. A second charger, `MPCKADC060`, went
+silent the same day at 11:34 UTC — its CMS export, downloaded 2 days later, ends on an
+unanswered `TriggerMessage`. Two chargers, same day, same CSMS ⇒ platform-side.
+Report published as an artifact.
+
+**Mahindra CSV adapter** (`feat/cms-mahindra-csv`, 17 commits, +40 tests). Spec → plan
+→ 10 TDD tasks executed subagent-driven with per-task review. Three measured findings
+shaped it, all established from the real 27,402-row export *before* any code existed:
+
+1. **`Event Type` is unreliable for direction** — mislabels 77 CSMS-initiated rows
+   (42 RemoteStart, 29 RemoteStop, 6 TriggerMessage) while every CP-initiated row is
+   correct. Trusting it looks right on 96% of rows and then mis-threads every
+   remote-start. This *validated an existing decision* rather than introducing one:
+   `directions.ts` already derived direction from the action. We added a counter and
+   surfaced it in the banner as a CMS-side data-quality signal.
+2. **The CSV needs its own date parser.** The xlsx adapter parses `d/m` because it
+   reads Excel's *reformatted* display string; the CSV is the raw portal string in
+   `MM/DD/YYYY`. Validated against payload `currentTime`: **M/D 4763/4763, D/M
+   0/4763**, none ambiguous — the same method the xlsx parser was validated with.
+   Reusing it would not fail loudly: `08/21/2026` becomes month 21 and rolls to 2027.
+3. **The 4,000-char truncation cap applies to CSV too**, and MeterValues is 21,370 of
+   27,402 rows, so `repairTruncatedJson` is load-bearing.
+
+Verified on the real 102.8 MB file: 54,796 messages, 77 mismatches, chronological,
+67 transactions, **21,370/21,370 MeterValues recovered**, 6.1 s parse / 0.8 s analyze.
+
+**Review caught two real defects the tests had not:** a lone `\r` outside quotes was
+swallowed without ending the row, merging two rows into one (`'a,b\r1,2'` →
+`[['a','b1','2']]`); and adding CSV entries to the customer dropdown made a
+previously-unreachable "Unknown customer" error reachable, because `adapterId` was
+forwarded to whichever path the file extension picked. The plan had deferred the
+second to a task that never actually fixed it — a planning miss, now fixed by falling
+back to auto-detect for the non-owning path.
+
+### Found along the way (not fixed — logged in `specs/tasks.md`)
+
+- **`package-lock.json` is missing all cross-platform optional binaries.** Regenerating
+  adds 46 entries (23 `@rollup/*`, 23 `@esbuild/*`) with **zero version changes**,
+  including `@rollup/rollup-linux-x64-gnu`. That absence is the root cause of the CI
+  workaround (`rm -f package-lock.json && npm install`), which means **production
+  deploys currently resolve dependencies unpinned**. Committing the regenerated file
+  should restore a pinned `npm ci` — needs its own branch and a CI run to prove it.
+- **The suite is red on Node ≥ 25.** 16 tests across 8 DOM files fail with
+  `localStorage.getItem is not a function`: Node 25 ships an inert global
+  `localStorage` that shadows jsdom's. CI pins Node 20, so it passes there. Identical
+  failures on `main` — not caused by this branch.
+- **`DC052_ DC053 CMS Logs.xlsx` promises 31 sheets but contains 20.** All 13 STUDY 2
+  (DC041/DC042) sheets are missing, including the only `Session_Analysis` in the
+  method. Its `Created On` column is also live proof of the m/d swap: the range reads
+  `08/13/2026 → 2026-11-08` despite an 11–20 Aug window, because Excel corrupts only
+  the dates whose day is ≤ 12.
+
+### Process note
+
+Ran two writing subagents concurrently once; they share a working tree and git index,
+and one agent's staged files were swept into another's commit. Content was fine,
+commit message under-described it. Single writer at a time from here.
+
+### Next
+
+- `/review` → PR → merge `feat/cms-mahindra-csv`.
+- Escalate the CSMS blackout to Mahindra; get a third charger's log to establish scope.
+- Uptime/outage analysis spec from `Analysis_Spec_MD`, using its 14 gates as tests.
+- Lockfile fix on its own branch; Node-version pin or a vitest localStorage shim.
