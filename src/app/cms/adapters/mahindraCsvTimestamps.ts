@@ -10,6 +10,11 @@
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 // MM/DD/YYYY HH:MM:SS — month first, 4-digit year, seconds required.
+// Month/day/hour are deliberately 1-or-2 digit (\d{1,2}): the real export is
+// always zero-padded, but since the field order is fixed as month-first,
+// digit width has no way to reintroduce the d/m ambiguity this parser exists
+// to prevent — so there is no correctness reason to reject a plausible
+// unpadded variant (e.g. "8/1/2026 5:00:00").
 const MAH_CSV_TS_RE = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*$/;
 
 /** Convert a Mahindra CSV IST "Created On" to a UTC ISO instant, or null. */

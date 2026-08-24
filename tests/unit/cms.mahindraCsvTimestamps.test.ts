@@ -23,4 +23,19 @@ describe('mahindraCsvTimestampToUtcIso', () => {
     expect(mahindraCsvTimestampToUtcIso('21/08/2026 17:00:38')).toBeNull(); // month 21
     expect(mahindraCsvTimestampToUtcIso('08/32/2026 17:00:38')).toBeNull(); // day 32
   });
+
+  it('rejects out-of-range time components instead of rolling them over', () => {
+    // Without these bounds, Date.UTC would silently roll 17:60:38 -> 18:00:38.
+    expect(mahindraCsvTimestampToUtcIso('08/21/2026 25:00:00')).toBeNull();
+    expect(mahindraCsvTimestampToUtcIso('08/21/2026 17:60:38')).toBeNull();
+    expect(mahindraCsvTimestampToUtcIso('08/21/2026 17:00:60')).toBeNull();
+  });
+
+  it('accepts a real leap day and rejects a fake one', () => {
+    // Pins the day-rollover check: Date.UTC turns Feb 29 in a non-leap year into
+    // Mar 1, which must be rejected rather than silently accepted as another date.
+    expect(mahindraCsvTimestampToUtcIso('02/29/2028 12:00:00')).toBe('2028-02-29T06:30:00.000Z');
+    expect(mahindraCsvTimestampToUtcIso('02/29/2026 12:00:00')).toBeNull();
+    expect(mahindraCsvTimestampToUtcIso('02/30/2026 12:00:00')).toBeNull();
+  });
 });
