@@ -32,7 +32,9 @@ export function readCsvRows(text: string): string[][] {
     }
     if (ch === '"') { inQuotes = true; dirty = true; }
     else if (ch === ',') endField();
-    else if (ch === '\r') { /* CRLF: swallow here, \n branch ends the row */ }
+    // Outside quotes, \r and \n both end a row. A CRLF pair ends exactly one row:
+    // \r defers to the following \n so CR and CRLF and lone LF all behave alike.
+    else if (ch === '\r') { if (text[i + 1] !== '\n') { if (dirty || field) { endField(); endRow(); } } }
     else if (ch === '\n') { if (dirty || field) { endField(); endRow(); } }
     else field += ch;
   }

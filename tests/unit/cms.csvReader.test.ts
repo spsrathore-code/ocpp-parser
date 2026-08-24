@@ -30,4 +30,16 @@ describe('readCsvRows', () => {
   it('ignores blank lines', () => {
     expect(readCsvRows('a,b\n\n1,2\n')).toEqual([['a', 'b'], ['1', '2']]);
   });
+
+  it('treats a lone CR as a row terminator', () => {
+    expect(readCsvRows('a,b\r1,2')).toEqual([['a', 'b'], ['1', '2']]);
+  });
+
+  it('preserves CRLF inside a quoted field', () => {
+    expect(readCsvRows('a\n"line1\r\nline2"\n')).toEqual([['a'], ['line1\r\nline2']]);
+  });
+
+  it('keeps an empty trailing field', () => {
+    expect(readCsvRows('a,b,\n')).toEqual([['a', 'b', '']]);
+  });
 });
