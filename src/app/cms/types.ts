@@ -45,3 +45,26 @@ export interface CmsParsed extends ParsedLines {
   /** One readable text line per emitted message, indexed by `ParsedMessage.lineNumber`. */
   rawLogLines: string[];
 }
+
+/** Result of pulling rows out of a CSV export, plus parse-quality counters. */
+export interface CmsCsvExtraction {
+  rows: CmsRow[];
+  /** Rows whose `Event Type` column disagrees with the action-derived direction.
+   *  Informational: direction always comes from the action (see directions.ts). */
+  directionMismatches: number;
+}
+
+/** A per-customer CSV-format adapter. Parallel to CmsFormatAdapter, which is
+ *  typed against an xlsx WorkBook and so cannot describe a text source. */
+export interface CmsCsvFormatAdapter {
+  /** Stable slug, e.g. "mahindra-csv". */
+  id: string;
+  /** Human-readable name shown in UI/errors. */
+  label: string;
+  /** True if this adapter recognizes the CSV's header line. */
+  detect(headerRow: string[]): boolean;
+  /** Pull normalized rows out of the already-parsed CSV grid. */
+  extractRows(grid: string[][], fileName: string): CmsCsvExtraction;
+  /** Convert this customer's wall-clock string to a UTC ISO instant (or null). */
+  toUtcIso(raw: string): string | null;
+}
