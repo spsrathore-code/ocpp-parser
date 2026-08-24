@@ -1,12 +1,13 @@
-// CMS Log Parser view shell — the upload card + results mount for Excel CMS logs.
+// CMS Log Parser view shell — the upload card + results mount for Excel/CSV CMS logs.
 //
 // Deliberately leaner than the Client shell (render/shell.ts): CMS logs are
-// customer Excel files, so it accepts .xlsx/.xls, has no IndexedDB Log Repository
-// panel (a controller-log feature), and shows a source-info line (customer /
-// charger / rows) once a file is parsed. Global theme toggle lives in the nav bar.
+// customer Excel or CSV exports, so it accepts .xlsx/.xls/.csv, has no IndexedDB
+// Log Repository panel (a controller-log feature), and shows a source-info line
+// (customer / charger / rows) once a file is parsed. Global theme toggle lives
+// in the nav bar.
 
 import { el } from '../render/dom';
-import { CMS_ADAPTERS } from './registry';
+import { CMS_ADAPTERS, CMS_CSV_ADAPTERS } from './registry';
 
 export interface CmsProgressRefs {
   container: HTMLElement;
@@ -25,12 +26,12 @@ export interface CmsShellRefs {
 export function renderCmsShell(root: HTMLElement): CmsShellRefs {
   const header = el('header', { className: 'text-center mb-8' }, [
     el('h1', { className: 'text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100', text: 'CMS Log Parser' }),
-    el('p', { className: 'mt-1 text-sm text-gray-500 dark:text-gray-400', text: 'Central-system OCPP logs from Excel · same analysis as the Client Log Parser' }),
+    el('p', { className: 'mt-1 text-sm text-gray-500 dark:text-gray-400', text: 'Central-system OCPP logs from Excel or CSV · same analysis as the Client Log Parser' }),
   ]);
 
   const fileInput = el('input', {
     className: 'block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300 cursor-pointer',
-    attrs: { type: 'file', id: 'cms-log-file-input', accept: '.xlsx,.xls', multiple: '' },
+    attrs: { type: 'file', id: 'cms-log-file-input', accept: '.xlsx,.xls,.csv', multiple: '' },
   });
 
   const parseBtn = el('button', {
@@ -50,14 +51,14 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
     attrs: { id: 'cms-customer-select' },
   }) as HTMLSelectElement;
   customerSelect.appendChild(el('option', { text: 'Auto-detect', attrs: { value: '' } }));
-  for (const a of CMS_ADAPTERS) {
+  for (const a of [...CMS_ADAPTERS, ...CMS_CSV_ADAPTERS]) {
     customerSelect.appendChild(el('option', { text: a.label, attrs: { value: a.id } }));
   }
 
   const uploadCard = el('section', { className: 'mb-8' }, [
     el('div', { className: 'max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700' }, [
-      el('h2', { className: 'text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4', text: '📊 Upload CMS Log (Excel)' }),
-      el('p', { className: 'text-sm text-gray-600 dark:text-gray-400 mb-4', text: 'Select one or more CMS log files (.xlsx). Choose the customer, or leave on Auto-detect.' }),
+      el('h2', { className: 'text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4', text: '📊 Upload CMS Log (Excel or CSV)' }),
+      el('p', { className: 'text-sm text-gray-600 dark:text-gray-400 mb-4', text: 'Select one or more CMS log files (.xlsx, .xls, or .csv). Choose the customer, or leave on Auto-detect.' }),
       el('div', { className: 'flex items-center gap-4 flex-wrap' }, [
         el('label', { className: 'text-sm font-medium text-gray-700 dark:text-gray-300', text: 'Customer:', attrs: { for: 'cms-customer-select' } }),
         customerSelect,
@@ -67,7 +68,7 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
     ]),
   ]);
 
-  // Indeterminate "analyzing" indicator (xlsx read is atomic, not line-chunked).
+  // Indeterminate "analyzing" indicator (xlsx/CSV read is atomic, not line-chunked).
   const progressText = el('span', { className: 'text-sm text-gray-600 dark:text-gray-400', text: 'Analyzing…', attrs: { id: 'cms-progress-text' } });
   const progressContainer = el('section', { className: 'mb-8 hidden', attrs: { id: 'cms-progress-container' } }, [
     el('div', { className: 'max-w-3xl mx-auto bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 flex items-center gap-3' }, [

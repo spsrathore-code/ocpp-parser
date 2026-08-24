@@ -5,7 +5,7 @@
 > Per-branch phase detail lives in `skills/WORKFLOW.md`; per-tool detail in each
 > tool's spec. The suite is one mega-repo; tools ship independently.
 >
-> **Last updated:** 2026-07-11
+> **Last updated:** 2026-08-24
 
 ## Suite status board
 
@@ -19,12 +19,48 @@
 | 1 | **Validation Engine** (L1–L3) | 🟢 Built · integrated into Parser (Phase 6) · **on `main`/live** | Done (L1–L3) | `main` | Phase 6 `/review`+`/qa`; L4 catalog |
 | 2 | **Parser — revamp** (TS+Vite) | 🟢 **LIVE** — Phases 0–6 + §4 compliance + CMS Parser + Analysis Worker | Shipped | `main` / GitHub Pages | fix cross-file id-collision · compiled-Tailwind hardening |
 | — | Parser — *legacy v2026.05.14* | ⚪ Retired | — | tag `legacy-parser-v2026.05.14` | rollback only |
-| 2b | **CMS Log Parser** (Parser view) | 🟢 **LIVE** — CZ + Mahindra; registry-driven customer selector | Shipped | `main` | MSIL adapter when sampled |
+| 2b | **CMS Log Parser** (Parser view) | 🟢 **LIVE** — CZ + Mahindra (xlsx); registry-driven customer selector | Shipped | `main` | MSIL adapter when sampled |
+| 2c | **Mahindra CSV adapter** | 🟡 Built, tested, **not merged** — 10/10 plan tasks + review fixes | Done, awaiting PR | `feat/cms-mahindra-csv` | `/review` → PR → merge |
 | 3 | **CMS (CSMS dashboard)** | ⚪ Planned | — | — | Slot reserved in nav |
 | 4 | **Charger Emulator** (OCPP Simulator) | 🟢 **LIVE** — Tab 1 integrated (Phases 0–6) | Shipped | `main` | Tabs 2/3 (own specs) |
 | 5 | **Training Emulator** | ⚪ Planned | — | — | Built on the emulator |
 
 Legend: 🟢 done/live · 🟡 in progress · ⚪ not started.
+
+### Mahindra CSV adapter — detail (2026-08-24)
+
+Branch `feat/cms-mahindra-csv`. The Mahindra portal also exports a charger's log as
+**CSV**, not only `.xlsx`. Added as a parallel ingestion adapter feeding the same
+`analyze()` pipeline — the xlsx path is untouched. Spec
+`docs/superpowers/specs/2026-08-23-mahindra-csv-adapter-design.md`, plan
+`docs/superpowers/plans/2026-08-24-mahindra-csv-adapter.md`.
+
+Three findings drove the design, each measured on the real 27,402-row export before
+any code was written:
+
+1. **`Event Type` is unreliable for direction.** It mislabels 77 CSMS-initiated rows
+   (42 RemoteStartTransaction, 29 RemoteStopTransaction, 6 TriggerMessage) as
+   `Charger-CMS`, while every CP-initiated action is labelled correctly — so trusting
+   it looks right on 96% of rows and then mis-threads every remote-start. Direction
+   keeps coming from the action via `directions.ts`; the disagreements are **counted
+   and surfaced** in the source banner as a CMS-side data-quality signal.
+2. **The CSV needs a different date parser from the xlsx.** The xlsx adapter reads
+   Excel's *reformatted* display string and parses `d/m`; the CSV is the **raw portal
+   string in `MM/DD/YYYY`**. Validated against the UTC `currentTime` in response
+   payloads: M/D matched **4763/4763** rows, D/M **0/4763**, none ambiguous. Reusing
+   the d/m parser would not fail loudly — `08/21/2026` reads as month 21 and rolls
+   into 2027. Hence `mahindraCsvTimestamps.ts` alongside `mahindraTimestamps.ts`.
+3. **The 4,000-char truncation cap applies to CSV too.** MeterValues is 21,370 of
+   27,402 rows, so `repairTruncatedJson` is load-bearing, not optional.
+
+New modules: `cms/csvReader.ts` (hand-written RFC 4180 — no new dependency, and the
+~100 MB export never touches the xlsx code path), `cms/parseCmsCsv.ts`,
+`cms/adapters/mahindraCsv.ts`, `cms/adapters/mahindraCsvTimestamps.ts`, plus a
+`CMS_CSV_ADAPTERS` registry parallel to the xlsx one.
+
+**Verified on the real 102.8 MB export:** 54,796 messages · 77 mismatches (as
+predicted) · chronological · 67 transactions · **21,370/21,370 MeterValues recovered**
+· parse 6.1 s, analyze 0.8 s. **+40 tests (495 total, 479 passing).**
 
 ### Charger Emulator — OCPP Simulator integration (detail)
 

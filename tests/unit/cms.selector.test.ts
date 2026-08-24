@@ -60,4 +60,12 @@ describe('CMS customer selector', () => {
     expect(runAnalysisMock.mock.calls[0][0]).toMatchObject({ kind: 'cms' });
     expect(runAnalysisMock.mock.calls[0][0].adapterId).toBeUndefined();
   });
+
+  it('offers the CSV adapters alongside the workbook adapters', () => {
+    const host = document.createElement('div');
+    const { customerSelect } = renderCmsShell(host);
+    const ids = Array.from(customerSelect.options).map((o) => o.value);
+    expect(ids).toContain('mahindra-csv');
+    expect(ids).toContain('mahindra');
+  });
 });

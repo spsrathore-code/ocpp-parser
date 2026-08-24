@@ -40,4 +40,38 @@ describe('handleRequest — cms', () => {
       handleRequest({ kind: 'cms', files: [fileFrom(buf, 'x.xlsx')] }, () => {}),
     ).rejects.toThrow(/Unrecognized CMS log format/);
   });
+
+  it('routes a .csv file through the CSV adapter', async () => {
+    const csv = [
+      'Event Name,Event Type,Request,Response,Created On',
+      'Heartbeat,Charger-CMS,"[2,""a"",""Heartbeat"",{}]","[3,""a"",{}]",08/21/2026 17:00:38',
+    ].join('\n');
+    const file = new File([csv], 'Logs_of_charger__MPCKADC060_639229316915356646.csv', { type: 'text/csv' });
+    const payload = await handleRequest({ kind: 'cms', files: [file] }, () => {});
+    expect(payload.cms?.outcomes[0].label).toBe('Mahindra (CSV)');
+    expect(payload.cms?.outcomes[0].chargers).toEqual(['MPCKADC060']);
+    expect(payload.result.messages.length).toBe(2);
+  });
+
+  it('reports Event Type mismatches on the file outcome', async () => {
+    const csv = [
+      'Event Name,Event Type,Request,Response,Created On',
+      // RemoteStartTransaction is CSMS-initiated but labelled Charger-CMS.
+      'RemoteStartTransaction,Charger-CMS,"[2,""b"",""RemoteStartTransaction"",{}]","[3,""b"",{}]",08/21/2026 17:01:00',
+    ].join('\n');
+    const file = new File([csv], 'x.csv', { type: 'text/csv' });
+    const payload = await handleRequest({ kind: 'cms', files: [file] }, () => {});
+    expect(payload.cms?.outcomes[0].directionMismatches).toBe(1);
+  });
+
+  it('falls back to auto-detect when the forced customer belongs to the other format', async () => {
+    const csv = [
+      'Event Name,Event Type,Request,Response,Created On',
+      'Heartbeat,Charger-CMS,"[2,""a"",""Heartbeat"",{}]","[3,""a"",{}]",08/21/2026 17:00:38',
+    ].join('\n');
+    const file = new File([csv], 'x.csv', { type: 'text/csv' });
+    // 'mahindra' is the xlsx adapter; the CSV path must not choke on it.
+    const payload = await handleRequest({ kind: 'cms', files: [file], adapterId: 'mahindra' }, () => {});
+    expect(payload.cms?.outcomes[0].label).toBe('Mahindra (CSV)');
+  });
 });
