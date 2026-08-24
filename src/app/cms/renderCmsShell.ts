@@ -1,4 +1,4 @@
-// CMS Log Parser view shell — the upload card + results mount for Excel CMS logs.
+// CMS Log Parser view shell — the upload card + results mount for Excel/CSV CMS logs.
 //
 // Deliberately leaner than the Client shell (render/shell.ts): CMS logs are
 // customer Excel or CSV exports, so it accepts .xlsx/.xls/.csv, has no IndexedDB
@@ -26,7 +26,7 @@ export interface CmsShellRefs {
 export function renderCmsShell(root: HTMLElement): CmsShellRefs {
   const header = el('header', { className: 'text-center mb-8' }, [
     el('h1', { className: 'text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100', text: 'CMS Log Parser' }),
-    el('p', { className: 'mt-1 text-sm text-gray-500 dark:text-gray-400', text: 'Central-system OCPP logs from Excel · same analysis as the Client Log Parser' }),
+    el('p', { className: 'mt-1 text-sm text-gray-500 dark:text-gray-400', text: 'Central-system OCPP logs from Excel or CSV · same analysis as the Client Log Parser' }),
   ]);
 
   const fileInput = el('input', {
@@ -57,8 +57,8 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
 
   const uploadCard = el('section', { className: 'mb-8' }, [
     el('div', { className: 'max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700' }, [
-      el('h2', { className: 'text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4', text: '📊 Upload CMS Log (Excel)' }),
-      el('p', { className: 'text-sm text-gray-600 dark:text-gray-400 mb-4', text: 'Select one or more CMS log files (.xlsx). Choose the customer, or leave on Auto-detect.' }),
+      el('h2', { className: 'text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4', text: '📊 Upload CMS Log (Excel or CSV)' }),
+      el('p', { className: 'text-sm text-gray-600 dark:text-gray-400 mb-4', text: 'Select one or more CMS log files (.xlsx, .xls, or .csv). Choose the customer, or leave on Auto-detect.' }),
       el('div', { className: 'flex items-center gap-4 flex-wrap' }, [
         el('label', { className: 'text-sm font-medium text-gray-700 dark:text-gray-300', text: 'Customer:', attrs: { for: 'cms-customer-select' } }),
         customerSelect,
@@ -68,7 +68,7 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
     ]),
   ]);
 
-  // Indeterminate "analyzing" indicator (xlsx read is atomic, not line-chunked).
+  // Indeterminate "analyzing" indicator (xlsx/CSV read is atomic, not line-chunked).
   const progressText = el('span', { className: 'text-sm text-gray-600 dark:text-gray-400', text: 'Analyzing…', attrs: { id: 'cms-progress-text' } });
   const progressContainer = el('section', { className: 'mb-8 hidden', attrs: { id: 'cms-progress-container' } }, [
     el('div', { className: 'max-w-3xl mx-auto bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 flex items-center gap-3' }, [
