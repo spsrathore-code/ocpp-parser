@@ -13,6 +13,7 @@ import { analyze, mergeParsed, type AnalysisResult } from '../analyze';
 import type { ParsedLines } from '../parse/parseLines';
 import { parseCmsWorkbook } from '../cms/parseCmsWorkbook';
 import { parseCmsCsv } from '../cms/parseCmsCsv';
+import { getAdapter, getCsvAdapter } from '../cms/registry';
 import { mergeCmsParsed } from '../cms/mergeCmsParsed';
 import type { CmsParsed } from '../cms/types';
 
@@ -78,10 +79,19 @@ async function handleCms(files: File[], progress: ProgressFn, adapterId?: string
     const file = files[i];
     progress(`Reading ${file.name} (${i + 1}/${files.length})…`);
 
+    const isCsv = /\.csv$/i.test(file.name);
+    // The customer dropdown spans both the xlsx and CSV registries, but each file
+    // is routed by extension. Only forward an id the target path owns, so picking
+    // a customer of the other kind — or mixing formats in one batch — degrades to
+    // auto-detect for that file instead of aborting the whole upload.
+    const forcedId = isCsv
+      ? (getCsvAdapter(adapterId ?? '') ? adapterId : undefined)
+      : (getAdapter(adapterId ?? '') ? adapterId : undefined);
+
     // CSV exports are text and use their own adapter registry; .xlsx keeps the
     // workbook path unchanged.
-    if (/\.csv$/i.test(file.name)) {
-      const { parsed, adapter, chargers, directionMismatches } = await parseCmsCsv(await file.text(), file.name, { adapterId });
+    if (isCsv) {
+      const { parsed, adapter, chargers, directionMismatches } = await parseCmsCsv(await file.text(), file.name, { adapterId: forcedId });
       parts.push(parsed);
       names.push(file.name);
       outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length, directionMismatches });
@@ -89,7 +99,7 @@ async function handleCms(files: File[], progress: ProgressFn, adapterId?: string
     }
 
     const ab = await file.arrayBuffer();
-    const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name, { adapterId });
+    const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name, { adapterId: forcedId });
     parts.push(parsed);
     names.push(file.name);
     outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length });

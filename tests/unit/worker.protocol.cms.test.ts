@@ -63,4 +63,15 @@ describe('handleRequest — cms', () => {
     const payload = await handleRequest({ kind: 'cms', files: [file] }, () => {});
     expect(payload.cms?.outcomes[0].directionMismatches).toBe(1);
   });
+
+  it('falls back to auto-detect when the forced customer belongs to the other format', async () => {
+    const csv = [
+      'Event Name,Event Type,Request,Response,Created On',
+      'Heartbeat,Charger-CMS,"[2,""a"",""Heartbeat"",{}]","[3,""a"",{}]",08/21/2026 17:00:38',
+    ].join('\n');
+    const file = new File([csv], 'x.csv', { type: 'text/csv' });
+    // 'mahindra' is the xlsx adapter; the CSV path must not choke on it.
+    const payload = await handleRequest({ kind: 'cms', files: [file], adapterId: 'mahindra' }, () => {});
+    expect(payload.cms?.outcomes[0].label).toBe('Mahindra (CSV)');
+  });
 });
