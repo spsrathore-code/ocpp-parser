@@ -7,7 +7,7 @@
 // in the nav bar.
 
 import { el } from '../render/dom';
-import { CMS_ADAPTERS } from './registry';
+import { CMS_ADAPTERS, CMS_CSV_ADAPTERS } from './registry';
 
 export interface CmsProgressRefs {
   container: HTMLElement;
@@ -51,7 +51,7 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
     attrs: { id: 'cms-customer-select' },
   }) as HTMLSelectElement;
   customerSelect.appendChild(el('option', { text: 'Auto-detect', attrs: { value: '' } }));
-  for (const a of CMS_ADAPTERS) {
+  for (const a of [...CMS_ADAPTERS, ...CMS_CSV_ADAPTERS]) {
     customerSelect.appendChild(el('option', { text: a.label, attrs: { value: a.id } }));
   }
 
