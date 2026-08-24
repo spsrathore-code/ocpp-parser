@@ -1,9 +1,10 @@
 // CMS Log Parser view shell — the upload card + results mount for Excel CMS logs.
 //
 // Deliberately leaner than the Client shell (render/shell.ts): CMS logs are
-// customer Excel files, so it accepts .xlsx/.xls, has no IndexedDB Log Repository
-// panel (a controller-log feature), and shows a source-info line (customer /
-// charger / rows) once a file is parsed. Global theme toggle lives in the nav bar.
+// customer Excel or CSV exports, so it accepts .xlsx/.xls/.csv, has no IndexedDB
+// Log Repository panel (a controller-log feature), and shows a source-info line
+// (customer / charger / rows) once a file is parsed. Global theme toggle lives
+// in the nav bar.
 
 import { el } from '../render/dom';
 import { CMS_ADAPTERS } from './registry';
@@ -30,7 +31,7 @@ export function renderCmsShell(root: HTMLElement): CmsShellRefs {
 
   const fileInput = el('input', {
     className: 'block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300 cursor-pointer',
-    attrs: { type: 'file', id: 'cms-log-file-input', accept: '.xlsx,.xls', multiple: '' },
+    attrs: { type: 'file', id: 'cms-log-file-input', accept: '.xlsx,.xls,.csv', multiple: '' },
   });
 
   const parseBtn = el('button', {

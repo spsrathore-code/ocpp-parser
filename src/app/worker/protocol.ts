@@ -12,6 +12,7 @@ import { appendAll } from '../parse/concatChunks';
 import { analyze, mergeParsed, type AnalysisResult } from '../analyze';
 import type { ParsedLines } from '../parse/parseLines';
 import { parseCmsWorkbook } from '../cms/parseCmsWorkbook';
+import { parseCmsCsv } from '../cms/parseCmsCsv';
 import { mergeCmsParsed } from '../cms/mergeCmsParsed';
 import type { CmsParsed } from '../cms/types';
 
@@ -74,6 +75,17 @@ async function handleCms(files: File[], progress: ProgressFn, adapterId?: string
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     progress(`Reading ${file.name} (${i + 1}/${files.length})…`);
+
+    // CSV exports are text and use their own adapter registry; .xlsx keeps the
+    // workbook path unchanged.
+    if (/\.csv$/i.test(file.name)) {
+      const { parsed, adapter, chargers } = await parseCmsCsv(await file.text(), file.name, { adapterId });
+      parts.push(parsed);
+      names.push(file.name);
+      outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length });
+      continue;
+    }
+
     const ab = await file.arrayBuffer();
     const { parsed, adapter, chargers } = await parseCmsWorkbook(ab, file.name, { adapterId });
     parts.push(parsed);

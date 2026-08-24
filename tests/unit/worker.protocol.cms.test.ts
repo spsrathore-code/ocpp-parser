@@ -40,4 +40,16 @@ describe('handleRequest — cms', () => {
       handleRequest({ kind: 'cms', files: [fileFrom(buf, 'x.xlsx')] }, () => {}),
     ).rejects.toThrow(/Unrecognized CMS log format/);
   });
+
+  it('routes a .csv file through the CSV adapter', async () => {
+    const csv = [
+      'Event Name,Event Type,Request,Response,Created On',
+      'Heartbeat,Charger-CMS,"[2,""a"",""Heartbeat"",{}]","[3,""a"",{}]",08/21/2026 17:00:38',
+    ].join('\n');
+    const file = new File([csv], 'Logs_of_charger__MPCKADC060_639229316915356646.csv', { type: 'text/csv' });
+    const payload = await handleRequest({ kind: 'cms', files: [file] }, () => {});
+    expect(payload.cms?.outcomes[0].label).toBe('Mahindra (CSV)');
+    expect(payload.cms?.outcomes[0].chargers).toEqual(['MPCKADC060']);
+    expect(payload.result.messages.length).toBe(2);
+  });
 });
