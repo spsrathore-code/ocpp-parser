@@ -50,7 +50,11 @@ export interface CmsParsed extends ParsedLines {
 export interface CmsCsvExtraction {
   rows: CmsRow[];
   /** Rows whose `Event Type` column disagrees with the action-derived direction.
-   *  Informational: direction always comes from the action (see directions.ts). */
+   *  Informational: direction always comes from the action (see directions.ts).
+   *  Indicative, not exact: `directions.ts` assumes `DataTransfer` is always
+   *  CP-initiated, though OCPP 1.6J allows it in either direction, so a
+   *  legitimately CSMS-originated `DataTransfer` row would register as a
+   *  false-positive mismatch even though the CMS labelled it correctly. */
   directionMismatches: number;
 }
 

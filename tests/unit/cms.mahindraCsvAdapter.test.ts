@@ -52,6 +52,11 @@ describe('mahindraCsvAdapter.extractRows', () => {
     expect(rows[0].sheetName).toBe('MPCKADC060');
   });
 
+  it('never returns an empty charger id', () => {
+    const { rows } = mahindraCsvAdapter.extractRows(grid, '.csv');
+    expect(rows[0].sheetName).toBeTruthy();
+  });
+
   it('reverses the export, which the portal emits newest-first', () => {
     // Input grid is in portal order (newest-first is how the real file arrives);
     // output must be oldest-first so downstream correlation sees chronological data.

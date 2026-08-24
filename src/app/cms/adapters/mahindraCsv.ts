@@ -10,6 +10,11 @@
 // correctly — so trusting it looks right on 96% of rows and then mis-threads every
 // remote-start. Direction comes from the action via ../directions.ts. Disagreements
 // are counted so the CMS-side data-quality issue is reported, not hidden.
+//
+// Caveat: the count is indicative, not exact. ../directions.ts assumes
+// `DataTransfer` is always CP-initiated, though OCPP 1.6J allows it in either
+// direction, so a legitimately CSMS-originated `DataTransfer` row would register
+// as a false-positive mismatch even though the CMS labelled it correctly.
 
 import type { CmsCsvFormatAdapter, CmsCsvExtraction, CmsRow } from '../types';
 import { mahindraCsvTimestampToUtcIso } from './mahindraCsvTimestamps';
@@ -25,7 +30,7 @@ const norm = (s: string) => String(s ?? '').trim().toLowerCase();
 export function chargerIdFromFileName(fileName: string): string {
   const base = fileName.replace(/\.csv$/i, '');
   const stripped = base.replace(/^logs?_of_charger_+/i, '');
-  return stripped.replace(/_\d{6,}$/, '') || base;
+  return stripped.replace(/_\d{6,}$/, '') || base || fileName;
 }
 
 function colIndex(header: string[], want: string): number {
