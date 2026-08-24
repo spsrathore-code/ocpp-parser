@@ -26,6 +26,8 @@ export interface CmsFileOutcome {
   label: string;
   chargers: string[];
   rows: number;
+  /** CSV only: rows whose Event Type disagreed with the action-derived direction. */
+  directionMismatches?: number;
 }
 
 export interface AnalysisPayload {
@@ -79,10 +81,10 @@ async function handleCms(files: File[], progress: ProgressFn, adapterId?: string
     // CSV exports are text and use their own adapter registry; .xlsx keeps the
     // workbook path unchanged.
     if (/\.csv$/i.test(file.name)) {
-      const { parsed, adapter, chargers } = await parseCmsCsv(await file.text(), file.name, { adapterId });
+      const { parsed, adapter, chargers, directionMismatches } = await parseCmsCsv(await file.text(), file.name, { adapterId });
       parts.push(parsed);
       names.push(file.name);
-      outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length });
+      outcomes.push({ name: file.name, label: adapter.label, chargers, rows: parsed.messages.length, directionMismatches });
       continue;
     }
 

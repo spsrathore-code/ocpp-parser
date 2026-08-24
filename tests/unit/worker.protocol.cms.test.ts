@@ -52,4 +52,15 @@ describe('handleRequest — cms', () => {
     expect(payload.cms?.outcomes[0].chargers).toEqual(['MPCKADC060']);
     expect(payload.result.messages.length).toBe(2);
   });
+
+  it('reports Event Type mismatches on the file outcome', async () => {
+    const csv = [
+      'Event Name,Event Type,Request,Response,Created On',
+      // RemoteStartTransaction is CSMS-initiated but labelled Charger-CMS.
+      'RemoteStartTransaction,Charger-CMS,"[2,""b"",""RemoteStartTransaction"",{}]","[3,""b"",{}]",08/21/2026 17:01:00',
+    ].join('\n');
+    const file = new File([csv], 'x.csv', { type: 'text/csv' });
+    const payload = await handleRequest({ kind: 'cms', files: [file] }, () => {});
+    expect(payload.cms?.outcomes[0].directionMismatches).toBe(1);
+  });
 });

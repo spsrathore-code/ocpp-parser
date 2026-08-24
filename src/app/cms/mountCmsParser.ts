@@ -53,7 +53,12 @@ export function mountCmsParser(mountEl: HTMLElement): void {
 function renderSourceInfo(host: HTMLElement, files: CmsFileOutcome[], totalMessages: number, totalAlerts: number): void {
   const labels = Array.from(new Set(files.map((f) => f.label))).join(', ');
   const fileRows = files
-    .map((f) => `<li><span class="font-medium">${f.name}</span> — ${f.label} · charger <span class="font-mono">${f.chargers.join(', ') || f.name}</span> · ${f.rows} messages</li>`)
+    .map((f) => {
+      const mismatchNote = f.directionMismatches
+        ? ` · <span class="text-amber-600 dark:text-amber-400">${f.directionMismatches} rows with a mislabelled Event Type</span>`
+        : '';
+      return `<li><span class="font-medium">${f.name}</span> — ${f.label} · charger <span class="font-mono">${f.chargers.join(', ') || f.name}</span> · ${f.rows} messages${mismatchNote}</li>`;
+    })
     .join('');
   host.innerHTML = `
     <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 text-sm text-gray-700 dark:text-gray-200">
