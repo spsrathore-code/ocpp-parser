@@ -30,7 +30,8 @@ describe('extractRows — timestamp source rule', () => {
       row('[2,"h1","Heartbeat",{}]', '[3,"h1",{"currentTime":"2026-08-11T00:01:18.554Z"}]'),
     ]);
     expect(r.timestampUtc).toBeNull();
-    expect(r.respCurrentTimeUtc).toBe(Date.UTC(2026, 7, 11, 0, 1, 18, 554));
+    // Truncated to whole seconds: the workbook reads HH:MM:SS and drops the .554.
+    expect(r.respCurrentTimeUtc).toBe(Date.UTC(2026, 7, 11, 0, 1, 18));
   });
 
   it('reads BootNotification time from the response, and the vendor from the request', () => {
