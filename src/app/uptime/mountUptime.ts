@@ -7,15 +7,29 @@ import { buildFaultBreakdown } from './compare/faultBreakdown';
 import { renderErrorCodeComparison, renderUptimeComparison } from './render/renderComparisons';
 import { buildErrorCodeComparison } from './compare/errorCodeCompare';
 import { buildUptimeComparison } from './compare/uptimeCompare';
-import { ingestUptimeSources } from './ingest';
+import { ingestUptimeSlots } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
 
-/** Yield a frame so the spinner repaints before the (heavy) DOM render. */
+/**
+ * Yield a frame so the spinner repaints before the (heavy) DOM render.
+ *
+ * Races requestAnimationFrame against a timer, because rAF does NOT fire while
+ * the tab is in the background. Waiting on it alone means switching away
+ * mid-analysis hangs the run at "Analyzing…" forever, with no error and no way
+ * back short of a reload — the spinner is a nicety, so it must never be able to
+ * block the result.
+ */
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
-    else setTimeout(resolve, 0);
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish);
+    setTimeout(finish, 50);
   });
 }
 
@@ -44,7 +58,12 @@ export function mountUptime(mountEl: HTMLElement): void {
 
     try {
       shell.progress.text.textContent = `Reading ${files.length} file(s)…`;
-      const sources = await ingestUptimeSources(files, { adapterId: shell.customerSelect.value || undefined });
+      // Slots stay separate sites: a file in Site B is a different charger even
+      // when both exports name their sheet the same thing.
+      const sources = await ingestUptimeSlots(
+        [{ label: 'Site A', files: filesA }, { label: 'Site B', files: filesB }],
+        { adapterId: shell.customerSelect.value || undefined },
+      );
 
       shell.progress.text.textContent = `Analyzing ${sources.length} site(s)…`;
       await nextFrame();

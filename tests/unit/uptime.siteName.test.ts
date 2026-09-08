@@ -29,3 +29,29 @@ describe('cleanSiteName', () => {
     expect(cleanSiteName('CMS Logs')).toBe('CMS Logs');
   });
 });
+
+import { siteLabel } from '../../src/app/uptime/ingest';
+
+// When the sheet name identifies nothing, the file name does. Two chargers both
+// exported as "Sheet1" are indistinguishable in a comparison table — and used
+// to collapse into a single site.
+describe('siteLabel', () => {
+  it('prefers the sheet name when it names the charger', () => {
+    expect(siteLabel('DC052 CMS Logs', 'august-export.xlsx')).toBe('DC052');
+    expect(siteLabel('MPCMHDC029_639', 'export.xlsx')).toBe('MPCMHDC029_639');
+  });
+
+  it('falls back to the file name for a generic sheet name', () => {
+    expect(siteLabel('Sheet1', 'DC052.xlsx')).toBe('DC052');
+    expect(siteLabel('Sheet', 'charger-A.xlsx')).toBe('charger-A');
+    expect(siteLabel('Data', 'MH0055 August.xlsx')).toBe('MH0055 August');
+  });
+
+  it('drops the file extension', () => {
+    expect(siteLabel('Sheet1', 'DC053.CSV')).toBe('DC053');
+  });
+
+  it('never returns empty', () => {
+    expect(siteLabel('Sheet1', '')).toBe('Sheet1');
+  });
+});
