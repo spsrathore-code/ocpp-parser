@@ -33,8 +33,16 @@ export interface CmsFormatAdapter {
   label: string;
   /** True if this adapter recognizes the workbook's layout. */
   detect(workbook: WorkBook): boolean;
-  /** Pull normalized rows out of the workbook (with raw customer wall-clock times). */
+  /** Pull normalized rows out of the workbook (with raw customer wall-clock times).
+   *  Single-sheet by definition: it reads whichever sheet `pickDataSheet` picks. */
   extractRows(workbook: WorkBook): CmsRow[];
+  /** Every sheet in the workbook this adapter recognizes as a log sheet.
+   *  The Uptime view treats one sheet as one site and needs them all; the CMS
+   *  Log Parser keeps using `extractRows`. Optional: adapters that omit it
+   *  degrade to single-sheet, which stays correct. */
+  listDataSheets?(workbook: WorkBook): string[];
+  /** Pull normalized rows out of ONE named sheet. `extractRows` delegates here. */
+  extractRowsFromSheet?(workbook: WorkBook, sheetName: string): CmsRow[];
   /** Convert this customer's wall-clock time string to a UTC ISO instant (or null).
    *  Each customer owns its format; the shared mapper stays format-agnostic. */
   toUtcIso(raw: string): string | null;

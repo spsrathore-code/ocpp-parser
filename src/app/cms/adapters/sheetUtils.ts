@@ -21,23 +21,51 @@ export function readTop(ws: WorkSheet, maxRows: number): Cell[][] {
   return XLSX.utils.sheet_to_json<Cell[]>(ws, { header: 1, range, blankrows: false });
 }
 
+/** Count OCPP CALL strings in the top of a sheet — the "this holds logs" signal. */
+export function sheetCallScore(ws: WorkSheet, maxRows = 30): number {
+  let score = 0;
+  for (const row of readTop(ws, maxRows)) {
+    for (const cell of row || []) {
+      if (typeof cell === 'string' && CALL_RE.test(cell)) score++;
+    }
+  }
+  return score;
+}
+
 /** Pick the sheet richest in OCPP CALL arrays; fall back to the first sheet. */
 export function pickDataSheet(workbook: WorkBook): string {
   let bestName: string | null = null;
   let bestScore = -1;
   for (const name of workbook.SheetNames) {
     try {
-      const rows = readTop(workbook.Sheets[name], 30);
-      let score = 0;
-      for (const row of rows) {
-        for (const cell of row || []) {
-          if (typeof cell === 'string' && CALL_RE.test(cell)) score++;
-        }
-      }
+      const score = sheetCallScore(workbook.Sheets[name]);
       if (score > bestScore) { bestScore = score; bestName = name; }
     } catch { /* unreadable sheet — skip */ }
   }
   return bestName || workbook.SheetNames[0];
+}
+
+/**
+ * EVERY sheet that holds logs, in workbook order — the multi-site seam.
+ *
+ * `pickDataSheet` deliberately returns one sheet, which is right for the CMS Log
+ * Parser (one charger at a time) but wrong for the Uptime view, where one sheet
+ * is one site: the reference workbook carries two sites as two sheets, so
+ * picking the best one would analyze DC053 and silently drop DC052.
+ *
+ * A sheet qualifies when it contains OCPP CALL rows AND the adapter recognizes
+ * its header layout, so computed/analysis sheets in the same workbook (which may
+ * still quote raw JSON) are not mistaken for logs.
+ */
+export function listLogSheets(workbook: WorkBook, looksRight: (ws: WorkSheet) => boolean): string[] {
+  const names: string[] = [];
+  for (const name of workbook.SheetNames) {
+    try {
+      const ws = workbook.Sheets[name];
+      if (ws && sheetCallScore(ws) > 0 && looksRight(ws)) names.push(name);
+    } catch { /* unreadable sheet — skip */ }
+  }
+  return names;
 }
 
 /** Locate the header row: the first of the first 5 rows with a Request-ish and a Time/Date-ish cell. */
