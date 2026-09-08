@@ -12,7 +12,7 @@ import { mergedDowntimeByConnector, type DowntimeInterval } from './mergeInterva
 import {
   OFFLINE_LABEL, POWER_FAILURE_LABEL,
   type CategoryRow, type ChargerLevelRow, type ConnectorUptime,
-  type Episode, type ExtractRow, type OutageRow, type SiteUptime, type UptimeOptions,
+  type Episode, type ExtractRow, type FaultRow, type OutageRow, type SiteUptime, type UptimeOptions,
 } from './types';
 
 /** Asset facts OCPP cannot supply — only OEM is derivable from the log (§4.5). */
@@ -91,6 +91,7 @@ export function computeSiteUptime(
   let truncatedMeterValuesCount = 0;
   let rowsWithRequestTimestamp = 0;
   let oem = '';
+  const faultRows: FaultRow[] = [];
 
   for (const row of rows) {
     for (const t of [row.timestampUtc, row.respCurrentTimeUtc]) {
@@ -100,7 +101,16 @@ export function computeSiteUptime(
     }
     eventCounts[row.eventName] = (eventCounts[row.eventName] ?? 0) + 1;
     if (row.timestampUtc !== null) rowsWithRequestTimestamp += 1;
-    if (row.isFaultStatus) faultRowCount += 1;
+    if (row.isFaultStatus) {
+      faultRowCount += 1;
+      faultRows.push({
+        connectorId: row.connectorId ?? 0,
+        status: row.status,
+        errorCode: row.errorCode,
+        vendorErrorCode: row.vendorErrorCode,
+        info: row.info,
+      });
+    }
     if (row.truncated) truncatedMeterValuesCount += 1;
     if (row.eventName === 'BootNotification') {
       bootNotificationCount += 1;
@@ -174,6 +184,7 @@ export function computeSiteUptime(
     chargerLevel,
     chargerLevelDowntimeSec: chargerLevel.reduce((n, r) => n + r.downtimeSec, 0),
     outageRows,
+    faultRows,
     logRowCount: rows.length,
     faultRowCount,
     faultEpisodeCount: episodes.filter((e) => e.derivation !== 'offline').length,

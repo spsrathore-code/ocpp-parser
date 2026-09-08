@@ -84,6 +84,17 @@ export interface OutageRow {
   derivation: DerivationMethod;
 }
 
+/** A fault row's identity, kept per site to drive the cross-site sections.
+ *  Fault_Breakdown and ErrorCode_Comparison count fault ROWS, not episodes
+ *  (reconciliation gates 2 and 3 depend on that distinction). */
+export interface FaultRow {
+  connectorId: number;
+  status: string;
+  errorCode: string;
+  vendorErrorCode: string;
+  info: string;
+}
+
 /** One row of the two per-site summary blocks (§6.1), keyed by code or description. */
 export interface CategoryRow {
   key: string;
@@ -143,6 +154,8 @@ export interface SiteUptime {
   chargerLevel: ChargerLevelRow[];
   chargerLevelDowntimeSec: number;
   outageRows: OutageRow[];
+  /** Every fault row on this site, for the cross-site comparison sections. */
+  faultRows: FaultRow[];
   /** Diagnostics that back the reconciliation gates and the caveat lines. */
   logRowCount: number;
   faultRowCount: number;

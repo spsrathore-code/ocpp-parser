@@ -6,7 +6,10 @@ import { CMS_ADAPTERS, CMS_CSV_ADAPTERS } from '../../cms/registry';
 import { DEFAULT_COUNTED_CATEGORIES, DEFAULT_UPTIME_OPTIONS } from '../types';
 
 export interface UptimeShell {
+  /** Site A — required. */
   fileInput: HTMLInputElement;
+  /** Site B — optional; supplying it turns on the comparison sections. */
+  fileInputB: HTMLInputElement;
   analyzeBtn: HTMLButtonElement;
   customerSelect: HTMLSelectElement;
   clusteringInput: HTMLInputElement;
@@ -31,12 +34,22 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
           and compared against each other.
         </p>
 
-        <div class="flex flex-wrap items-end gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1" for="uptime-files">CMS log file(s)</label>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <label class="block text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1" for="uptime-files">Site A <span class="text-red-600">*</span></label>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">The first charger's CMS log export.</p>
             <input id="uptime-files" type="file" multiple accept=".xlsx,.xls,.csv"
-              class="block text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" />
+              class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" />
           </div>
+          <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <label class="block text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1" for="uptime-files-b">Site B <span class="text-gray-400 font-normal">(optional)</span></label>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">The second charger, to compare against Site A.</p>
+            <input id="uptime-files-b" type="file" multiple accept=".xlsx,.xls,.csv"
+              class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-gray-600 file:text-white hover:file:bg-gray-700" />
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-end gap-4 mt-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1" for="uptime-customer">Customer format</label>
             <select id="uptime-customer"
@@ -47,6 +60,10 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
           <button id="uptime-analyze" type="button"
             class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2 rounded-md">Analyze Uptime</button>
         </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          A workbook whose sheets hold several chargers is split into one site per sheet automatically —
+          so the DC052/DC053 reference file can go into Site A on its own and still compare.
+        </p>
 
         <details class="mt-4">
           <summary class="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-200">Thresholds</summary>
@@ -79,6 +96,7 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
   const byId = <T extends HTMLElement>(id: string): T => mountEl.querySelector(`#${id}`) as T;
   return {
     fileInput: byId<HTMLInputElement>('uptime-files'),
+    fileInputB: byId<HTMLInputElement>('uptime-files-b'),
     analyzeBtn: byId<HTMLButtonElement>('uptime-analyze'),
     customerSelect: byId<HTMLSelectElement>('uptime-customer'),
     clusteringInput: byId<HTMLInputElement>('uptime-clustering'),

@@ -23,6 +23,7 @@ describe('shell', () => {
     const shell = renderUptimeShell(host);
     expect(shell.fileInput.accept).toContain('.csv');
     expect(shell.fileInput.multiple).toBe(true);
+    expect(shell.fileInputB).toBeTruthy(); // Site B slot, optional
     expect(shell.clusteringInput.value).toBe('300');
     expect(shell.categoriesInput.value).toBe('PowerFailure, Offline, EmergencyPressed, InputUnderVoltage');
     // Auto-detect plus every registered customer, xlsx and csv alike.

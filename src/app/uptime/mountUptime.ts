@@ -2,6 +2,8 @@
 
 import { renderUptimeShell } from './render/renderUptimeShell';
 import { renderSiteUptime } from './render/renderSiteUptime';
+import { renderFaultBreakdown } from './render/renderFaultBreakdown';
+import { buildFaultBreakdown } from './compare/faultBreakdown';
 import { ingestUptimeSources } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
@@ -18,7 +20,9 @@ export function mountUptime(mountEl: HTMLElement): void {
   const shell = renderUptimeShell(mountEl);
 
   shell.analyzeBtn.addEventListener('click', async () => {
-    const files = Array.from(shell.fileInput.files ?? []);
+    const filesA = Array.from(shell.fileInput.files ?? []);
+    const filesB = Array.from(shell.fileInputB.files ?? []);
+    const files = [...filesA, ...filesB];
     if (files.length === 0) return;
 
     shell.analyzeBtn.disabled = true;
@@ -61,7 +65,15 @@ export function mountUptime(mountEl: HTMLElement): void {
         </div>`;
       shell.sourceInfo.classList.remove('hidden');
 
-      shell.container.innerHTML = report.sites.map((site) => renderSiteUptime(site, options)).join('');
+      const comparison = report.sites.length > 1
+        ? renderFaultBreakdown(buildFaultBreakdown(report.sites), report.sites.map((s) => s.site))
+        : `<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm rounded-lg p-4">
+             <strong>Only one site loaded.</strong> Add a second charger's log under <em>Site B</em> to unlock the
+             cross-site sections: Fault Breakdown, Error Code Comparison and Uptime Comparison.
+           </div>`;
+
+      shell.container.innerHTML =
+        report.sites.map((site) => renderSiteUptime(site, options)).join('') + comparison;
     } catch (err) {
       console.error('Uptime analysis failed:', err);
       shell.container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg">Failed to analyze the file(s): ${err instanceof Error ? err.message : String(err)}</div>`;
