@@ -87,3 +87,37 @@ describe('Fault_Breakdown — per-site pivot', () => {
     expect(b.pivots[0].rows.map((r) => r.frequency)).toEqual([3, 1]);
   });
 });
+
+describe('Fault_Breakdown — reference table shape', () => {
+  it('groups one-sided faults per site, in site order, before the shared ones', () => {
+    // The reference table shows a "DC052 ONLY" block, then "DC053 ONLY", then
+    // BOTH — not the two one-sided groups interleaved by frequency.
+    const b = buildFaultBreakdown([
+      site('DC052', [{ info: 'OnlyA', vendorErrorCode: '1' }]),
+      site('DC053', [
+        { info: 'OnlyB', vendorErrorCode: '2' }, { info: 'OnlyB', vendorErrorCode: '2' },
+        { info: 'OnlyB2', vendorErrorCode: '3' }, { info: 'OnlyB2', vendorErrorCode: '3' },
+        { info: 'OnlyB2', vendorErrorCode: '3' },
+      ]),
+    ]);
+    // OnlyA has fewer rows than both DC053 faults but leads on site order.
+    expect(b.crossSite.map((r) => r.info)).toEqual(['OnlyA', 'OnlyB2', 'OnlyB']);
+  });
+
+  it('carries each site status set, so the Status(es) columns can render', () => {
+    const b = buildFaultBreakdown([site('A', [
+      { info: 'EVCOM', status: 'SuspendedEV' },
+      { info: 'EVCOM', status: 'Finishing' },
+      { info: 'EVCOM', status: 'Finishing' },
+    ])]);
+    expect(b.crossSite[0].bySite.A.statuses).toBe('Finishing | SuspendedEV');
+  });
+
+  it('leaves the status set empty for a site that never logged the fault', () => {
+    const b = buildFaultBreakdown([
+      site('A', [{ info: 'GroundFault', vendorErrorCode: '90' }]),
+      site('B', []),
+    ]);
+    expect(b.crossSite[0].bySite.B).toBeUndefined();
+  });
+});

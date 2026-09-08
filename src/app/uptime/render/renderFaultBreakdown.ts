@@ -29,12 +29,16 @@ export function renderFaultBreakdown(breakdown: FaultBreakdown, siteNames: strin
       return perConnector + `<td class="${TD} font-medium">${cell ? cell.total : DASH}</td>`;
     }).join('');
     const oneSided = multiSite && Object.keys(row.bySite).length < siteNames.length;
+    const statuses = siteNames
+      .map((s) => `<td class="${TD} text-xs">${row.bySite[s]?.statuses ? esc(row.bySite[s].statuses) : DASH}</td>`)
+      .join('');
     return `<tr class="border-t border-gray-200 dark:border-gray-700 ${oneSided ? 'bg-amber-50/60 dark:bg-amber-900/10' : ''}">
       <td class="${TD}">${esc(row.errorCode)}</td>
       <td class="${TD} font-mono">${esc(row.vendorErrorCode)}</td>
       <td class="${TD}">${esc(row.info)}</td>
       ${cells}
       ${multiSite ? `<td class="${TD} text-xs">${esc(row.presence)}</td>` : ''}
+      ${statuses}
     </tr>`;
   }).join('');
 
@@ -81,11 +85,13 @@ export function renderFaultBreakdown(breakdown: FaultBreakdown, siteNames: strin
           <thead class="bg-gray-50 dark:bg-gray-700/50"><tr>
             <th class="${TH}">Error Code</th><th class="${TH}">Vendor Code</th><th class="${TH}">Info</th>
             ${head}${multiSite ? `<th class="${TH}">Presence</th>` : ''}
+            ${siteNames.map((s) => `<th class="${TH}">${esc(s)} Status(es)</th>`).join('')}
           </tr></thead>
           <tbody>${body}
             <tr class="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30">
               <td class="${TD} font-semibold">Total</td><td class="${TD}"></td><td class="${TD}"></td>
               ${totals}${multiSite ? `<td class="${TD}"></td>` : ''}
+              ${siteNames.map(() => `<td class="${TD}"></td>`).join('')}
             </tr>
           </tbody>
         </table>
