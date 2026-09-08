@@ -4,6 +4,9 @@ import { renderUptimeShell } from './render/renderUptimeShell';
 import { renderSiteUptime } from './render/renderSiteUptime';
 import { renderFaultBreakdown } from './render/renderFaultBreakdown';
 import { buildFaultBreakdown } from './compare/faultBreakdown';
+import { renderErrorCodeComparison, renderUptimeComparison } from './render/renderComparisons';
+import { buildErrorCodeComparison } from './compare/errorCodeCompare';
+import { buildUptimeComparison } from './compare/uptimeCompare';
 import { ingestUptimeSources } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
@@ -65,8 +68,11 @@ export function mountUptime(mountEl: HTMLElement): void {
         </div>`;
       shell.sourceInfo.classList.remove('hidden');
 
+      const siteNames = report.sites.map((s) => s.site);
       const comparison = report.sites.length > 1
-        ? renderFaultBreakdown(buildFaultBreakdown(report.sites), report.sites.map((s) => s.site))
+        ? renderFaultBreakdown(buildFaultBreakdown(report.sites), siteNames)
+          + renderErrorCodeComparison(buildErrorCodeComparison(report.sites), siteNames)
+          + renderUptimeComparison(buildUptimeComparison(report.sites, options, report.baselineSite))
         : `<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm rounded-lg p-4">
              <strong>Only one site loaded.</strong> Add a second charger's log under <em>Site B</em> to unlock the
              cross-site sections: Fault Breakdown, Error Code Comparison and Uptime Comparison.
