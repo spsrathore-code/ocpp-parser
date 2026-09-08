@@ -55,7 +55,7 @@ export function renderErrorCodeComparison(cmp: ErrorCodeComparison, siteNames: s
     </table></div>`;
 
   return `
-    <section class="${CARD}">
+    <section id="errorcode-comparison" class="${CARD} scroll-mt-4">
       <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Error Code Comparison</h3>
       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Read this <strong>before</strong> drawing conclusions from fault counts: if two releases code the same
@@ -178,7 +178,7 @@ export function renderUptimeComparison(cmp: UptimeComparison): string {
     </tr>`).join('');
 
   return `
-    <section class="${CARD}">
+    <section id="uptime-comparison" class="${CARD} scroll-mt-4">
       <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Uptime Comparison</h3>
       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Δ is measured against <strong>${esc(cmp.baselineSite)}</strong> (the baseline site).

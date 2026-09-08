@@ -78,8 +78,27 @@ export function mountUptime(mountEl: HTMLElement): void {
              cross-site sections: Fault Breakdown, Error Code Comparison and Uptime Comparison.
            </div>`;
 
+      // Section index. The per-site cards are long (a 165-row outage table each),
+      // so without this the comparison sections sit far below the fold and read
+      // as missing.
+      const link = (href: string, label: string): string =>
+        `<a href="#${href}" class="px-3 py-1.5 rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-gray-600">${label}</a>`;
+      const siteLinks = report.sites
+        .map((s) => link(`site-${s.site.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`, `${s.site} uptime`))
+        .join('');
+      const compareLinks = report.sites.length > 1
+        ? link('fault-breakdown', 'Fault Breakdown')
+          + link('errorcode-comparison', 'Error Code Comparison')
+          + link('uptime-comparison', 'Uptime Comparison')
+        : '';
+      const index = `
+        <div class="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Sections</div>
+          <div class="flex flex-wrap gap-2">${siteLinks}${compareLinks}</div>
+        </div>`;
+
       shell.container.innerHTML =
-        report.sites.map((site) => renderSiteUptime(site, options)).join('') + comparison;
+        index + report.sites.map((site) => renderSiteUptime(site, options)).join('') + comparison;
     } catch (err) {
       console.error('Uptime analysis failed:', err);
       shell.container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg">Failed to analyze the file(s): ${err instanceof Error ? err.message : String(err)}</div>`;

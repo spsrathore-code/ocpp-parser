@@ -140,8 +140,9 @@ export function renderSiteUptime(site: SiteUptime, options: UptimeOptions): stri
        </div>`
     : '';
 
+  const anchor = `site-${site.site.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`;
   return `
-    <section class="${CARD}">
+    <section id="${anchor}" class="${CARD} scroll-mt-4">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
         <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">${esc(site.site)}</h3>
         <div class="text-sm text-gray-500 dark:text-gray-400">
