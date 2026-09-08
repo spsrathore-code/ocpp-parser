@@ -31,10 +31,19 @@ const TRUNCATION_LIMIT = 4000;
 
 type Payload = Record<string, unknown>;
 
+/**
+ * Parse an ISO instant to epoch ms, TRUNCATED TO WHOLE SECONDS.
+ *
+ * The workbook reads times with `MID(<iso>, 12, 8)` — an HH:MM:SS slice that
+ * discards the fractional part — so every downstream duration is whole-second.
+ * Keeping milliseconds here makes durations disagree with the reference by ±1 s
+ * essentially at random, depending on which side of a second each bound fell.
+ * Truncation (not rounding) is what the string slice does.
+ */
 function toEpoch(iso: unknown): number | null {
   if (typeof iso !== 'string' || iso === '') return null;
   const ms = Date.parse(iso);
-  return Number.isNaN(ms) ? null : ms;
+  return Number.isNaN(ms) ? null : Math.floor(ms / 1000) * 1000;
 }
 
 /** Read a string-valued key, tolerating numbers (vendorErrorCode is often numeric). */
