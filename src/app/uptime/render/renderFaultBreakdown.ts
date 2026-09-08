@@ -80,7 +80,8 @@ export function renderFaultBreakdown(breakdown: FaultBreakdown, siteNames: strin
         Fault rows keyed on error code + vendor code + fault text.
         ${multiSite ? 'One-sided faults — logged by one charger and not the other — are highlighted and sorted first.' : ''}
       </p>
-      <div class="overflow-x-auto mt-4">
+      <p class="text-xs text-amber-700 dark:text-amber-300 mt-3">↔ This table is wider than the screen — scroll it sideways for the second site's columns, Presence, and the Status(es) columns.</p>
+      <div class="overflow-x-auto mt-2 border border-gray-200 dark:border-gray-700 rounded-lg">
         <table class="${TABLE}">
           <thead class="bg-gray-50 dark:bg-gray-700/50"><tr>
             <th class="${TH}">Error Code</th><th class="${TH}">Vendor Code</th><th class="${TH}">Info</th>

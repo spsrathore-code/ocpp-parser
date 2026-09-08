@@ -14,6 +14,22 @@ import { detectAdapter, getAdapter, CMS_ADAPTERS, detectCsvAdapter, getCsvAdapte
 import { readCsvRows } from '../cms/csvReader';
 import type { CmsRow } from '../cms/types';
 
+/**
+ * Trim boilerplate off a sheet name to get a usable site label.
+ *
+ * Sheets are commonly named "<charger> CMS Logs" / "Logs of <charger>". Carrying
+ * that suffix into the UI makes every comparison column read
+ * "DC052 CMS Logs · C1", which is wide enough to push the second site's columns
+ * (and the Presence and Status columns) off the side of the table.
+ */
+export function cleanSiteName(sheetName: string): string {
+  const trimmed = sheetName
+    .replace(/[\s_-]*(cms)?[\s_-]*logs?$/i, '')
+    .replace(/^logs?[\s_-]*(of)?[\s_-]*(charger)?[\s_-]*/i, '')
+    .trim();
+  return trimmed || sheetName;
+}
+
 /** One site's raw rows, tagged with where they came from. */
 export interface UptimeSource {
   site: string;
@@ -65,14 +81,14 @@ async function ingestWorkbook(file: File, opts: IngestOptions): Promise<UptimeSo
   const sheets = adapter.listDataSheets?.(workbook);
   if (!sheets || sheets.length === 0) {
     const rows = adapter.extractRows(workbook);
-    return rows.length ? [{ site: rows[0].sheetName, fileName: file.name, customerLabel: adapter.label, rows }] : [];
+    return rows.length ? [{ site: cleanSiteName(rows[0].sheetName), fileName: file.name, customerLabel: adapter.label, rows }] : [];
   }
 
   const sources: UptimeSource[] = [];
   for (const sheetName of sheets) {
     const rows = adapter.extractRowsFromSheet?.(workbook, sheetName) ?? [];
     if (rows.length === 0) continue;
-    sources.push({ site: rows[0].sheetName, fileName: file.name, customerLabel: adapter.label, rows });
+    sources.push({ site: cleanSiteName(rows[0].sheetName), fileName: file.name, customerLabel: adapter.label, rows });
   }
   return sources;
 }
@@ -87,7 +103,7 @@ async function ingestCsv(file: File, opts: IngestOptions): Promise<UptimeSource[
 
   // A CSV has no sheets, so the file itself is one site.
   const { rows } = adapter.extractRows(grid, file.name);
-  return rows.length ? [{ site: rows[0].sheetName, fileName: file.name, customerLabel: adapter.label, rows }] : [];
+  return rows.length ? [{ site: cleanSiteName(rows[0].sheetName), fileName: file.name, customerLabel: adapter.label, rows }] : [];
 }
 
 /**
