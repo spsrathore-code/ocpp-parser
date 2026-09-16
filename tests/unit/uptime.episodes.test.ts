@@ -151,7 +151,35 @@ describe('PowerFailure — notification until the connector is usable again', ()
     expect(eps[0].endUtc! - eps[0].startUtc).toBe(500_000);
   });
 
-  it('only a Faulted PowerFailure row opens a power-failure episode', () => {
+  it('applies the same rule to EmergencyPressed and InputUnderVoltage', () => {
+    for (const info of ['EmergencyPressed', 'InputUnderVoltage']) {
+      const eps = buildEpisodes([fault(300, info, 1), recovered(800, 'Available', 1)], opts);
+      expect(eps[0].derivation).toBe('powerFailure');
+      expect(eps[0].endUtc).toBe(at(800));
+    }
+  });
+
+  it('does NOT let an unrelated fault close the episode, even if it says Finishing', () => {
+    // "Finishing/OtherError/EVCOM" is another fault being reported while a
+    // session winds down, not this connector recovering. Counting it cut
+    // EmergencyPressed on DC052 from 2:32:45 to 0:45:14.
+    const otherFault: ExtractRow = {
+      ...base(), eventName: 'StatusNotification', timestampUtc: at(400), connectorId: 1,
+      status: 'Finishing', errorCode: 'OtherError', info: 'EVCOM', isFaultStatus: true,
+    };
+    const eps = buildEpisodes([
+      fault(300, 'EmergencyPressed', 1), otherFault, recovered(900, 'Available', 1),
+    ], opts);
+    expect(eps[0].endUtc).toBe(at(900));
+  });
+
+  it('leaves other fault texts on the NoError rule', () => {
+    const eps = buildEpisodes([fault(300, 'EVCOM', 1), noError(600, 1)], opts);
+    expect(eps[0].derivation).toBe('fault');
+    expect(eps[0].endUtc).toBe(at(600));
+  });
+
+  it('only a Faulted row opens a recovery-closed episode', () => {
     const informational: ExtractRow = {
       ...base(), eventName: 'StatusNotification', timestampUtc: at(300), connectorId: 1,
       status: 'Finishing', errorCode: 'OtherError', info: 'PowerFailure', isFaultStatus: true,

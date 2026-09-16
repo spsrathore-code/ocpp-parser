@@ -48,7 +48,7 @@ export type DerivationMethod = 'fault' | 'powerFailure' | 'offline';
 
 export const DERIVATION_TEXT: Record<DerivationMethod, string> = {
   fault: 'Fault: first notification → next NoError StatusNotification on same connectorId',
-  powerFailure: 'Power failure: PowerFailure notification → next Finishing/Available on the same connectorId',
+  powerFailure: 'Outage: Faulted notification → next Finishing/Available (non-fault) on the same connectorId',
   offline: 'Offline (synthesized): last Heartbeat currentTime → BootNotification response currentTime',
 };
 
@@ -190,6 +190,20 @@ export const DEFAULT_UPTIME_OPTIONS: UptimeOptions = {
   clusteringWindowSec: 300,
   countedCategories: [...DEFAULT_COUNTED_CATEGORIES],
 };
+
+/**
+ * Fault texts whose episode ends when the CONNECTOR reports itself usable again
+ * (status Finishing or Available), rather than at the next `NoError`.
+ *
+ * These are the outages an operator measures as "how long was the connector
+ * unusable". The workbook closed them on `NoError`, which for PowerFailure meant
+ * zero downtime entirely.
+ */
+export const RECOVERY_CLOSED_CATEGORIES = [
+  'PowerFailure',
+  'EmergencyPressed',
+  'InputUnderVoltage',
+] as const;
 
 /** The synthesized-Offline sentinel used for errorCode, info and vendorErrorCode. */
 export const OFFLINE_LABEL = 'Offline';
