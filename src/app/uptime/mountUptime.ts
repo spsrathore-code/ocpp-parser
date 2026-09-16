@@ -61,7 +61,10 @@ export function mountUptime(mountEl: HTMLElement): void {
       // Slots stay separate sites: a file in Site B is a different charger even
       // when both exports name their sheet the same thing.
       const sources = await ingestUptimeSlots(
-        [{ label: 'Site A', files: filesA }, { label: 'Site B', files: filesB }],
+        [
+          { label: 'Site A', files: filesA, siteName: shell.siteNameA.value },
+          { label: 'Site B', files: filesB, siteName: shell.siteNameB.value },
+        ],
         { adapterId: shell.customerSelect.value || undefined },
       );
 

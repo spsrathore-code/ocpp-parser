@@ -10,6 +10,9 @@ export interface UptimeShell {
   fileInput: HTMLInputElement;
   /** Site B — optional; supplying it turns on the comparison sections. */
   fileInputB: HTMLInputElement;
+  /** Optional site labels. OCPP carries no charger id, so these are typed. */
+  siteNameA: HTMLInputElement;
+  siteNameB: HTMLInputElement;
   analyzeBtn: HTMLButtonElement;
   customerSelect: HTMLSelectElement;
   clusteringInput: HTMLInputElement;
@@ -40,12 +43,18 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">The first charger's CMS log export.</p>
             <input id="uptime-files" type="file" multiple accept=".xlsx,.xls,.csv"
               class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" />
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mt-3 mb-1" for="uptime-name-a">Site name <span class="text-gray-400">(optional)</span></label>
+            <input id="uptime-name-a" type="text" placeholder="e.g. DC052 — auto-detected if blank"
+              class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2" />
           </div>
           <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
             <label class="block text-sm font-semibold text-gray-800 dark:text-gray-100 mb-1" for="uptime-files-b">Site B <span class="text-gray-400 font-normal">(optional)</span></label>
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">The second charger, to compare against Site A.</p>
             <input id="uptime-files-b" type="file" multiple accept=".xlsx,.xls,.csv"
               class="block w-full text-sm text-gray-700 dark:text-gray-200 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-gray-600 file:text-white hover:file:bg-gray-700" />
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mt-3 mb-1" for="uptime-name-b">Site name <span class="text-gray-400">(optional)</span></label>
+            <input id="uptime-name-b" type="text" placeholder="e.g. DC053 — auto-detected if blank"
+              class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2" />
           </div>
         </div>
 
@@ -61,6 +70,9 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
             class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-5 py-2 rounded-md">Analyze Uptime</button>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+          Leave <em>Site name</em> blank and the label is taken from the sheet name (boilerplate like
+          "CMS Logs" stripped), falling back to the file name when the sheet is called something generic
+          like "Sheet1". OCPP 1.6J carries no charger id, so type a name whenever you want a specific one.
           A workbook whose sheets hold several chargers is split into one site per sheet automatically —
           so the DC052/DC053 reference file can go into Site A on its own and still compare.
         </p>
@@ -97,6 +109,8 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
   return {
     fileInput: byId<HTMLInputElement>('uptime-files'),
     fileInputB: byId<HTMLInputElement>('uptime-files-b'),
+    siteNameA: byId<HTMLInputElement>('uptime-name-a'),
+    siteNameB: byId<HTMLInputElement>('uptime-name-b'),
     analyzeBtn: byId<HTMLButtonElement>('uptime-analyze'),
     customerSelect: byId<HTMLSelectElement>('uptime-customer'),
     clusteringInput: byId<HTMLInputElement>('uptime-clustering'),

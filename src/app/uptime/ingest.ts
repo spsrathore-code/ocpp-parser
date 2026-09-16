@@ -175,6 +175,12 @@ export async function ingestUptimeSources(
 export interface UptimeSlot {
   label: string;
   files: File[];
+  /** User-typed site name. OCPP 1.6J carries no charger id, station or model
+   *  (Analysis_Spec_MD section 4.5), so when the operator wants a specific
+   *  label there is nothing in the log to derive it from — they type it.
+   *  Applied only when the slot yields ONE site; a multi-sheet workbook keeps
+   *  its per-sheet names, since a single typed name cannot address them. */
+  siteName?: string;
 }
 
 /**
@@ -194,8 +200,12 @@ export async function ingestUptimeSlots(slots: UptimeSlot[], opts: IngestOptions
 
   for (const slot of slots) {
     if (slot.files.length === 0) continue;
-    for (const source of await ingestUptimeSources(slot.files, opts, slot.files[0]?.name)) {
-      let site = source.site;
+    const found = await ingestUptimeSources(slot.files, opts, slot.files[0]?.name);
+    const override = slot.siteName?.trim();
+    for (const source of found) {
+      // A typed name addresses the slot, so it only applies when the slot is
+      // unambiguously one site.
+      let site = override && found.length === 1 ? override : source.site;
       if (seen.has(site)) {
         // Same charger id in two slots: keep both, labelled by slot.
         site = `${source.site} (${slot.label})`;

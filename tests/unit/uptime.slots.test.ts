@@ -81,3 +81,34 @@ suite('upload slots are authoritative', () => {
     expect(sources).toHaveLength(1);
   });
 });
+
+// OCPP 1.6J carries no charger id, station or model name (Analysis_Spec_MD 4.5),
+// so when a label matters the operator must be able to type it — the uploaded
+// file name is arbitrary and the sheet name is often generic.
+suite('typed site names', () => {
+  it('uses the typed name for the slot instead of the derived one', async () => {
+    const sources = await ingestUptimeSlots([
+      { label: 'Site A', files: [fileFrom(A, 'whatever-export-2026.xlsx')], siteName: 'DC052' },
+      { label: 'Site B', files: [fileFrom(B, 'another-file.xlsx')], siteName: 'DC053' },
+    ]);
+    expect(sources.map((s) => s.site)).toEqual(['DC052', 'DC053']);
+  });
+
+  it('trims whitespace and ignores a blank name', async () => {
+    const sources = await ingestUptimeSlots([
+      { label: 'Site A', files: [fileFrom(A, 'chargerA.xlsx')], siteName: '  MH0055  ' },
+      { label: 'Site B', files: [fileFrom(B, 'chargerB.xlsx')], siteName: '   ' },
+    ]);
+    expect(sources[0].site).toBe('MH0055');
+    expect(sources[1].site).toBe('chargerB');
+  });
+
+  it('falls back to derived names when the slot holds several sites', async () => {
+    // A typed name addresses the slot; it cannot name two sheets at once.
+    const sources = await ingestUptimeSlots([
+      { label: 'Site A', files: [fileFrom(A, 'a.xlsx'), fileFrom(B, 'b.xlsx')], siteName: 'Both' },
+    ]);
+    expect(sources.length).toBeGreaterThanOrEqual(1);
+    if (sources.length > 1) expect(sources.map((s) => s.site)).not.toContain('Both');
+  });
+});
