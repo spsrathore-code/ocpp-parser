@@ -34,6 +34,10 @@ export interface ExtractRow {
   reason: string;
   firmwareVersion: string;
   chargePointVendor: string;
+  /** BootNotification.conf `interval` — the Heartbeat period the CMS assigned.
+   *  Null on every other message. The authoritative source for how often this
+   *  charger should be talking. */
+  heartbeatIntervalSec: number | null;
   /** Length of the raw request string, for the truncation heuristic. */
   requestLen: number;
   /** MeterValues request at/over the exporter's 4000-char cell cap (§8). */
@@ -165,6 +169,10 @@ export interface SiteUptime {
   unresolvedCount: number;
   truncatedMeterValuesCount: number;
   firmwareVersions: string[];
+  /** Heartbeat interval the CMS assigned this charger, if it ever booted. */
+  heartbeatIntervalSec: number | null;
+  /** The timeout actually applied — derived, or the caller's override. */
+  effectiveTimeoutSec: number;
   eventCounts: Record<string, number>;
   rowsWithRequestTimestamp: number;
 }
@@ -177,11 +185,19 @@ export interface UptimeOptions {
   /** Error descriptions that subtract from uptime %. Workbook default: the four
    *  below. Every other fault is measured and reported but NOT subtracted. */
   countedCategories: string[];
-  /** Silence longer than this counts as a communication loss. Should track the
-   *  charger's Heartbeat interval — these units heartbeat every 120 s, so 180 s
-   *  is one missed beat plus margin. A normal delay must not read as an outage. */
-  communicationTimeoutSec: number;
+  /** Silence longer than this counts as a communication loss.
+   *  NULL means derive it per charger from BootNotification.conf `interval`,
+   *  which is the CMS telling that charger how often to report in — the only
+   *  authoritative source. A fixed number overrides it. */
+  communicationTimeoutSec: number | null;
 }
+
+/** Multiple of the Heartbeat interval before silence counts as an outage.
+ *  One missed beat plus half, so ordinary jitter never reads as downtime:
+ *  120 s heartbeats give a 180 s timeout, matching the reference example. */
+export const TIMEOUT_HEARTBEAT_MULTIPLE = 1.5;
+/** Used only when a log carries no BootNotification to derive an interval from. */
+export const FALLBACK_TIMEOUT_SEC = 180;
 
 export const DEFAULT_COUNTED_CATEGORIES = [
   'PowerFailure',
@@ -193,7 +209,8 @@ export const DEFAULT_COUNTED_CATEGORIES = [
 export const DEFAULT_UPTIME_OPTIONS: UptimeOptions = {
   clusteringWindowSec: 300,
   countedCategories: [...DEFAULT_COUNTED_CATEGORIES],
-  communicationTimeoutSec: 180,
+  // Auto: derived per charger from its own BootNotification interval.
+  communicationTimeoutSec: null,
 };
 
 /**

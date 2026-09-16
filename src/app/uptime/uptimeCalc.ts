@@ -6,7 +6,7 @@
 // headline. Everything here is derived from the outage rows, so the blocks and
 // the percentages cannot drift apart.
 
-import { buildEpisodes } from './episodes';
+import { buildEpisodes, communicationTimeoutFor, heartbeatIntervalOf } from './episodes';
 import { buildOutageRows, discoverConnectors } from './outages';
 import { mergedDowntimeByConnector, type DowntimeInterval } from './mergeIntervals';
 import {
@@ -193,6 +193,8 @@ export function computeSiteUptime(
     unresolvedCount: outageRows.filter((r) => r.durationSec === null).length,
     truncatedMeterValuesCount,
     firmwareVersions: [...firmware].sort(),
+    heartbeatIntervalSec: heartbeatIntervalOf(rows),
+    effectiveTimeoutSec: communicationTimeoutFor(rows, options),
     eventCounts,
     rowsWithRequestTimestamp,
   };

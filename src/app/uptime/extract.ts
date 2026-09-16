@@ -22,6 +22,8 @@ const RESULT_PAYLOAD_INDEX = 2;
 /** Cheap scans used where a full parse would be wasted (see the MeterValues gate). */
 const TIMESTAMP_RE = /"timestamp"\s*:\s*"([^"]+)"/;
 const CURRENT_TIME_RE = /"currentTime"\s*:\s*"([^"]+)"/;
+/** BootNotification.conf carries the Heartbeat interval the CMS assigned. */
+const INTERVAL_RE = /"interval"\s*:\s*(\d+)/;
 const ACTION_RE = /^\s*\[\s*2\s*,\s*"(?:[^"\\]|\\.)*"\s*,\s*"((?:[^"\\]|\\.)*)"/;
 
 /** MeterValues are 70-85% of a log and feed none of these analyses (§14). */
@@ -123,6 +125,9 @@ export function extractRows(rows: CmsRow[]): ExtractRow[] {
       reason: str(payload, 'reason'),
       firmwareVersion: str(payload, 'firmwareVersion'),
       chargePointVendor: str(payload, 'chargePointVendor'),
+      heartbeatIntervalSec: eventName === 'BootNotification'
+        ? (Number(INTERVAL_RE.exec(raw.responseString)?.[1]) || null)
+        : null,
       requestLen,
       // Kept ungated: cheap, and this flag exists precisely to expose the
       // exporter's 4000-char cell cap that silently loses MeterValues tails.

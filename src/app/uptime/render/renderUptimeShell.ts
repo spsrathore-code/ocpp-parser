@@ -89,9 +89,13 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="uptime-timeout">Communication timeout (seconds)</label>
-              <input id="uptime-timeout" type="number" min="0" step="30" value="${DEFAULT_UPTIME_OPTIONS.communicationTimeoutSec}"
+              <input id="uptime-timeout" type="number" min="0" step="30" placeholder="Auto"
                 class="w-32 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2" />
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Silence longer than this counts as a communication loss. Track the charger's Heartbeat interval.</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Silence longer than this counts as a communication loss. Leave blank to derive it per charger from
+                its own <span class="font-mono">BootNotification</span> Heartbeat interval (1.5 &times; the interval,
+                so a 120 s heartbeat gives 180 s).
+              </p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="uptime-categories">Downtime categories counted against uptime</label>

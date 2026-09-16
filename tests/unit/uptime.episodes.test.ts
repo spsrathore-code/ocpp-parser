@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildEpisodes } from '../../src/app/uptime/episodes';
+import { buildEpisodes, communicationTimeoutFor, heartbeatIntervalOf } from '../../src/app/uptime/episodes';
 import { DEFAULT_UPTIME_OPTIONS, type ExtractRow } from '../../src/app/uptime/types';
 
 const T0 = Date.UTC(2026, 7, 11, 0, 0, 0);
@@ -10,7 +10,8 @@ function base(): ExtractRow {
   return {
     sourceRow: ++seq, site: 'DC052', eventName: '', timestampUtc: null, respCurrentTimeUtc: null,
     connectorId: null, status: '', errorCode: '', vendorErrorCode: '', info: '', reason: '',
-    firmwareVersion: '', chargePointVendor: '', requestLen: 0, truncated: false, isFaultStatus: false,
+    firmwareVersion: '', chargePointVendor: '', heartbeatIntervalSec: null,
+    requestLen: 0, truncated: false, isFaultStatus: false,
   };
 }
 
@@ -28,11 +29,12 @@ function heartbeat(sec: number): ExtractRow {
   return { ...base(), eventName: 'Heartbeat', respCurrentTimeUtc: at(sec) };
 }
 
-function boot(sec: number): ExtractRow {
-  return { ...base(), eventName: 'BootNotification', respCurrentTimeUtc: at(sec) };
+function boot(sec: number, intervalSec: number | null = null): ExtractRow {
+  return { ...base(), eventName: 'BootNotification', respCurrentTimeUtc: at(sec), heartbeatIntervalSec: intervalSec };
 }
 
-const opts = DEFAULT_UPTIME_OPTIONS;
+/** Most tests pin an explicit timeout; the derived default has its own block. */
+const opts = { ...DEFAULT_UPTIME_OPTIONS, communicationTimeoutSec: 180 };
 
 describe('fault episode clustering (300 s)', () => {
   it('collapses a fault re-reported inside the window into ONE episode', () => {
@@ -291,5 +293,45 @@ describe('output ordering', () => {
     // 100s of silence is inside the 180s timeout — a quick restart, not an outage.
     const eps = buildEpisodes([heartbeat(0), fault(50, 'EVCOM'), boot(100)], opts);
     expect(eps.filter((e) => e.derivation === 'offline')).toHaveLength(0);
+  });
+});
+
+// The CMS tells each charger how often to report in, via BootNotification.conf
+// `interval`. That is the only authoritative source for what "too quiet" means
+// for THAT unit, so the timeout is derived from it rather than fixed fleet-wide.
+describe('communication timeout derived from BootNotification', () => {
+  const auto = { ...DEFAULT_UPTIME_OPTIONS, communicationTimeoutSec: null };
+
+  it('reads the interval the CMS assigned', () => {
+    expect(heartbeatIntervalOf([boot(0, 120)])).toBe(120);
+  });
+
+  it('takes the median when a charger is reconfigured mid-log', () => {
+    // The interval it ran on for most of the period is the one to judge by.
+    expect(heartbeatIntervalOf([boot(0, 60), boot(1, 120), boot(2, 120)])).toBe(120);
+  });
+
+  it('allows one and a half beats before calling silence an outage', () => {
+    // 120s heartbeats -> 180s, matching the reference example. Ordinary jitter
+    // must never read as downtime.
+    expect(communicationTimeoutFor([boot(0, 120)], auto)).toBe(180);
+    expect(communicationTimeoutFor([boot(0, 300)], auto)).toBe(450);
+  });
+
+  it('falls back when the log carries no BootNotification to learn from', () => {
+    expect(communicationTimeoutFor([heartbeat(0)], auto)).toBe(180);
+  });
+
+  it('lets an explicit setting override the derived value', () => {
+    expect(communicationTimeoutFor([boot(0, 120)], { ...auto, communicationTimeoutSec: 600 })).toBe(600);
+  });
+
+  it('applies the derived timeout when building Offline windows', () => {
+    // 300s interval -> 450s timeout, so a 400s gap is silence, not an outage.
+    const short = buildEpisodes([heartbeat(0), boot(400, 300)], auto);
+    expect(short.filter((e) => e.derivation === 'offline')).toHaveLength(0);
+    const long = buildEpisodes([heartbeat(0), boot(1000, 300)], auto);
+    const [window] = long.filter((e) => e.derivation === 'offline');
+    expect(window.startUtc).toBe(at(450));
   });
 });
