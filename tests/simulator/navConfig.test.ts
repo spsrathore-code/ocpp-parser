@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { NAV_GROUPS } from '../../src/app/nav/navConfig';
 
 describe('navConfig', () => {
-  it('has the three functional groups in order', () => {
-    expect(NAV_GROUPS.map(g => g.id)).toEqual(['parser', 'emulator', 'cms']);
+  it('has the four functional groups in order', () => {
+    expect(NAV_GROUPS.map(g => g.id)).toEqual(['parser', 'emulator', 'cms', 'uptime']);
   });
 
   it('Client Log Parser, CMS Log Parser and OCPP Simulator are enabled with mounts', () => {

@@ -9,10 +9,22 @@
 // shared modern pipeline instead. Shared sheet helpers live in ./sheetUtils.
 
 import * as XLSX from 'xlsx';
-import type { WorkBook } from 'xlsx';
+import type { WorkBook, WorkSheet } from 'xlsx';
 import type { CmsFormatAdapter, CmsRow } from '../types';
 import { istToUtcIso } from '../timestamps';
-import { CALL_RE, type Cell, readTop, pickDataSheet, findHeaderRow, colIndex, lowerHeaders, cellAt } from './sheetUtils';
+import { CALL_RE, type Cell, readTop, pickDataSheet, listLogSheets, findHeaderRow, colIndex, lowerHeaders, cellAt } from './sheetUtils';
+
+/** CZ-distinctive: the paired "…String" request/response columns (and/or "Sr No.").
+ *  Requiring the "string" suffix avoids matching other customers (e.g. Mahindra's
+ *  bare Request/Response columns). */
+function looksCz(sheet: WorkSheet): boolean {
+  const rows = readTop(sheet, 10);
+  const headers = lowerHeaders(rows, findHeaderRow(rows));
+  const hasReqString = headers.some((h) => h.includes('request') && h.includes('string'));
+  const hasRespString = headers.some((h) => h.includes('response') && h.includes('string'));
+  const hasSrNo = headers.some((h) => h.startsWith('sr'));
+  return (hasReqString && hasRespString) || (hasReqString && hasSrNo);
+}
 
 export const czAdapter: CmsFormatAdapter = {
   id: 'cz',
@@ -22,20 +34,21 @@ export const czAdapter: CmsFormatAdapter = {
   detect(workbook: WorkBook): boolean {
     const sheet = workbook.Sheets[pickDataSheet(workbook)];
     if (!sheet) return false;
-    const rows = readTop(sheet, 10);
-    const headers = lowerHeaders(rows, findHeaderRow(rows));
-    // CZ-distinctive: the paired "…String" request/response columns (and/or "Sr No.").
-    // Requiring the "string" suffix avoids matching other customers (e.g. Mahindra's
-    // bare Request/Response columns).
-    const hasReqString = headers.some((h) => h.includes('request') && h.includes('string'));
-    const hasRespString = headers.some((h) => h.includes('response') && h.includes('string'));
-    const hasSrNo = headers.some((h) => h.startsWith('sr'));
-    return (hasReqString && hasRespString) || (hasReqString && hasSrNo);
+    return looksCz(sheet);
   },
 
+  listDataSheets(workbook: WorkBook): string[] {
+    return listLogSheets(workbook, looksCz);
+  },
+
+  /** Unchanged behaviour for the CMS Log Parser: the single best-scoring sheet. */
   extractRows(workbook: WorkBook): CmsRow[] {
-    const sheetName = pickDataSheet(workbook);
+    return czAdapter.extractRowsFromSheet!(workbook, pickDataSheet(workbook));
+  },
+
+  extractRowsFromSheet(workbook: WorkBook, sheetName: string): CmsRow[] {
     const sheet = workbook.Sheets[sheetName];
+    if (!sheet) return [];
     const data = XLSX.utils.sheet_to_json<Cell[]>(sheet, { header: 1, blankrows: false });
     if (data.length < 2) return [];
 

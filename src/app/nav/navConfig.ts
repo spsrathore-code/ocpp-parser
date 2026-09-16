@@ -45,4 +45,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'csms', label: 'CSMS Dashboard', enabled: false },
     ],
   },
+  {
+    id: 'uptime',
+    label: 'Uptime',
+    views: [
+      // Lazy-mounted, like the CMS view: keeps xlsx and the uptime pipeline out
+      // of the main bundle until the tab is first opened.
+      { id: 'uptime-analysis', label: 'Uptime Analysis', enabled: true, mount: (c) => { void import('../uptime/mountUptime').then((m) => m.mountUptime(c)); } },
+    ],
+  },
 ];
