@@ -27,3 +27,9 @@ OCPP Client Parser MD Collection/
 # Uptime reference workbook: 13.7MB, and trimming to the raw sheets saves
 # nothing (they are the bulk). Kept local; tests that use it skip when absent.
 DC052_ DC053 Uptime Template.xlsx
+
+# Customer CMS log exports used for verification — large, and customer data.
+DC052 CMS Logs.xlsx
+DC053 CMS Log.xlsx
+Power Failure _ Offine Without Error Downtime Logic.txt
+image.png
