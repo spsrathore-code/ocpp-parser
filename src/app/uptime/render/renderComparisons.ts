@@ -114,9 +114,14 @@ function metricTable(cmp: UptimeComparison): string {
 
   return `
     ${styledTable(head, body)}
-    <p style="margin-top:6px;font-size:12px;color:#6B7280;${GROTESQUE}">
-      Downtime is overlap-adjusted: simultaneous outages on a connector are counted once.
-      ${overlap ? `Double-counting removed — ${overlap}.` : 'No outages overlapped.'}
+    <p style="margin-top:8px;font-size:12px;color:#6B7280;line-height:1.55;${GROTESQUE}">
+      <strong style="color:${CHARCOAL}">The category rows do not sum to Total downtime, by design.</strong>
+      Each category is measured independently and they overlap — one power cut shows up as
+      <em>PowerFailure</em> (the connector recovering) and as <em>Offline</em> (the charger unreachable while it
+      reboots). Adding them would count the same minute twice, so <strong style="color:${CHARCOAL}">Total downtime is
+      their union</strong>, not their sum.
+      ${overlap ? `Double-counting removed: ${overlap}.` : 'No outages overlapped.'}
+      <br>
       Δ Site: <span style="color:${GAIN};font-weight:600">green</span> = improvement over ${esc(cmp.baselineSite)},
       <span style="color:${LOSS};font-weight:600">terracotta</span> = regression.
     </p>`;
