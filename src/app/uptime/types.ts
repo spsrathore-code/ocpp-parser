@@ -48,7 +48,7 @@ export type DerivationMethod = 'fault' | 'powerFailure' | 'offline';
 
 export const DERIVATION_TEXT: Record<DerivationMethod, string> = {
   fault: 'Fault: first notification → next NoError StatusNotification on same connectorId',
-  powerFailure: 'Power outage: last Heartbeat currentTime → PowerFailure notification',
+  powerFailure: 'Power failure: PowerFailure notification → next Finishing/Available on the same connectorId',
   offline: 'Offline (synthesized): last Heartbeat currentTime → BootNotification response currentTime',
 };
 

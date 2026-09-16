@@ -98,24 +98,37 @@ suite('Uptime acceptance — reference workbook', () => {
 
   it('computes DC052 raw and merged downtime with a per-connector overlap sweep', () => {
     const [c1, c2] = dc052().perConnector;
-    expect(c1.rawDowntimeSec).toBe(37901);
-    expect(c2.rawDowntimeSec).toBe(33971);
-    expect(c1.mergedDowntimeSec).toBe(36747);
-    expect(c2.mergedDowntimeSec).toBe(33747);
+    expect(c1.rawDowntimeSec).toBe(48278);
+    expect(c2.rawDowntimeSec).toBe(45383);
+    expect(c1.mergedDowntimeSec).toBe(44944);
+    expect(c2.mergedDowntimeSec).toBe(43953);
     // Overlap differs per connector, which is only possible if the running max
-    // end resets at the connector boundary.
-    expect(c1.overlapRemovedSec).toBe(1154);
-    expect(c2.overlapRemovedSec).toBe(224);
+    // end resets at the connector boundary. It is larger than it used to be
+    // because PowerFailure episodes now carry a real duration and frequently
+    // coincide with the Offline window around the same power event — which is
+    // exactly the double-count the sweep exists to remove.
+    expect(c1.overlapRemovedSec).toBe(3334);
+    expect(c2.overlapRemovedSec).toBe(1430);
   });
 
   it('computes the headline uptime percentages', () => {
     const round = (n: number): number => Math.round(n * 100) / 100;
-    expect(round(dc052().perConnector[0].uptimeAdjustedPct)).toBe(95.75);
-    expect(round(dc052().perConnector[1].uptimeAdjustedPct)).toBe(96.09);
-    // Lower than the workbook's 96.04 / 97.87 because we count the outages it
-    // dropped. More downtime found, not less.
-    expect(round(dc052().siteUptimeAdjustedPct)).toBe(95.92);
-    expect(round(dc053().siteUptimeAdjustedPct)).toBe(97.67);
+    expect(round(dc052().perConnector[0].uptimeAdjustedPct)).toBe(94.80);
+    expect(round(dc052().perConnector[1].uptimeAdjustedPct)).toBe(94.91);
+    // Well below the workbook's 96.04 / 97.87, for two compounding reasons: we
+    // count the outage rows its VSTACK block drops, and PowerFailure now carries
+    // real downtime instead of being a zero-duration marker.
+    expect(round(dc052().siteUptimeAdjustedPct)).toBe(94.85);
+    expect(round(dc053().siteUptimeAdjustedPct)).toBe(96.85);
+  });
+
+  it('gives PowerFailure a real duration, closed by Finishing/Available', () => {
+    // The workbook zeroed these, so power failures contributed nothing at all
+    // to downtime. On DC052 they are worth over six hours of connector-time.
+    const pf = (s: SiteUptime): number =>
+      s.byErrorDescription.find((r) => r.key === 'PowerFailure')?.totalDowntimeSec ?? 0;
+    expect(pf(dc052())).toBeGreaterThan(0);
+    expect(pf(dc053())).toBeGreaterThan(0);
   });
 
   // Reconciliation gates (Analysis_Spec_MD §10) that survive the port.

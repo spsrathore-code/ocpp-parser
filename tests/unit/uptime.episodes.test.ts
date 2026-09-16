@@ -101,26 +101,63 @@ describe('episode end — the next NoError on the same connector', () => {
   });
 });
 
-describe('PowerFailure — starts before it can be reported', () => {
-  it('starts at the last Heartbeat before the notification, not at the notification', () => {
-    // A charger cannot transmit while the power is out, so the outage began
-    // when heartbeats stopped.
-    const eps = buildEpisodes([heartbeat(0), heartbeat(120), fault(300, 'PowerFailure')], opts);
-    expect(eps[0].startUtc).toBe(at(120));
+// PowerFailure measures how long the connector stayed unusable: from the
+// Faulted notification until that same connector reports Finishing or Available.
+describe('PowerFailure — notification until the connector is usable again', () => {
+  /** A StatusNotification reporting the connector usable again. */
+  const recovered = (sec: number, status: string, connectorId = 1): ExtractRow => ({
+    ...base(), eventName: 'StatusNotification', timestampUtc: at(sec), connectorId,
+    status, errorCode: 'NoError',
+  });
+
+  it('starts at the notification, not at the last heartbeat before it', () => {
+    const eps = buildEpisodes([heartbeat(0), fault(300, 'PowerFailure'), recovered(900, 'Available')], opts);
+    expect(eps[0].startUtc).toBe(at(300));
     expect(eps[0].derivation).toBe('powerFailure');
   });
 
-  it('ends at the notification, making it a zero-duration marker', () => {
-    // The real restoration is captured by the synthesized Offline window;
-    // counting both would double-count the same outage.
-    const eps = buildEpisodes([heartbeat(120), fault(300, 'PowerFailure'), noError(900)], opts);
-    expect(eps[0].endUtc).toBe(at(300));
+  it('ends at the next Available on the same connector', () => {
+    const eps = buildEpisodes([fault(300, 'PowerFailure', 1), recovered(900, 'Available', 1)], opts);
+    expect(eps[0].endUtc).toBe(at(900));
   });
 
-  it('falls back to the notification time when no Heartbeat precedes it', () => {
-    const eps = buildEpisodes([fault(300, 'PowerFailure')], opts);
-    expect(eps[0].startUtc).toBe(at(300));
-    expect(eps[0].endUtc).toBe(at(300));
+  it('ends at Finishing just as readily as Available', () => {
+    const eps = buildEpisodes([fault(300, 'PowerFailure', 1), recovered(600, 'Finishing', 1)], opts);
+    expect(eps[0].endUtc).toBe(at(600));
+  });
+
+  it('takes whichever recovery comes first', () => {
+    const eps = buildEpisodes([
+      fault(300, 'PowerFailure', 1), recovered(600, 'Finishing', 1), recovered(900, 'Available', 1),
+    ], opts);
+    expect(eps[0].endUtc).toBe(at(600));
+  });
+
+  it('ignores a recovery on a different connector', () => {
+    // A sibling connector coming back says nothing about this one.
+    const eps = buildEpisodes([
+      fault(300, 'PowerFailure', 1), recovered(600, 'Available', 2), recovered(900, 'Available', 1),
+    ], opts);
+    expect(eps[0].endUtc).toBe(at(900));
+  });
+
+  it('ignores a recovery that precedes the notification', () => {
+    const eps = buildEpisodes([recovered(100, 'Available', 1), fault(300, 'PowerFailure', 1)], opts);
+    expect(eps[0].endUtc).toBeNull();
+  });
+
+  it('carries a real duration — it is no longer a zero-duration marker', () => {
+    const eps = buildEpisodes([fault(300, 'PowerFailure', 1), recovered(800, 'Available', 1)], opts);
+    expect(eps[0].endUtc! - eps[0].startUtc).toBe(500_000);
+  });
+
+  it('only a Faulted PowerFailure row opens a power-failure episode', () => {
+    const informational: ExtractRow = {
+      ...base(), eventName: 'StatusNotification', timestampUtc: at(300), connectorId: 1,
+      status: 'Finishing', errorCode: 'OtherError', info: 'PowerFailure', isFaultStatus: true,
+    };
+    const eps = buildEpisodes([informational], opts);
+    expect(eps[0].derivation).toBe('fault');
   });
 });
 
