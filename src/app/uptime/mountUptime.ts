@@ -54,6 +54,9 @@ export function mountUptime(mountEl: HTMLElement): void {
         ? clusteringWindowSec
         : DEFAULT_UPTIME_OPTIONS.clusteringWindowSec,
       countedCategories: shell.categoriesInput.value.split(',').map((s) => s.trim()).filter(Boolean),
+      communicationTimeoutSec: Number.isFinite(Number(shell.timeoutInput.value)) && Number(shell.timeoutInput.value) >= 0
+        ? Number(shell.timeoutInput.value)
+        : DEFAULT_UPTIME_OPTIONS.communicationTimeoutSec,
     };
 
     try {
@@ -85,7 +88,7 @@ export function mountUptime(mountEl: HTMLElement): void {
             ${report.sources.map((s) => `<li><span class="font-medium">${s.site}</span> — ${s.rowCount.toLocaleString()} rows <span class="text-gray-500 dark:text-gray-400">(${s.fileName})</span></li>`).join('')}
           </ul>
           <div class="mt-2 text-xs text-gray-600 dark:text-gray-300">
-            Clustering window ${options.clusteringWindowSec}s · counted categories: ${options.countedCategories.join(', ') || 'none'}
+            Clustering window ${options.clusteringWindowSec}s · comms timeout ${options.communicationTimeoutSec}s · counted categories: ${options.countedCategories.join(', ') || 'none'}
           </div>
         </div>`;
       shell.sourceInfo.classList.remove('hidden');

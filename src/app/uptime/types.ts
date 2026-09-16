@@ -49,7 +49,7 @@ export type DerivationMethod = 'fault' | 'powerFailure' | 'offline';
 export const DERIVATION_TEXT: Record<DerivationMethod, string> = {
   fault: 'Fault: first notification → next NoError StatusNotification on same connectorId',
   powerFailure: 'Outage: Faulted notification → next Finishing/Available (non-fault) on the same connectorId',
-  offline: 'Offline (synthesized): last Heartbeat currentTime → BootNotification response currentTime',
+  offline: 'Offline without error: last charger message + communication timeout → BootNotification (not covered by a PowerFailure)',
 };
 
 /** One outage episode before connector fan-out (§4.1, §4.2). */
@@ -177,6 +177,10 @@ export interface UptimeOptions {
   /** Error descriptions that subtract from uptime %. Workbook default: the four
    *  below. Every other fault is measured and reported but NOT subtracted. */
   countedCategories: string[];
+  /** Silence longer than this counts as a communication loss. Should track the
+   *  charger's Heartbeat interval — these units heartbeat every 120 s, so 180 s
+   *  is one missed beat plus margin. A normal delay must not read as an outage. */
+  communicationTimeoutSec: number;
 }
 
 export const DEFAULT_COUNTED_CATEGORIES = [
@@ -189,6 +193,7 @@ export const DEFAULT_COUNTED_CATEGORIES = [
 export const DEFAULT_UPTIME_OPTIONS: UptimeOptions = {
   clusteringWindowSec: 300,
   countedCategories: [...DEFAULT_COUNTED_CATEGORIES],
+  communicationTimeoutSec: 180,
 };
 
 /**

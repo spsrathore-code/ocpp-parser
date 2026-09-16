@@ -189,36 +189,107 @@ describe('PowerFailure — notification until the connector is usable again', ()
   });
 });
 
-describe('synthesized Offline windows', () => {
-  it('derives one window per BootNotification, bounded by the last Heartbeat', () => {
-    // These windows are not logged anywhere — every boot implies the charger
-    // was unreachable before it. On DC052 this is the largest single component.
-    const eps = buildEpisodes([heartbeat(0), heartbeat(120), boot(600)], opts);
-    expect(eps).toHaveLength(1);
-    expect(eps[0]).toMatchObject({ connectorId: 0, info: 'Offline', errorCode: 'Offline', derivation: 'offline' });
-    expect(eps[0].startUtc).toBe(at(120));
-    expect(eps[0].endUtc).toBe(at(600));
+// Offline Without Error, per "Power Failure / Offline Without Error Downtime
+// Logic". A communication loss that is NOT a power failure:
+//   START = last charger-originated message + communication timeout
+//   END   = the BootNotification that restores communication
+// PowerFailure takes priority: silence inside an active PowerFailure belongs to
+// that event, never to Offline.
+describe('Offline without error', () => {
+  const meterValues = (sec: number): ExtractRow =>
+    ({ ...base(), eventName: 'MeterValues', timestampUtc: at(sec) });
+  const available = (sec: number, connectorId = 1): ExtractRow => ({
+    ...base(), eventName: 'StatusNotification', timestampUtc: at(sec), connectorId,
+    status: 'Available', errorCode: 'NoError',
+  });
+  const offlines = (rows: ExtractRow[], o = opts) =>
+    buildEpisodes(rows, o).filter((e) => e.derivation === 'offline');
+
+  it('ignores a gap shorter than the communication timeout', () => {
+    // A normal delay between heartbeats is not an outage.
+    expect(offlines([heartbeat(0), boot(100)])).toHaveLength(0);
   });
 
-  it('skips a boot with no preceding Heartbeat — the window has no lower bound', () => {
-    // This is why the reference run yields 29 Offline windows from 32 boots.
-    expect(buildEpisodes([boot(600)], opts)).toHaveLength(0);
+  it('starts the window at last communication PLUS the timeout', () => {
+    // The timeout itself is not downtime — it is how long we wait before
+    // calling the silence an outage.
+    const [e] = offlines([heartbeat(0), boot(600)]);
+    expect(e.startUtc).toBe(at(180));
+    expect(e.endUtc).toBe(at(600));
   });
 
-  it('bounds each boot by the heartbeat nearest before it, not the first one', () => {
-    const eps = buildEpisodes([heartbeat(0), boot(100), heartbeat(200), boot(300)], opts);
-    expect(eps.map((e) => [e.startUtc, e.endUtc])).toEqual([[at(0), at(100)], [at(200), at(300)]]);
+  it('honours a caller-supplied timeout', () => {
+    const [e] = offlines([heartbeat(0), boot(600)], { ...opts, communicationTimeoutSec: 60 });
+    expect(e.startUtc).toBe(at(60));
+  });
+
+  it('counts ANY charger message as liveness, not just heartbeats', () => {
+    // Transaction traffic is intermittent, but it still proves the charger
+    // was talking.
+    const [e] = offlines([heartbeat(0), meterValues(300), boot(900)]);
+    expect(e.startUtc).toBe(at(300 + 180));
+  });
+
+  // Example A from the document.
+  it('gives the whole silence to PowerFailure when the event is still open', () => {
+    const eps = buildEpisodes([
+      fault(0, 'PowerFailure', 1), heartbeat(100), heartbeat(600),
+      boot(1200), available(1300, 1),
+    ], opts);
+    expect(eps.filter((e) => e.derivation === 'offline')).toHaveLength(0);
+    const pf = eps.find((e) => e.info === 'PowerFailure')!;
+    expect(pf.startUtc).toBe(at(0));
+    expect(pf.endUtc).toBe(at(1300));
+  });
+
+  // Example C from the document.
+  it('counts a separate Offline once the PowerFailure has already recovered', () => {
+    const eps = buildEpisodes([
+      fault(0, 'PowerFailure', 1), heartbeat(300), available(1200, 1),
+      heartbeat(1320), heartbeat(1440), boot(2400),
+    ], opts);
+    const pf = eps.find((e) => e.info === 'PowerFailure')!;
+    expect(pf.endUtc).toBe(at(1200));
+    const off = eps.filter((e) => e.derivation === 'offline');
+    expect(off).toHaveLength(1);
+    expect(off[0].startUtc).toBe(at(1440 + 180));
+    expect(off[0].endUtc).toBe(at(2400));
+  });
+
+  it('measures the gap from the PowerFailure recovery, which is itself traffic', () => {
+    // A recovery StatusNotification is a message, so it resets liveness. The
+    // Offline window therefore starts a timeout after the PowerFailure ended,
+    // never inside it — the two can never overlap for the same boot.
+    const eps = buildEpisodes([
+      heartbeat(0), fault(60, 'PowerFailure', 1), available(600, 1), boot(3000),
+    ], opts);
+    const off = eps.filter((e) => e.derivation === 'offline');
+    expect(off).toHaveLength(1);
+    expect(off[0].startUtc).toBe(at(600 + 180));
+    expect(off[0].endUtc).toBe(at(3000));
   });
 
   it('marks the synthesized status as explicitly not an OCPP status', () => {
-    const eps = buildEpisodes([heartbeat(0), boot(100)], opts);
-    expect(eps[0].status).toBe('n/a (synthesized, not an OCPP status)');
+    expect(offlines([heartbeat(0), boot(600)])[0].status)
+      .toBe('n/a (synthesized, not an OCPP status)');
+  });
+
+  it('produces nothing when the charger never boots', () => {
+    expect(offlines([heartbeat(0), heartbeat(600)])).toHaveLength(0);
   });
 });
 
 describe('output ordering', () => {
   it('returns episodes sorted by start, faults and Offline windows interleaved', () => {
-    const eps = buildEpisodes([heartbeat(0), fault(50, 'EVCOM'), boot(100), fault(500, 'GroundFault')], opts);
-    expect(eps.map((e) => e.startUtc)).toEqual([at(0), at(50), at(500)]);
+    // The boot at +900 follows 850s of silence, so it yields an Offline window
+    // starting a timeout after the last message.
+    const eps = buildEpisodes([heartbeat(0), fault(50, 'EVCOM'), boot(900), fault(1500, 'GroundFault')], opts);
+    expect(eps.map((e) => e.startUtc)).toEqual([at(50), at(50 + 180), at(1500)]);
+  });
+
+  it('does not invent an Offline window for a boot that follows normal traffic', () => {
+    // 100s of silence is inside the 180s timeout — a quick restart, not an outage.
+    const eps = buildEpisodes([heartbeat(0), fault(50, 'EVCOM'), boot(100)], opts);
+    expect(eps.filter((e) => e.derivation === 'offline')).toHaveLength(0);
   });
 });

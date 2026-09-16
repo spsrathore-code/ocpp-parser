@@ -68,10 +68,11 @@ suite('Uptime acceptance — reference workbook', () => {
   // agree with the reference before anything downstream can distort them.
   it('reproduces the workbook Outage_Calc staging exactly', () => {
     expect(dc052().faultEpisodeCount).toBe(122);
-    expect(dc052().offlineWindowCount).toBe(32);
-    expect(dc052().faultEpisodeCount + dc052().offlineWindowCount).toBe(154);
     expect(dc053().faultEpisodeCount).toBe(113);
-    expect(dc053().offlineWindowCount).toBe(35);
+    // Offline is no longer one window per boot: a boot that follows normal
+    // traffic, or one inside an active PowerFailure, yields none.
+    expect(dc052().offlineWindowCount).toBe(8);
+    expect(dc053().offlineWindowCount).toBe(1);
   });
 
   // KNOWN DIVERGENCE FROM THE WORKBOOK — deliberate, and in our favour.
@@ -90,36 +91,36 @@ suite('Uptime acceptance — reference workbook', () => {
   it('carries the outage rows the workbook loses in its VSTACK bounds', () => {
     expect(dc052().connectors).toEqual([1, 2]);
     const byConnector = (s: SiteUptime): number[] => s.perConnector.map((c) => c.outageEvents);
-    expect(byConnector(dc052())).toEqual([96, 69]); // workbook: [89, 65]
-    expect(dc052().outageRows).toHaveLength(165);   // workbook: 154
-    expect(byConnector(dc053())).toEqual([76, 83]); // workbook: [62, 69]
-    expect(dc053().outageRows).toHaveLength(159);   // workbook: 131
+    expect(byConnector(dc052())).toEqual([72, 45]);
+    expect(dc052().outageRows).toHaveLength(117);
+    expect(byConnector(dc053())).toEqual([42, 49]);
+    expect(dc053().outageRows).toHaveLength(91);
   });
 
   it('computes DC052 raw and merged downtime with a per-connector overlap sweep', () => {
     const [c1, c2] = dc052().perConnector;
-    expect(c1.rawDowntimeSec).toBe(49520);
-    expect(c2.rawDowntimeSec).toBe(45383);
-    expect(c1.mergedDowntimeSec).toBe(45299);
-    expect(c2.mergedDowntimeSec).toBe(43953);
+    expect(c1.rawDowntimeSec).toBe(45155);
+    expect(c2.rawDowntimeSec).toBe(41018);
+    expect(c1.mergedDowntimeSec).toBe(42320);
+    expect(c2.mergedDowntimeSec).toBe(40974);
     // Overlap differs per connector, which is only possible if the running max
     // end resets at the connector boundary. It is larger than it used to be
     // because PowerFailure episodes now carry a real duration and frequently
     // coincide with the Offline window around the same power event — which is
     // exactly the double-count the sweep exists to remove.
-    expect(c1.overlapRemovedSec).toBe(4221);
-    expect(c2.overlapRemovedSec).toBe(1430);
+    expect(c1.overlapRemovedSec).toBe(2835);
+    expect(c2.overlapRemovedSec).toBe(44);
   });
 
   it('computes the headline uptime percentages', () => {
     const round = (n: number): number => Math.round(n * 100) / 100;
-    expect(round(dc052().perConnector[0].uptimeAdjustedPct)).toBe(94.76);
-    expect(round(dc052().perConnector[1].uptimeAdjustedPct)).toBe(94.91);
+    expect(round(dc052().perConnector[0].uptimeAdjustedPct)).toBe(95.10);
+    expect(round(dc052().perConnector[1].uptimeAdjustedPct)).toBe(95.26);
     // Well below the workbook's 96.04 / 97.87, for two compounding reasons: we
     // count the outage rows its VSTACK block drops, and PowerFailure now carries
     // real downtime instead of being a zero-duration marker.
-    expect(round(dc052().siteUptimeAdjustedPct)).toBe(94.83);
-    expect(round(dc053().siteUptimeAdjustedPct)).toBe(96.75);
+    expect(round(dc052().siteUptimeAdjustedPct)).toBe(95.18);
+    expect(round(dc053().siteUptimeAdjustedPct)).toBe(96.97);
   });
 
   it('gives PowerFailure a real duration, closed by Finishing/Available', () => {

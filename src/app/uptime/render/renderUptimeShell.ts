@@ -16,6 +16,7 @@ export interface UptimeShell {
   analyzeBtn: HTMLButtonElement;
   customerSelect: HTMLSelectElement;
   clusteringInput: HTMLInputElement;
+  timeoutInput: HTMLInputElement;
   categoriesInput: HTMLInputElement;
   container: HTMLElement;
   sourceInfo: HTMLElement;
@@ -87,6 +88,12 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Repeats of the same fault on a connector inside this window are one episode.</p>
             </div>
             <div>
+              <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="uptime-timeout">Communication timeout (seconds)</label>
+              <input id="uptime-timeout" type="number" min="0" step="30" value="${DEFAULT_UPTIME_OPTIONS.communicationTimeoutSec}"
+                class="w-32 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2" />
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Silence longer than this counts as a communication loss. Track the charger's Heartbeat interval.</p>
+            </div>
+            <div>
               <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="uptime-categories">Downtime categories counted against uptime</label>
               <input id="uptime-categories" type="text" value="${DEFAULT_COUNTED_CATEGORIES.join(', ')}"
                 class="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-2" />
@@ -114,6 +121,7 @@ export function renderUptimeShell(mountEl: HTMLElement): UptimeShell {
     analyzeBtn: byId<HTMLButtonElement>('uptime-analyze'),
     customerSelect: byId<HTMLSelectElement>('uptime-customer'),
     clusteringInput: byId<HTMLInputElement>('uptime-clustering'),
+    timeoutInput: byId<HTMLInputElement>('uptime-timeout'),
     categoriesInput: byId<HTMLInputElement>('uptime-categories'),
     container: byId('uptime-results'),
     sourceInfo: byId('uptime-source'),
