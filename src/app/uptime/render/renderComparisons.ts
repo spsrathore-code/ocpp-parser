@@ -80,7 +80,7 @@ function metricTable(cmp: UptimeComparison): string {
     + navyTh('Δ Site', 'right');
 
   const body = cmp.metrics.map((m, i) => {
-    const headline = m.label === 'Uptime % (overlap-adjusted)';
+    const headline = m.label === 'Uptime %';
     const rowBg = headline ? BAND : (i % 2 === 1 ? ZEBRA : '#FFFFFF');
     const tone = headline ? `color:${NAVY};font-weight:700;` : `color:${CHARCOAL};`;
     const cell = `padding:8px 12px;border-bottom:0.5px solid ${RULE};${GROTESQUE};${tone}`;
@@ -105,9 +105,18 @@ function metricTable(cmp: UptimeComparison): string {
     </tr>`;
   }).join('');
 
+  // The overlap correction is evidence for the headline, not a metric to quote,
+  // so it sits in a footnote instead of its own row.
+  const overlap = cmp.siteNames
+    .filter((s) => (cmp.overlapRemovedSec[s] ?? 0) > 0)
+    .map((s) => `${esc(s)} ${formatDuration(cmp.overlapRemovedSec[s])}`)
+    .join(', ');
+
   return `
     ${styledTable(head, body)}
     <p style="margin-top:6px;font-size:12px;color:#6B7280;${GROTESQUE}">
+      Downtime is overlap-adjusted: simultaneous outages on a connector are counted once.
+      ${overlap ? `Double-counting removed — ${overlap}.` : 'No outages overlapped.'}
       Δ Site: <span style="color:${GAIN};font-weight:600">green</span> = improvement over ${esc(cmp.baselineSite)},
       <span style="color:${LOSS};font-weight:600">terracotta</span> = regression.
     </p>`;

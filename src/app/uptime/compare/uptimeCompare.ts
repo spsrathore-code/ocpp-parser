@@ -51,6 +51,10 @@ export interface UptimeComparison {
   byErrorCode: LineItemRow[];
   byErrorDescription: LineItemRow[];
   chargerLevel: ChargerLevelCompareRow[];
+  /** Per site, the seconds removed by merging overlapping outages. Reported as
+   *  a footnote rather than a row: it is evidence for the headline figure, not
+   *  a metric anyone quotes. */
+  overlapRemovedSec: Record<string, number>;
   readout: string[];
 }
 
@@ -129,26 +133,30 @@ export function buildUptimeComparison(
       (s) => s.connectors.reduce((n, c) => n + categoryDowntime(s, category, c), 0)));
   }
 
+  // Only the overlap-adjusted figures are shown. The raw sum knowingly
+  // double-counts simultaneous outages, and the raw uptime % inherits that
+  // error, so carrying both invites the question "which number do I quote?"
+  // when one of them is simply wrong. The correction itself is not lost — it
+  // is reported as a footnote under the table.
   metrics.push(
-    metricRow('Total downtime (raw sum)', sites, baseline, 'duration', false,
-      (s, c) => s.perConnector.find((p) => p.connectorId === c)?.rawDowntimeSec ?? 0,
-      (s) => s.siteRawDowntimeSec),
-    metricRow('Total downtime (overlaps merged)', sites, baseline, 'duration', false,
+    metricRow('Total downtime', sites, baseline, 'duration', false,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.mergedDowntimeSec ?? 0,
       (s) => s.siteMergedDowntimeSec),
-    metricRow('Uptime % (raw)', sites, baseline, 'percent', true,
-      (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeRawPct ?? 0,
-      (s) => s.siteUptimeRawPct),
-    metricRow('Uptime % (overlap-adjusted)', sites, baseline, 'percent', true,
-      (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeAdjustedPct ?? 0,
-      (s) => s.siteUptimeAdjustedPct),
-    metricRow('Downtime % (overlap-adjusted)', sites, baseline, 'percent', false,
+    metricRow('Downtime %', sites, baseline, 'percent', false,
       (s, c) => 100 - (s.perConnector.find((p) => p.connectorId === c)?.uptimeAdjustedPct ?? 0),
       (s) => 100 - s.siteUptimeAdjustedPct),
+    metricRow('Uptime %', sites, baseline, 'percent', true,
+      (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeAdjustedPct ?? 0,
+      (s) => s.siteUptimeAdjustedPct),
     metricRow('Outage events', sites, baseline, 'count', false,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.outageEvents ?? 0,
       (s) => s.outageRows.length),
   );
+
+  const overlapRemovedSec: Record<string, number> = {};
+  for (const s of sites) {
+    overlapRemovedSec[s.site] = s.siteRawDowntimeSec - s.siteMergedDowntimeSec;
+  }
 
   // Charger-level (connector 0), non-additive.
   const chargerKeys = new Set<string>();
@@ -214,6 +222,7 @@ export function buildUptimeComparison(
     byErrorCode: lineItems(sites, baseline, (s) => s.byErrorCode),
     byErrorDescription: lineItems(sites, baseline, (s) => s.byErrorDescription),
     chargerLevel,
+    overlapRemovedSec,
     readout,
   };
 }

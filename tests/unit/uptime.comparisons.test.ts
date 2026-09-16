@@ -95,7 +95,7 @@ describe('Uptime_Comparison', () => {
 
   it('measures Δ against the baseline site', () => {
     const cmp = buildUptimeComparison([a, b], DEFAULT_UPTIME_OPTIONS, 'A');
-    const headline = cmp.metrics.find((m) => m.label === 'Uptime % (overlap-adjusted)')!;
+    const headline = cmp.metrics.find((m) => m.label === 'Uptime %')!;
     expect(headline.delta).toBeCloseTo(1.83, 2);
     expect(cmp.baselineSite).toBe('A');
   });
@@ -139,20 +139,30 @@ describe('Uptime_Comparison — delta direction', () => {
   const row = (label: string) => cmp.metrics.find((m) => m.label === label)!;
 
   it('treats more uptime as better', () => {
-    expect(row('Uptime % (overlap-adjusted)').higherIsBetter).toBe(true);
-    expect(row('Uptime % (raw)').higherIsBetter).toBe(true);
+    expect(row('Uptime %').higherIsBetter).toBe(true);
   });
 
   it('treats more downtime, and more outages, as worse', () => {
-    expect(row('Total downtime (raw sum)').higherIsBetter).toBe(false);
-    expect(row('Total downtime (overlaps merged)').higherIsBetter).toBe(false);
-    expect(row('Downtime % (overlap-adjusted)').higherIsBetter).toBe(false);
+    expect(row('Total downtime').higherIsBetter).toBe(false);
+    expect(row('Downtime %').higherIsBetter).toBe(false);
     expect(row('Outage events').higherIsBetter).toBe(false);
     expect(row('PowerFailure').higherIsBetter).toBe(false);
   });
 
   it('leaves available time uncoloured — neither direction is good or bad', () => {
     expect(row('Total available time').higherIsBetter).toBeNull();
+  });
+
+  it('shows only overlap-adjusted figures — the raw ones double-count', () => {
+    const labels = cmp.metrics.map((m) => m.label);
+    expect(labels).not.toContain('Total downtime (raw sum)');
+    expect(labels).not.toContain('Uptime % (raw)');
+    expect(labels).toEqual(expect.arrayContaining(['Total downtime', 'Downtime %', 'Uptime %']));
+  });
+
+  it('keeps the overlap correction as evidence, even though it is not a row', () => {
+    expect(cmp.overlapRemovedSec).toBeDefined();
+    expect(Object.keys(cmp.overlapRemovedSec)).toEqual(['A', 'B']);
   });
 
   it('drops the redundant "Downtime —" prefix from category rows', () => {
