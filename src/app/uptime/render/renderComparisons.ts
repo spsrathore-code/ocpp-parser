@@ -3,7 +3,7 @@
 
 import { formatDuration } from '../duration';
 import { ABSENT, type ErrorCodeComparison, type Verdict } from '../compare/errorCodeCompare';
-import type { LineItemRow, UptimeComparison } from '../compare/uptimeCompare';
+import type { LineItemRow, MetricRow, UptimeComparison } from '../compare/uptimeCompare';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
@@ -147,28 +147,88 @@ function lineItemTable(rows: LineItemRow[], siteNames: string[], keyLabel: strin
     </table></div>`;
 }
 
-export function renderUptimeComparison(cmp: UptimeComparison): string {
-  const { siteNames } = cmp;
-  const head = siteNames.map((s) => {
-    const connectors = cmp.connectorsBySite[s] ?? [];
-    return connectors.map((c) => `<th class="${TH}">${esc(s)} · C${c}</th>`).join('')
-      + `<th class="${TH}">${esc(s)} · Site</th>`;
-  }).join('');
+/* ---- 1.1 metric table -------------------------------------------------------
+ * A deliberately quiet "consulting" treatment: navy header, hairline gridlines,
+ * light zebra, bold Site roll-ups, a pale navy band on the headline row, and
+ * colour ONLY on the delta number. Nothing shouts, so the one row that matters
+ * (overlap-adjusted uptime) is the thing the eye lands on.
+ */
+const NAVY = '#0C2340';
+const BAND = '#E8ECF3';
+const ZEBRA = '#F5F6F8';
+const RULE = '#E3E6EB';
+const CHARCOAL = '#2F3542';
+const GAIN = '#1B7F5A';
+const LOSS = '#B4462F';
+const GROTESQUE = "font-family:Arial,Helvetica,'Segoe UI',Calibri,sans-serif";
 
-  const body = cmp.metrics.map((m) => {
-    const headline = m.label === 'Uptime % (overlap-adjusted)';
-    const cells = siteNames.map((s) => {
+/** Delta cell for the metric table: tinted text, never a filled cell. */
+function metricDelta(m: MetricRow): string {
+  const base = `padding:8px 12px;text-align:right;border-bottom:0.5px solid ${RULE};${GROTESQUE}`;
+  if (m.delta === 0) return `<td style="${base};color:#9AA1AC">—</td>`;
+  const text = m.kind === 'duration' ? formatDuration(Math.abs(m.delta))
+    : m.kind === 'percent' ? `${Math.abs(m.delta).toFixed(2)}%`
+      : String(Math.abs(m.delta));
+  const sign = m.delta > 0 ? '+' : '−';
+  // Improvement is green, regression terracotta — but which direction counts as
+  // an improvement depends on the row, so it comes from the metric itself.
+  const improved = m.higherIsBetter === null ? null : (m.delta > 0) === m.higherIsBetter;
+  const colour = improved === null ? CHARCOAL : improved ? GAIN : LOSS;
+  return `<td style="${base};color:${colour};font-weight:600">${sign}${text}</td>`;
+}
+
+function metricTable(cmp: UptimeComparison): string {
+  const { siteNames } = cmp;
+  const th = (label: string, align: string): string =>
+    `<th style="padding:10px 12px;text-align:${align};color:#FFFFFF;font-weight:600;white-space:nowrap;${GROTESQUE}">${esc(label)}</th>`;
+
+  const head = th('Metric', 'left')
+    + siteNames.map((s) => {
       const connectors = cmp.connectorsBySite[s] ?? [];
-      const fmt = (v: number): string => m.kind === 'duration' ? formatDuration(v)
-        : m.kind === 'percent' ? `${v.toFixed(2)}%` : String(v);
-      return connectors.map((c) => `<td class="${TD} ${m.kind === 'duration' ? 'font-mono' : ''}">${fmt(m.perConnector[s]?.[c] ?? 0)}</td>`).join('')
-        + `<td class="${TD} font-semibold ${m.kind === 'duration' ? 'font-mono' : ''}">${fmt(m.site[s] ?? 0)}</td>`;
+      return connectors.map((c) => th(`${s} · C${c}`, 'right')).join('') + th(`${s} · Site`, 'right');
+    }).join('')
+    + th('Δ Site', 'right');
+
+  const body = cmp.metrics.map((m, i) => {
+    const headline = m.label === 'Uptime % (overlap-adjusted)';
+    const zebra = i % 2 === 1 ? ZEBRA : '#FFFFFF';
+    const rowBg = headline ? BAND : zebra;
+    const weight = headline ? 'font-weight:700;' : '';
+    const colour = headline ? `color:${NAVY};` : `color:${CHARCOAL};`;
+    const cell = `padding:8px 12px;border-bottom:0.5px solid ${RULE};${GROTESQUE};${colour}${weight}`;
+    const fmt = (v: number): string => m.kind === 'duration' ? formatDuration(v)
+      : m.kind === 'percent' ? `${v.toFixed(2)}%` : String(v);
+
+    const values = siteNames.map((s) => {
+      const connectors = cmp.connectorsBySite[s] ?? [];
+      const detail = connectors
+        .map((c) => `<td style="${cell};text-align:right">${fmt(m.perConnector[s]?.[c] ?? 0)}</td>`)
+        .join('');
+      // Site roll-ups are bolded so they read apart from the C1/C2 detail.
+      return detail + `<td style="${cell};text-align:right;font-weight:700">${fmt(m.site[s] ?? 0)}</td>`;
     }).join('');
-    return `<tr class="border-t border-gray-200 dark:border-gray-700 ${headline ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : ''}">
-      <td class="${TD} ${headline ? 'font-semibold' : ''}">${esc(m.label)}${headline ? ' ◄ headline' : ''}</td>
-      ${cells}${deltaCell(m.delta, m.kind)}
+
+    return `<tr style="background:${rowBg}">
+      <td style="${cell}">${esc(m.label)}${headline ? ' — headline' : ''}</td>
+      ${values}${metricDelta(m)}
     </tr>`;
   }).join('');
+
+  return `
+    <div class="overflow-x-auto mt-3 rounded-lg" style="border:0.5px solid ${RULE}">
+      <table style="min-width:100%;border-collapse:collapse;background:#FFFFFF">
+        <thead style="background:${NAVY}"><tr>${head}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+    <p style="margin-top:6px;font-size:12px;color:#6B7280;${GROTESQUE}">
+      Δ Site: <span style="color:${GAIN};font-weight:600">green</span> = improvement over ${esc(cmp.baselineSite)},
+      <span style="color:${LOSS};font-weight:600">terracotta</span> = regression.
+    </p>`;
+}
+
+export function renderUptimeComparison(cmp: UptimeComparison): string {
+  const { siteNames } = cmp;
 
   const chargerRows = cmp.chargerLevel.map((r) => `
     <tr class="border-t border-gray-200 dark:border-gray-700">
@@ -185,11 +245,7 @@ export function renderUptimeComparison(cmp: UptimeComparison): string {
       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Δ is measured against <strong>${esc(cmp.baselineSite)}</strong> (the baseline site).
       </p>
-
-      <div class="overflow-x-auto mt-3"><table class="${TABLE}">
-        <thead class="bg-gray-50 dark:bg-gray-700/50"><tr><th class="${TH}">Metric</th>${head}<th class="${TH}">Δ Site</th></tr></thead>
-        <tbody>${body}</tbody>
-      </table></div>
+      ${metricTable(cmp)}
 
       <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.2 Downtime by Error Code — line item</h4>
       <p class="text-xs text-gray-500 dark:text-gray-400">Counts EVERY category, not just those subtracted from uptime — so these totals are larger by design.</p>

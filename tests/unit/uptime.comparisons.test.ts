@@ -103,7 +103,7 @@ describe('Uptime_Comparison', () => {
   it('emits one metric row per counted category, so the driver is visible', () => {
     const cmp = buildUptimeComparison([a, b], DEFAULT_UPTIME_OPTIONS, 'A');
     for (const category of DEFAULT_UPTIME_OPTIONS.countedCategories) {
-      expect(cmp.metrics.some((m) => m.label === `Downtime — ${category}`)).toBe(true);
+      expect(cmp.metrics.some((m) => m.label === category)).toBe(true);
     }
   });
 
@@ -124,5 +124,41 @@ describe('Uptime_Comparison', () => {
     const cmp = buildUptimeComparison([a, withUnresolved], DEFAULT_UPTIME_OPTIONS, 'A');
     expect(cmp.readout.join(' ')).toContain('never closed');
     expect(cmp.readout.join(' ')).toContain('understated');
+  });
+});
+
+// The delta column is tinted green for an improvement and terracotta for a
+// regression. Which direction counts as an improvement differs per row, so the
+// metric carries it rather than the renderer guessing.
+describe('Uptime_Comparison — delta direction', () => {
+  const cmp = buildUptimeComparison(
+    [site('A', []), site('B', [])],
+    DEFAULT_UPTIME_OPTIONS,
+    'A',
+  );
+  const row = (label: string) => cmp.metrics.find((m) => m.label === label)!;
+
+  it('treats more uptime as better', () => {
+    expect(row('Uptime % (overlap-adjusted)').higherIsBetter).toBe(true);
+    expect(row('Uptime % (raw)').higherIsBetter).toBe(true);
+  });
+
+  it('treats more downtime, and more outages, as worse', () => {
+    expect(row('Total downtime (raw sum)').higherIsBetter).toBe(false);
+    expect(row('Total downtime (overlaps merged)').higherIsBetter).toBe(false);
+    expect(row('Downtime % (overlap-adjusted)').higherIsBetter).toBe(false);
+    expect(row('Outage events').higherIsBetter).toBe(false);
+    expect(row('PowerFailure').higherIsBetter).toBe(false);
+  });
+
+  it('leaves available time uncoloured — neither direction is good or bad', () => {
+    expect(row('Total available time').higherIsBetter).toBeNull();
+  });
+
+  it('drops the redundant "Downtime —" prefix from category rows', () => {
+    // The column already says these are downtime, and the category token has to
+    // match the vendor fault text in the log verbatim.
+    expect(cmp.metrics.map((m) => m.label)).toContain('PowerFailure');
+    expect(cmp.metrics.some((m) => m.label.startsWith('Downtime —'))).toBe(false);
   });
 });

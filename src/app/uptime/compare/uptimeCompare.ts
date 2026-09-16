@@ -25,6 +25,9 @@ export interface MetricRow {
   delta: number;
   /** How to render: a duration in seconds, a percentage, or a plain count. */
   kind: 'duration' | 'percent' | 'count';
+  /** Which direction is an improvement, for colouring the delta.
+   *  Null where neither direction is good or bad (available time). */
+  higherIsBetter: boolean | null;
 }
 
 export interface LineItemRow {
@@ -62,6 +65,7 @@ function metricRow(
   sites: SiteUptime[],
   baseline: SiteUptime,
   kind: MetricRow['kind'],
+  higherIsBetter: boolean | null,
   perConnectorValue: (site: SiteUptime, connectorId: number) => number,
   siteValue: (site: SiteUptime) => number,
 ): MetricRow {
@@ -73,7 +77,7 @@ function metricRow(
     site[s.site] = siteValue(s);
   }
   const other = sites.find((s) => s.site !== baseline.site);
-  return { label, perConnector, site, delta: other ? site[other.site] - site[baseline.site] : 0, kind };
+  return { label, perConnector, site, delta: other ? site[other.site] - site[baseline.site] : 0, kind, higherIsBetter };
 }
 
 function lineItems(
@@ -112,34 +116,36 @@ export function buildUptimeComparison(
   for (const s of sites) connectorsBySite[s.site] = s.connectors;
 
   const metrics: MetricRow[] = [
-    metricRow('Total Available Time', sites, baseline, 'duration',
+    metricRow('Total available time', sites, baseline, 'duration', null,
       (s) => s.availableSec, (s) => s.siteAvailableSec),
   ];
 
   // One row per counted category, so a reader can see WHICH driver moved.
   for (const category of options.countedCategories) {
-    metrics.push(metricRow(`Downtime — ${category}`, sites, baseline, 'duration',
+    // The category token is the label: these are vendor fault texts that must
+    // match the log verbatim, and the column already says it is downtime.
+    metrics.push(metricRow(category, sites, baseline, 'duration', false,
       (s, c) => categoryDowntime(s, category, c),
       (s) => s.connectors.reduce((n, c) => n + categoryDowntime(s, category, c), 0)));
   }
 
   metrics.push(
-    metricRow('Total Downtime (raw sum)', sites, baseline, 'duration',
+    metricRow('Total downtime (raw sum)', sites, baseline, 'duration', false,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.rawDowntimeSec ?? 0,
       (s) => s.siteRawDowntimeSec),
-    metricRow('Total Downtime (overlaps merged)', sites, baseline, 'duration',
+    metricRow('Total downtime (overlaps merged)', sites, baseline, 'duration', false,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.mergedDowntimeSec ?? 0,
       (s) => s.siteMergedDowntimeSec),
-    metricRow('Uptime % (raw)', sites, baseline, 'percent',
+    metricRow('Uptime % (raw)', sites, baseline, 'percent', true,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeRawPct ?? 0,
       (s) => s.siteUptimeRawPct),
-    metricRow('Uptime % (overlap-adjusted)', sites, baseline, 'percent',
+    metricRow('Uptime % (overlap-adjusted)', sites, baseline, 'percent', true,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeAdjustedPct ?? 0,
       (s) => s.siteUptimeAdjustedPct),
-    metricRow('Downtime % (overlap-adjusted)', sites, baseline, 'percent',
+    metricRow('Downtime % (overlap-adjusted)', sites, baseline, 'percent', false,
       (s, c) => 100 - (s.perConnector.find((p) => p.connectorId === c)?.uptimeAdjustedPct ?? 0),
       (s) => 100 - s.siteUptimeAdjustedPct),
-    metricRow('Outage events', sites, baseline, 'count',
+    metricRow('Outage events', sites, baseline, 'count', false,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.outageEvents ?? 0,
       (s) => s.outageRows.length),
   );
