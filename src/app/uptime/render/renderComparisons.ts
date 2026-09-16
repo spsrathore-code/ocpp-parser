@@ -13,6 +13,106 @@ const TD = 'px-3 py-2 text-gray-700 dark:text-gray-300';
 const TABLE = 'min-w-full text-sm border-collapse';
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg shadow p-6';
 
+/* ---- shared table treatment (section 1) -------------------------------------
+ * A deliberately quiet "consulting" look: navy header, hairline gridlines, light
+ * zebra, bold roll-ups, a pale navy band on the headline row, and colour ONLY on
+ * delta numbers. Nothing shouts, so the figures that matter are what the eye
+ * lands on. Used by every table in section 1 so they read as one family.
+ */
+const NAVY = '#0C2340';
+const BAND = '#E8ECF3';
+const ZEBRA = '#F5F6F8';
+const RULE = '#E3E6EB';
+const RULE_STRONG = '#CBD2DC';
+const CHARCOAL = '#2F3542';
+const GAIN = '#1B7F5A';
+const LOSS = '#B4462F';
+const MUTED = '#9AA1AC';
+const GROTESQUE = "font-family:Arial,Helvetica,'Segoe UI',Calibri,sans-serif";
+
+/** Navy header cell. */
+function navyTh(label: string, align: 'left' | 'right'): string {
+  return `<th style="padding:10px 12px;text-align:${align};color:#FFFFFF;font-weight:600;white-space:nowrap;${GROTESQUE}">${esc(label)}</th>`;
+}
+
+/** Body cell. `strong` bolds a roll-up; `total` adds the separating top rule. */
+function bodyTd(
+  content: string,
+  align: 'left' | 'right',
+  opts: { strong?: boolean; total?: boolean } = {},
+): string {
+  const weight = opts.strong ? 'font-weight:700;' : '';
+  const top = opts.total ? `border-top:1px solid ${RULE_STRONG};` : '';
+  return `<td style="padding:8px 12px;text-align:${align};color:${CHARCOAL};border-bottom:0.5px solid ${RULE};${top}${weight}${GROTESQUE}">${content}</td>`;
+}
+
+/** The shared table shell: navy head, hairline body, rounded hairline frame. */
+function styledTable(head: string, body: string): string {
+  return `
+    <div class="overflow-x-auto mt-3 rounded-lg" style="border:0.5px solid ${RULE}">
+      <table style="min-width:100%;border-collapse:collapse;background:#FFFFFF">
+        <thead style="background:${NAVY}"><tr>${head}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+}
+
+/**
+ * Tinted delta text — colour on the number only, never a filled cell.
+ * Which direction counts as an improvement differs per row, so the caller says.
+ */
+function deltaText(value: number, render: (v: number) => string, higherIsBetter: boolean | null): string {
+  if (value === 0) return `<span style="color:${MUTED}">—</span>`;
+  const sign = value > 0 ? '+' : '−';
+  const improved = higherIsBetter === null ? null : (value > 0) === higherIsBetter;
+  const colour = improved === null ? CHARCOAL : improved ? GAIN : LOSS;
+  return `<span style="color:${colour};font-weight:600">${sign}${render(Math.abs(value))}</span>`;
+}
+
+/** 1.1 — the headline metric table. */
+function metricTable(cmp: UptimeComparison): string {
+  const { siteNames } = cmp;
+  const head = navyTh('Metric', 'left')
+    + siteNames.map((s) => {
+      const connectors = cmp.connectorsBySite[s] ?? [];
+      return connectors.map((c) => navyTh(`${s} · C${c}`, 'right')).join('') + navyTh(`${s} · Site`, 'right');
+    }).join('')
+    + navyTh('Δ Site', 'right');
+
+  const body = cmp.metrics.map((m, i) => {
+    const headline = m.label === 'Uptime % (overlap-adjusted)';
+    const rowBg = headline ? BAND : (i % 2 === 1 ? ZEBRA : '#FFFFFF');
+    const tone = headline ? `color:${NAVY};font-weight:700;` : `color:${CHARCOAL};`;
+    const cell = `padding:8px 12px;border-bottom:0.5px solid ${RULE};${GROTESQUE};${tone}`;
+    const fmt = (v: number): string => m.kind === 'duration' ? formatDuration(v)
+      : m.kind === 'percent' ? `${v.toFixed(2)}%` : String(v);
+    const render = (v: number): string => m.kind === 'duration' ? formatDuration(v)
+      : m.kind === 'percent' ? `${v.toFixed(2)}%` : String(v);
+
+    const values = siteNames.map((s) => {
+      const connectors = cmp.connectorsBySite[s] ?? [];
+      const detail = connectors
+        .map((c) => `<td style="${cell};text-align:right">${fmt(m.perConnector[s]?.[c] ?? 0)}</td>`)
+        .join('');
+      // Site roll-ups are bolded so they read apart from the C1/C2 detail.
+      return detail + `<td style="${cell};text-align:right;font-weight:700">${fmt(m.site[s] ?? 0)}</td>`;
+    }).join('');
+
+    return `<tr style="background:${rowBg}">
+      <td style="${cell}">${esc(m.label)}${headline ? ' — headline' : ''}</td>
+      ${values}
+      <td style="${cell};text-align:right">${deltaText(m.delta, render, m.higherIsBetter)}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    ${styledTable(head, body)}
+    <p style="margin-top:6px;font-size:12px;color:#6B7280;${GROTESQUE}">
+      Δ Site: <span style="color:${GAIN};font-weight:600">green</span> = improvement over ${esc(cmp.baselineSite)},
+      <span style="color:${LOSS};font-weight:600">terracotta</span> = regression.
+    </p>`;
+}
+
 function verdictBadge(v: Verdict): string {
   const style = v === 'MISMATCH'
     ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200'
@@ -108,134 +208,56 @@ export function renderErrorCodeComparison(cmp: ErrorCodeComparison, siteNames: s
 
 // ------------------------------------------------------------------- Uptime
 
-function deltaCell(value: number, kind: 'duration' | 'percent' | 'count'): string {
-  if (value === 0) return `<td class="${TD} text-gray-400">—</td>`;
-  const sign = value > 0 ? '+' : '−';
-  const magnitude = Math.abs(value);
-  const text = kind === 'duration' ? formatDuration(magnitude)
-    : kind === 'percent' ? `${magnitude.toFixed(2)}%`
-      : String(magnitude);
-  // Deliberately uncoloured: whether "more" is good depends on the row.
-  return `<td class="${TD} font-medium">${sign}${text}</td>`;
-}
-
 function lineItemTable(rows: LineItemRow[], siteNames: string[], keyLabel: string): string {
   const totals = siteNames.map((s) => ({
-    site: s,
     events: rows.reduce((n, r) => n + (r.events[s] ?? 0), 0),
     seconds: rows.reduce((n, r) => n + (r.downtimeSec[s] ?? 0), 0),
   }));
-  return `
-    <div class="overflow-x-auto mt-3"><table class="${TABLE}">
-      <thead class="bg-gray-50 dark:bg-gray-700/50"><tr>
-        <th class="${TH}">${keyLabel}</th>
-        ${siteNames.map((s) => `<th class="${TH}">${esc(s)} events</th><th class="${TH}">${esc(s)} downtime</th>`).join('')}
-        <th class="${TH}">Δ downtime</th>
-      </tr></thead>
-      <tbody>${rows.map((r) => `
-        <tr class="border-t border-gray-200 dark:border-gray-700">
-          <td class="${TD}">${esc(r.key)}</td>
-          ${siteNames.map((s) => `<td class="${TD}">${r.events[s] ?? 0}</td><td class="${TD} font-mono">${formatDuration(r.downtimeSec[s] ?? 0)}</td>`).join('')}
-          ${deltaCell(r.deltaSec, 'duration')}
-        </tr>`).join('')}
-        <tr class="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30">
-          <td class="${TD} font-semibold">Total</td>
-          ${totals.map((t) => `<td class="${TD} font-semibold">${t.events}</td><td class="${TD} font-mono font-semibold">${formatDuration(t.seconds)}</td>`).join('')}
-          <td class="${TD}"></td>
-        </tr>
-      </tbody>
-    </table></div>`;
-}
 
-/* ---- 1.1 metric table -------------------------------------------------------
- * A deliberately quiet "consulting" treatment: navy header, hairline gridlines,
- * light zebra, bold Site roll-ups, a pale navy band on the headline row, and
- * colour ONLY on the delta number. Nothing shouts, so the one row that matters
- * (overlap-adjusted uptime) is the thing the eye lands on.
- */
-const NAVY = '#0C2340';
-const BAND = '#E8ECF3';
-const ZEBRA = '#F5F6F8';
-const RULE = '#E3E6EB';
-const CHARCOAL = '#2F3542';
-const GAIN = '#1B7F5A';
-const LOSS = '#B4462F';
-const GROTESQUE = "font-family:Arial,Helvetica,'Segoe UI',Calibri,sans-serif";
+  const head = navyTh(keyLabel, 'left')
+    + siteNames.map((s) => navyTh(`${s} events`, 'right') + navyTh(`${s} downtime`, 'right')).join('')
+    + navyTh('Δ downtime', 'right');
 
-/** Delta cell for the metric table: tinted text, never a filled cell. */
-function metricDelta(m: MetricRow): string {
-  const base = `padding:8px 12px;text-align:right;border-bottom:0.5px solid ${RULE};${GROTESQUE}`;
-  if (m.delta === 0) return `<td style="${base};color:#9AA1AC">—</td>`;
-  const text = m.kind === 'duration' ? formatDuration(Math.abs(m.delta))
-    : m.kind === 'percent' ? `${Math.abs(m.delta).toFixed(2)}%`
-      : String(Math.abs(m.delta));
-  const sign = m.delta > 0 ? '+' : '−';
-  // Improvement is green, regression terracotta — but which direction counts as
-  // an improvement depends on the row, so it comes from the metric itself.
-  const improved = m.higherIsBetter === null ? null : (m.delta > 0) === m.higherIsBetter;
-  const colour = improved === null ? CHARCOAL : improved ? GAIN : LOSS;
-  return `<td style="${base};color:${colour};font-weight:600">${sign}${text}</td>`;
-}
-
-function metricTable(cmp: UptimeComparison): string {
-  const { siteNames } = cmp;
-  const th = (label: string, align: string): string =>
-    `<th style="padding:10px 12px;text-align:${align};color:#FFFFFF;font-weight:600;white-space:nowrap;${GROTESQUE}">${esc(label)}</th>`;
-
-  const head = th('Metric', 'left')
-    + siteNames.map((s) => {
-      const connectors = cmp.connectorsBySite[s] ?? [];
-      return connectors.map((c) => th(`${s} · C${c}`, 'right')).join('') + th(`${s} · Site`, 'right');
-    }).join('')
-    + th('Δ Site', 'right');
-
-  const body = cmp.metrics.map((m, i) => {
-    const headline = m.label === 'Uptime % (overlap-adjusted)';
+  const body = rows.map((r, i) => {
     const zebra = i % 2 === 1 ? ZEBRA : '#FFFFFF';
-    const rowBg = headline ? BAND : zebra;
-    const weight = headline ? 'font-weight:700;' : '';
-    const colour = headline ? `color:${NAVY};` : `color:${CHARCOAL};`;
-    const cell = `padding:8px 12px;border-bottom:0.5px solid ${RULE};${GROTESQUE};${colour}${weight}`;
-    const fmt = (v: number): string => m.kind === 'duration' ? formatDuration(v)
-      : m.kind === 'percent' ? `${v.toFixed(2)}%` : String(v);
-
-    const values = siteNames.map((s) => {
-      const connectors = cmp.connectorsBySite[s] ?? [];
-      const detail = connectors
-        .map((c) => `<td style="${cell};text-align:right">${fmt(m.perConnector[s]?.[c] ?? 0)}</td>`)
-        .join('');
-      // Site roll-ups are bolded so they read apart from the C1/C2 detail.
-      return detail + `<td style="${cell};text-align:right;font-weight:700">${fmt(m.site[s] ?? 0)}</td>`;
-    }).join('');
-
-    return `<tr style="background:${rowBg}">
-      <td style="${cell}">${esc(m.label)}${headline ? ' — headline' : ''}</td>
-      ${values}${metricDelta(m)}
-    </tr>`;
+    const cells = siteNames
+      .map((s) => bodyTd(String(r.events[s] ?? 0), 'right') + bodyTd(formatDuration(r.downtimeSec[s] ?? 0), 'right'))
+      .join('');
+    // More downtime is always the worse outcome here, so the tint is fixed.
+    const delta = bodyTd(deltaText(r.deltaSec, formatDuration, false), 'right');
+    return `<tr style="background:${zebra}">${bodyTd(esc(r.key), 'left')}${cells}${delta}</tr>`;
   }).join('');
 
-  return `
-    <div class="overflow-x-auto mt-3 rounded-lg" style="border:0.5px solid ${RULE}">
-      <table style="min-width:100%;border-collapse:collapse;background:#FFFFFF">
-        <thead style="background:${NAVY}"><tr>${head}</tr></thead>
-        <tbody>${body}</tbody>
-      </table>
-    </div>
-    <p style="margin-top:6px;font-size:12px;color:#6B7280;${GROTESQUE}">
-      Δ Site: <span style="color:${GAIN};font-weight:600">green</span> = improvement over ${esc(cmp.baselineSite)},
-      <span style="color:${LOSS};font-weight:600">terracotta</span> = regression.
-    </p>`;
+  const totalRow = `<tr style="background:#FFFFFF">
+    ${bodyTd('Total', 'left', { strong: true, total: true })}
+    ${totals.map((t) => bodyTd(String(t.events), 'right', { strong: true, total: true })
+      + bodyTd(formatDuration(t.seconds), 'right', { strong: true, total: true })).join('')}
+    ${bodyTd('', 'right', { total: true })}
+  </tr>`;
+
+  return styledTable(head, body + totalRow);
+}
+
+/** 1.4 — connector-0 downtime. No delta: the block is explicitly non-additive. */
+function chargerLevelTable(cmp: UptimeComparison): string {
+  const { siteNames } = cmp;
+  const head = navyTh('Error description (connector 0)', 'left')
+    + siteNames.map((s) => navyTh(`${s} episodes`, 'right') + navyTh(`${s} downtime`, 'right')).join('')
+    + navyTh('Counted in connectors?', 'right');
+
+  const body = cmp.chargerLevel.map((r, i) => {
+    const zebra = i % 2 === 1 ? ZEBRA : '#FFFFFF';
+    const cells = siteNames
+      .map((s) => bodyTd(String(r.episodes[s] ?? 0), 'right') + bodyTd(formatDuration(r.downtimeSec[s] ?? 0), 'right'))
+      .join('');
+    return `<tr style="background:${zebra}">${bodyTd(esc(r.errorDescription), 'left')}${cells}${bodyTd('No', 'right')}</tr>`;
+  }).join('');
+
+  return styledTable(head, body);
 }
 
 export function renderUptimeComparison(cmp: UptimeComparison): string {
   const { siteNames } = cmp;
-
-  const chargerRows = cmp.chargerLevel.map((r) => `
-    <tr class="border-t border-gray-200 dark:border-gray-700">
-      <td class="${TD}">${esc(r.errorDescription)}</td>
-      ${siteNames.map((s) => `<td class="${TD}">${r.episodes[s] ?? 0}</td><td class="${TD} font-mono">${formatDuration(r.downtimeSec[s] ?? 0)}</td>`).join('')}
-      <td class="${TD}">No</td>
-    </tr>`).join('');
 
   return `
     <section id="uptime-comparison" class="${CARD} scroll-mt-4">
@@ -261,13 +283,7 @@ export function renderUptimeComparison(cmp: UptimeComparison): string {
           any figure above. PowerFailure is excluded here: its connector-0 events are zero-duration markers whose real
           restoration is carried by the Offline window.
         </div>
-        <div class="overflow-x-auto mt-2"><table class="${TABLE}">
-          <thead class="bg-gray-50 dark:bg-gray-700/50"><tr>
-            <th class="${TH}">Error Description (connector 0)</th>
-            ${siteNames.map((s) => `<th class="${TH}">${esc(s)} episodes</th><th class="${TH}">${esc(s)} downtime</th>`).join('')}
-            <th class="${TH}">Counted in connectors?</th>
-          </tr></thead><tbody>${chargerRows}</tbody>
-        </table></div>` : ''}
+        ${chargerLevelTable(cmp)}` : ''}
 
       ${readoutBlock(cmp.readout)}
     </section>`;
