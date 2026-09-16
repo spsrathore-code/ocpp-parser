@@ -75,7 +75,7 @@ export function renderFaultBreakdown(breakdown: FaultBreakdown, siteNames: strin
 
   return `
     <section id="fault-breakdown" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 scroll-mt-4">
-      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Fault Breakdown</h3>
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">2) Fault Breakdown</h3>
       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Fault rows keyed on error code + vendor code + fault text.
         ${multiSite ? 'One-sided faults — logged by one charger and not the other — are highlighted and sorted first.' : ''}

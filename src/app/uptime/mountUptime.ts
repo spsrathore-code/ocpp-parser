@@ -88,10 +88,14 @@ export function mountUptime(mountEl: HTMLElement): void {
       shell.sourceInfo.classList.remove('hidden');
 
       const siteNames = report.sites.map((s) => s.site);
+      // Comparison first: the end goal is comparing a pair of chargers, so the
+      // cross-site answer leads and the per-site detail backs it up. The
+      // per-site cards are long, and burying the comparison under them made it
+      // read as missing.
       const comparison = report.sites.length > 1
-        ? renderFaultBreakdown(buildFaultBreakdown(report.sites), siteNames)
+        ? renderUptimeComparison(buildUptimeComparison(report.sites, options, report.baselineSite))
+          + renderFaultBreakdown(buildFaultBreakdown(report.sites), siteNames)
           + renderErrorCodeComparison(buildErrorCodeComparison(report.sites), siteNames)
-          + renderUptimeComparison(buildUptimeComparison(report.sites, options, report.baselineSite))
         : `<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm rounded-lg p-4">
              <strong>Only one site loaded.</strong> Add a second charger's log under <em>Site B</em> to unlock the
              cross-site sections: Fault Breakdown, Error Code Comparison and Uptime Comparison.
@@ -102,22 +106,26 @@ export function mountUptime(mountEl: HTMLElement): void {
       // as missing.
       const link = (href: string, label: string): string =>
         `<a href="#${href}" class="px-3 py-1.5 rounded-md bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-sm text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-gray-600">${label}</a>`;
+      const multiSite = report.sites.length > 1;
       const siteLinks = report.sites
-        .map((s) => link(`site-${s.site.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`, `${s.site} uptime`))
+        .map((s, i) => link(
+          `site-${s.site.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`,
+          `${multiSite ? `${i + 4}) ` : ''}${s.site}`,
+        ))
         .join('');
-      const compareLinks = report.sites.length > 1
-        ? link('fault-breakdown', 'Fault Breakdown')
-          + link('errorcode-comparison', 'Error Code Comparison')
-          + link('uptime-comparison', 'Uptime Comparison')
+      const compareLinks = multiSite
+        ? link('uptime-comparison', '1) Uptime Comparison')
+          + link('fault-breakdown', '2) Fault Breakdown')
+          + link('errorcode-comparison', '3) Error Code Comparison')
         : '';
       const index = `
         <div class="bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
           <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Sections</div>
-          <div class="flex flex-wrap gap-2">${siteLinks}${compareLinks}</div>
+          <div class="flex flex-wrap gap-2">${compareLinks}${siteLinks}</div>
         </div>`;
 
       shell.container.innerHTML =
-        index + report.sites.map((site) => renderSiteUptime(site, options)).join('') + comparison;
+        index + comparison + report.sites.map((site, i) => renderSiteUptime(site, options, multiSite ? i + 4 : undefined)).join('');
     } catch (err) {
       console.error('Uptime analysis failed:', err);
       shell.container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg">Failed to analyze the file(s): ${err instanceof Error ? err.message : String(err)}</div>`;

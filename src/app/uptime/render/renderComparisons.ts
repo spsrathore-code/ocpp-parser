@@ -56,21 +56,21 @@ export function renderErrorCodeComparison(cmp: ErrorCodeComparison, siteNames: s
 
   return `
     <section id="errorcode-comparison" class="${CARD} scroll-mt-4">
-      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Error Code Comparison</h3>
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">3) Error Code Comparison</h3>
       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Read this <strong>before</strong> drawing conclusions from fault counts: if two releases code the same
         fault differently, comparing counts by error code is meaningless.
       </p>
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-5">1. Same fault, same label?</h4>
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-5">3.1 Same fault, same label?</h4>
       ${labelTable(cmp.byInfo, 'Info (vendor fault text)', 'errorCode(s)')}
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">2. Keyed on vendor error code</h4>
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">3.2 Keyed on vendor error code</h4>
       <p class="text-xs text-gray-500 dark:text-gray-400">The vendor code is the stable numeric identity — this catches pure relabelling.</p>
       ${labelTable(cmp.byVendorCode, 'Vendor Error Code', 'info text(s)')}
 
       <details class="mt-6">
-        <summary class="cursor-pointer font-semibold text-gray-800 dark:text-gray-100">3. Full triplet inventory (${cmp.triplets.length} rows)</summary>
+        <summary class="cursor-pointer font-semibold text-gray-800 dark:text-gray-100">3.3 Full triplet inventory (${cmp.triplets.length} rows)</summary>
         <div class="overflow-x-auto mt-2 max-h-96 overflow-y-auto"><table class="${TABLE}">
           <thead class="bg-gray-50 dark:bg-gray-700/50 sticky top-0"><tr>
             <th class="${TH}">Info</th><th class="${TH}">errorCode</th><th class="${TH}">status</th>
@@ -85,7 +85,7 @@ export function renderErrorCodeComparison(cmp: ErrorCodeComparison, siteNames: s
         </table></div>
       </details>
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">4. Ambiguous coding within a charger</h4>
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">3.4 Ambiguous coding within a charger</h4>
       <p class="text-xs text-gray-500 dark:text-gray-400">
         A fault text logged under more than one errorCode by the <em>same</em> unit proves errorCode alone is not a valid fault key.
       </p>
@@ -179,25 +179,27 @@ export function renderUptimeComparison(cmp: UptimeComparison): string {
 
   return `
     <section id="uptime-comparison" class="${CARD} scroll-mt-4">
-      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Uptime Comparison</h3>
+      <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">1) Uptime Comparison</h3>
+
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-5">1.1 Uptime &amp; downtime</h4>
       <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
         Δ is measured against <strong>${esc(cmp.baselineSite)}</strong> (the baseline site).
       </p>
 
-      <div class="overflow-x-auto mt-4"><table class="${TABLE}">
+      <div class="overflow-x-auto mt-3"><table class="${TABLE}">
         <thead class="bg-gray-50 dark:bg-gray-700/50"><tr><th class="${TH}">Metric</th>${head}<th class="${TH}">Δ Site</th></tr></thead>
         <tbody>${body}</tbody>
       </table></div>
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">Downtime by Error Code — line item</h4>
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.2 Downtime by Error Code — line item</h4>
       <p class="text-xs text-gray-500 dark:text-gray-400">Counts EVERY category, not just those subtracted from uptime — so these totals are larger by design.</p>
       ${lineItemTable(cmp.byErrorCode, siteNames, 'Error Code')}
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">Downtime by Error Description — line item</h4>
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.3 Downtime by Error Description — line item</h4>
       ${lineItemTable(cmp.byErrorDescription, siteNames, 'Error Description')}
 
       ${cmp.chargerLevel.length ? `
-        <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">Connector 0 — charger-level fault downtime</h4>
+        <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.4 Connector 0 — charger-level fault downtime</h4>
         <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-xs rounded p-3 mt-2">
           <strong>Non-additive.</strong> Measured against ONE log window, not one per connector, and not included in
           any figure above. PowerFailure is excluded here: its connector-0 events are zero-duration markers whose real

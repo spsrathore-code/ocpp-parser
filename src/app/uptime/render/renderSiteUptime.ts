@@ -132,7 +132,7 @@ function outageTable(site: SiteUptime): string {
     </details>`;
 }
 
-export function renderSiteUptime(site: SiteUptime, options: UptimeOptions): string {
+export function renderSiteUptime(site: SiteUptime, options: UptimeOptions, sectionNumber?: number): string {
   const caveat = site.unresolvedCount > 0
     ? `<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-xs rounded p-3 mt-4">
          <strong>${site.unresolvedCount} outage(s) never closed</strong> before the log ended. They carry no duration and are
@@ -144,7 +144,7 @@ export function renderSiteUptime(site: SiteUptime, options: UptimeOptions): stri
   return `
     <section id="${anchor}" class="${CARD} scroll-mt-4">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">${esc(site.site)}</h3>
+        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">${sectionNumber ? `${sectionNumber}) ` : ''}${esc(site.site)} — Site Uptime</h3>
         <div class="text-sm text-gray-500 dark:text-gray-400">
           ${site.oem ? `${esc(site.oem)} · ` : ''}${site.logRowCount.toLocaleString()} rows ·
           ${site.faultRowCount} fault rows · ${site.faultEpisodeCount} episodes ·
