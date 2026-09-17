@@ -9,6 +9,7 @@ import { buildErrorCodeComparison } from './compare/errorCodeCompare';
 import { buildUptimeComparison } from './compare/uptimeCompare';
 import { ingestUptimeSlots } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
+import { attachExportControls } from './export/attachExportControls';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
 
 /**
@@ -137,6 +138,13 @@ export function mountUptime(mountEl: HTMLElement): void {
 
       shell.container.innerHTML =
         index + comparison + report.sites.map((site, i) => renderSiteUptime(site, options, multiSite ? i + 4 : undefined)).join('');
+
+      // Every table gets Excel + PNG controls. Done as a DOM pass so a section
+      // added later cannot ship without them.
+      for (const section of Array.from(shell.container.querySelectorAll<HTMLElement>('section'))) {
+        const site = report.sites.find((s) => section.id === `site-${s.site.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`);
+        attachExportControls(section, site ? site.site : '');
+      }
     } catch (err) {
       console.error('Uptime analysis failed:', err);
       shell.container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 p-4 rounded-lg">Failed to analyze the file(s): ${err instanceof Error ? err.message : String(err)}</div>`;
