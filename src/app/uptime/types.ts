@@ -58,7 +58,11 @@ export const DERIVATION_TEXT: Record<DerivationMethod, string> = {
 
 /** One outage episode before connector fan-out (§4.1, §4.2). */
 export interface Episode {
+  /** Log row the episode starts on. For Offline this is the last message before
+   *  the silence, which is what makes the window auditable back to the log. */
   sourceRow: number;
+  /** Log row the episode ends on — the recovery, or the BootNotification. */
+  endSourceRow: number | null;
   /** 0 = whole unit. */
   connectorId: number;
   status: string;
@@ -85,6 +89,7 @@ export interface OutageRow {
   /** Null when unresolved — excluded from every sum, understating downtime. */
   durationSec: number | null;
   sourceRow: number;
+  endSourceRow: number | null;
   derivation: DerivationMethod;
 }
 

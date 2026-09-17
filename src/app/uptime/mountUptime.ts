@@ -7,6 +7,7 @@ import { buildFaultBreakdown } from './compare/faultBreakdown';
 import { renderErrorCodeComparison, renderUptimeComparison } from './render/renderComparisons';
 import { buildErrorCodeComparison } from './compare/errorCodeCompare';
 import { buildUptimeComparison } from './compare/uptimeCompare';
+import { buildDowntimeDetail } from './compare/downtimeDetail';
 import { ingestUptimeSlots } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { attachExportControls } from './export/attachExportControls';
@@ -105,7 +106,10 @@ export function mountUptime(mountEl: HTMLElement): void {
       // per-site cards are long, and burying the comparison under them made it
       // read as missing.
       const comparison = report.sites.length > 1
-        ? renderUptimeComparison(buildUptimeComparison(report.sites, options, report.baselineSite))
+        ? renderUptimeComparison(
+            buildUptimeComparison(report.sites, options, report.baselineSite),
+            buildDowntimeDetail(report.sites[0], report.sites[1], { categories: options.countedCategories }),
+          )
           + renderFaultBreakdown(buildFaultBreakdown(report.sites), siteNames)
           + renderErrorCodeComparison(buildErrorCodeComparison(report.sites), siteNames)
         : `<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm rounded-lg p-4">

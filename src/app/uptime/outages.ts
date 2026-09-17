@@ -47,6 +47,7 @@ export function buildOutageRows(episodes: Episode[], site: string, connectors: n
           ? null
           : Math.round((episode.endUtc - episode.startUtc) / 1000),
         sourceRow: episode.sourceRow,
+        endSourceRow: episode.endSourceRow,
         derivation: episode.derivation,
       });
     }

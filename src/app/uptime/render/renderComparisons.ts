@@ -4,6 +4,8 @@
 import { formatDuration } from '../duration';
 import { ABSENT, type ErrorCodeComparison, type Verdict } from '../compare/errorCodeCompare';
 import type { LineItemRow, MetricRow, UptimeComparison } from '../compare/uptimeCompare';
+import type { DowntimeDetail } from '../compare/downtimeDetail';
+import { renderDowntimeDetail } from './renderDowntimeDetail';
 
 const esc = (s: string): string =>
   s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
@@ -270,7 +272,7 @@ function chargerLevelTable(cmp: UptimeComparison): string {
   return styledTable(head, body);
 }
 
-export function renderUptimeComparison(cmp: UptimeComparison): string {
+export function renderUptimeComparison(cmp: UptimeComparison, detail?: DowntimeDetail): string {
   const { siteNames } = cmp;
 
   return `
@@ -283,15 +285,17 @@ export function renderUptimeComparison(cmp: UptimeComparison): string {
       </p>
       ${metricTable(cmp)}
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.2 Downtime by Error Code — line item</h4>
+      ${detail ? renderDowntimeDetail(detail) : ''}
+
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.3 Downtime by Error Code — line item</h4>
       <p class="text-xs text-gray-500 dark:text-gray-400">Counts EVERY category, not just those subtracted from uptime — so these totals are larger by design.</p>
       ${lineItemTable(cmp.byErrorCode, siteNames, 'Error Code')}
 
-      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.3 Downtime by Error Description — line item</h4>
+      <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.4 Downtime by Error Description — line item</h4>
       ${lineItemTable(cmp.byErrorDescription, siteNames, 'Error Description')}
 
       ${cmp.chargerLevel.length ? `
-        <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.4 Connector 0 — charger-level fault downtime</h4>
+        <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.5 Connector 0 — charger-level fault downtime</h4>
         <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-xs rounded p-3 mt-2">
           <strong>Non-additive.</strong> Measured against ONE log window, not one per connector, and not included in
           any figure above. PowerFailure is excluded here: its connector-0 events are zero-duration markers whose real
