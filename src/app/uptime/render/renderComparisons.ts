@@ -107,6 +107,8 @@ function metricTable(cmp: UptimeComparison): string {
     </tr>`;
   }).join('');
 
+  const excluding = cmp.metrics.find((m) => m.label.startsWith('Uptime % excluding'));
+
   // The overlap correction is evidence for the headline, not a metric to quote,
   // so it sits in a footnote instead of its own row.
   const overlap = cmp.siteNames

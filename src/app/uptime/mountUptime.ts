@@ -58,6 +58,7 @@ export function mountUptime(mountEl: HTMLElement): void {
         ? clusteringWindowSec
         : DEFAULT_UPTIME_OPTIONS.clusteringWindowSec,
       countedCategories: shell.categoriesInput.value.split(',').map((s) => s.trim()).filter(Boolean),
+      excludedFromAdjusted: [...DEFAULT_UPTIME_OPTIONS.excludedFromAdjusted],
       // Blank means derive per charger from its BootNotification interval.
       communicationTimeoutSec: shell.timeoutInput.value.trim() === '' || !Number.isFinite(Number(shell.timeoutInput.value))
         ? null

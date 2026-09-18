@@ -125,6 +125,13 @@ export interface ConnectorUptime {
   uptimeRawPct: number;
   /** The headline metric. */
   uptimeAdjustedPct: number;
+  /** Merged downtime from the categories discounted below — grid failures,
+   *  emergency stops, under-voltage. */
+  excludedDowntimeSec: number;
+  /** Available time with that downtime removed from the denominator too. */
+  adjustedAvailableSec: number;
+  /** Availability over the time the charger was actually answerable for. */
+  uptimeExcludingPct: number;
 }
 
 /** Charger-level (connectorId 0) fault downtime — reported but NEVER added into
@@ -160,6 +167,9 @@ export interface SiteUptime {
   siteMergedDowntimeSec: number;
   siteUptimeRawPct: number;
   siteUptimeAdjustedPct: number;
+  siteExcludedDowntimeSec: number;
+  siteAdjustedAvailableSec: number;
+  siteUptimeExcludingPct: number;
   chargerLevel: ChargerLevelRow[];
   chargerLevelDowntimeSec: number;
   outageRows: OutageRow[];
@@ -190,6 +200,11 @@ export interface UptimeOptions {
   /** Error descriptions that subtract from uptime %. Workbook default: the four
    *  below. Every other fault is measured and reported but NOT subtracted. */
   countedCategories: string[];
+  /** Downtime discounted from BOTH sides of the adjusted uptime calculation:
+   *  removed from the downtime and from the available time. These are outages
+   *  the charger is not answerable for — the grid failed, someone pressed the
+   *  stop button, the supply sagged. Uptime % still counts them. */
+  excludedFromAdjusted: string[];
   /** Silence longer than this counts as a communication loss.
    *  NULL means derive it per charger from BootNotification.conf `interval`,
    *  which is the CMS telling that charger how often to report in — the only
@@ -211,9 +226,16 @@ export const DEFAULT_COUNTED_CATEGORIES = [
   'InputUnderVoltage',
 ] as const;
 
+export const DEFAULT_EXCLUDED_FROM_ADJUSTED = [
+  'PowerFailure',
+  'EmergencyPressed',
+  'InputUnderVoltage',
+] as const;
+
 export const DEFAULT_UPTIME_OPTIONS: UptimeOptions = {
   clusteringWindowSec: 300,
   countedCategories: [...DEFAULT_COUNTED_CATEGORIES],
+  excludedFromAdjusted: [...DEFAULT_EXCLUDED_FROM_ADJUSTED],
   // Auto: derived per charger from its own BootNotification interval.
   communicationTimeoutSec: null,
 };
