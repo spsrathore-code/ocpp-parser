@@ -141,6 +141,16 @@ export function computeSiteUptime(
   }
   const merged = mergedDowntimeByConnector(intervals);
 
+  // The same sweep over only the discounted categories. Merged, not summed:
+  // these categories overlap each other and Offline, so arithmetic on the
+  // category rows would subtract the same minute twice.
+  const excluded = new Set(options.excludedFromAdjusted);
+  const mergedExcluded = mergedDowntimeByConnector(
+    outageRows
+      .filter((r) => excluded.has(r.errorDescription) && r.endUtc !== null)
+      .map((r) => ({ connectorId: r.connectorId, startUtc: r.startUtc, endUtc: r.endUtc as number })),
+  );
+
   const perConnector: ConnectorUptime[] = physical.map((connectorId) => {
     const mine = outageRows.filter((r) => r.connectorId === connectorId);
     const rawDowntimeSec = mine.reduce(
@@ -148,6 +158,11 @@ export function computeSiteUptime(
       0,
     );
     const mergedDowntimeSec = merged[connectorId] ?? 0;
+    // Discounted categories are a subset of the counted ones, so the remainder
+    // is a straight subtraction once BOTH figures are merged.
+    const excludedDowntimeSec = Math.min(mergedExcluded[connectorId] ?? 0, mergedDowntimeSec);
+    const adjustedAvailableSec = Math.max(0, availableSec - excludedDowntimeSec);
+    const remainingDowntimeSec = mergedDowntimeSec - excludedDowntimeSec;
     return {
       connectorId,
       outageEvents: mine.length,
@@ -156,12 +171,17 @@ export function computeSiteUptime(
       overlapRemovedSec: rawDowntimeSec - mergedDowntimeSec,
       uptimeRawPct: percent(availableSec, rawDowntimeSec),
       uptimeAdjustedPct: percent(availableSec, mergedDowntimeSec),
+      excludedDowntimeSec,
+      adjustedAvailableSec,
+      uptimeExcludingPct: percent(adjustedAvailableSec, remainingDowntimeSec),
     };
   });
 
   const siteAvailableSec = availableSec * physical.length;
   const siteRawDowntimeSec = perConnector.reduce((n, c) => n + c.rawDowntimeSec, 0);
   const siteMergedDowntimeSec = perConnector.reduce((n, c) => n + c.mergedDowntimeSec, 0);
+  const siteExcludedDowntimeSec = perConnector.reduce((n, c) => n + c.excludedDowntimeSec, 0);
+  const siteAdjustedAvailableSec = Math.max(0, siteAvailableSec - siteExcludedDowntimeSec);
   const chargerLevel = chargerLevelRows(episodes);
 
   return {
@@ -181,6 +201,9 @@ export function computeSiteUptime(
     siteMergedDowntimeSec,
     siteUptimeRawPct: percent(siteAvailableSec, siteRawDowntimeSec),
     siteUptimeAdjustedPct: percent(siteAvailableSec, siteMergedDowntimeSec),
+    siteExcludedDowntimeSec,
+    siteAdjustedAvailableSec,
+    siteUptimeExcludingPct: percent(siteAdjustedAvailableSec, siteMergedDowntimeSec - siteExcludedDowntimeSec),
     chargerLevel,
     chargerLevelDowntimeSec: chargerLevel.reduce((n, r) => n + r.downtimeSec, 0),
     outageRows,

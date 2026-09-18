@@ -148,6 +148,14 @@ export function buildUptimeComparison(
     metricRow('Uptime %', sites, baseline, 'percent', true,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeAdjustedPct ?? 0,
       (s) => s.siteUptimeAdjustedPct),
+    // Availability over the time the charger was answerable for — grid
+    // failures, emergency stops and under-voltage discounted from BOTH the
+    // downtime and the window, so it is not the complement of Downtime %.
+    metricRow(
+      'Adjusted Uptime (%)',
+      sites, baseline, 'percent', true,
+      (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeExcludingPct ?? 0,
+      (s) => s.siteUptimeExcludingPct),
     metricRow('Outage events', sites, baseline, 'count', false,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.outageEvents ?? 0,
       (s) => s.outageRows.length),

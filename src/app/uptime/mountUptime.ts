@@ -7,9 +7,12 @@ import { buildFaultBreakdown } from './compare/faultBreakdown';
 import { renderErrorCodeComparison, renderUptimeComparison } from './render/renderComparisons';
 import { buildErrorCodeComparison } from './compare/errorCodeCompare';
 import { buildUptimeComparison } from './compare/uptimeCompare';
+import { buildDowntimeDetail } from './compare/downtimeDetail';
 import { ingestUptimeSlots } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { attachExportControls } from './export/attachExportControls';
+import { initDowntimeDetailFilters } from './render/downtimeDetailFilters';
+import { freezeColumns } from './render/freezeColumns';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
 
 /**
@@ -55,6 +58,7 @@ export function mountUptime(mountEl: HTMLElement): void {
         ? clusteringWindowSec
         : DEFAULT_UPTIME_OPTIONS.clusteringWindowSec,
       countedCategories: shell.categoriesInput.value.split(',').map((s) => s.trim()).filter(Boolean),
+      excludedFromAdjusted: [...DEFAULT_UPTIME_OPTIONS.excludedFromAdjusted],
       // Blank means derive per charger from its BootNotification interval.
       communicationTimeoutSec: shell.timeoutInput.value.trim() === '' || !Number.isFinite(Number(shell.timeoutInput.value))
         ? null
@@ -105,7 +109,10 @@ export function mountUptime(mountEl: HTMLElement): void {
       // per-site cards are long, and burying the comparison under them made it
       // read as missing.
       const comparison = report.sites.length > 1
-        ? renderUptimeComparison(buildUptimeComparison(report.sites, options, report.baselineSite))
+        ? renderUptimeComparison(
+            buildUptimeComparison(report.sites, options, report.baselineSite),
+            buildDowntimeDetail(report.sites[0], report.sites[1], { categories: options.countedCategories }),
+          )
           + renderFaultBreakdown(buildFaultBreakdown(report.sites), siteNames)
           + renderErrorCodeComparison(buildErrorCodeComparison(report.sites), siteNames)
         : `<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm rounded-lg p-4">
@@ -138,6 +145,19 @@ export function mountUptime(mountEl: HTMLElement): void {
 
       shell.container.innerHTML =
         index + comparison + report.sites.map((site, i) => renderSiteUptime(site, options, multiSite ? i + 4 : undefined)).join('');
+
+      initDowntimeDetailFilters(shell.container);
+
+      // Freeze Site/Connector/Category (1.2) and the leading metric columns
+      // (1.1): both tables are wider than the screen, and once those scroll off
+      // every remaining number belongs to a row you can no longer name.
+      for (const id of ['uptime-comparison']) {
+        const section = shell.container.querySelector(`#${id}`);
+        if (!section) continue;
+        for (const table of Array.from(section.querySelectorAll<HTMLTableElement>('table'))) {
+          freezeColumns(table, 3);
+        }
+      }
 
       // Every table gets Excel + PNG controls. Done as a DOM pass so a section
       // added later cannot ship without them.

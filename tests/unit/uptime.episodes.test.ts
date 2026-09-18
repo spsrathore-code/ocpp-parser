@@ -335,3 +335,41 @@ describe('communication timeout derived from BootNotification', () => {
     expect(window.startUtc).toBe(at(450));
   });
 });
+
+// Adjusted uptime removes the discounted categories from BOTH sides. It must be
+// computed from MERGED intervals: these categories overlap each other and
+// Offline, so subtracting the category rows would remove the same minute twice.
+describe('adjusted uptime (excluding discounted categories)', () => {
+  const rows = (): ExtractRow[] => [
+    heartbeat(0),
+    fault(100, 'PowerFailure', 1),
+    { ...base(), eventName: 'StatusNotification', timestampUtc: at(700), connectorId: 1, status: 'Available', errorCode: 'NoError' },
+    heartbeat(800),
+    boot(2000, 120),
+  ];
+
+  it('discounts the category from the downtime and from the window', async () => {
+    const { computeSiteUptime } = await import('../../src/app/uptime/uptimeCalc');
+    const s = computeSiteUptime('X', rows(), { ...DEFAULT_UPTIME_OPTIONS, communicationTimeoutSec: 180 });
+    const c1 = s.perConnector.find((c) => c.connectorId === 1)!;
+    // PowerFailure ran 100s -> 700s.
+    expect(c1.excludedDowntimeSec).toBe(600);
+    expect(c1.adjustedAvailableSec).toBe(s.availableSec - 600);
+  });
+
+  it('never exceeds 100%, and never reports a negative window', async () => {
+    const { computeSiteUptime } = await import('../../src/app/uptime/uptimeCalc');
+    const s = computeSiteUptime('X', rows(), { ...DEFAULT_UPTIME_OPTIONS, communicationTimeoutSec: 180 });
+    for (const c of s.perConnector) {
+      expect(c.uptimeExcludingPct).toBeLessThanOrEqual(100);
+      expect(c.adjustedAvailableSec).toBeGreaterThanOrEqual(0);
+    }
+    expect(s.siteUptimeExcludingPct).toBeLessThanOrEqual(100);
+  });
+
+  it('reads at least as high as the headline — it removes downtime, never adds', async () => {
+    const { computeSiteUptime } = await import('../../src/app/uptime/uptimeCalc');
+    const s = computeSiteUptime('X', rows(), { ...DEFAULT_UPTIME_OPTIONS, communicationTimeoutSec: 180 });
+    expect(s.siteUptimeExcludingPct).toBeGreaterThanOrEqual(s.siteUptimeAdjustedPct - 0.001);
+  });
+});

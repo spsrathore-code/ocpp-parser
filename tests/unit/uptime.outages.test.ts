@@ -8,7 +8,7 @@ const at = (sec: number): number => T0 + sec * 1000;
 
 function episode(over: Partial<Episode> = {}): Episode {
   return {
-    sourceRow: 1, connectorId: 1, status: 'Faulted', errorCode: 'OtherError',
+    sourceRow: 1, endSourceRow: 2, connectorId: 1, status: 'Faulted', errorCode: 'OtherError',
     vendorErrorCode: '17', info: 'EmergencyPressed', startUtc: at(0), endUtc: at(60),
     derivation: 'fault', ...over,
   };

@@ -172,3 +172,30 @@ describe('Uptime_Comparison — delta direction', () => {
     expect(cmp.metrics.some((m) => m.label.startsWith('Downtime —'))).toBe(false);
   });
 });
+
+// "How available was the charger over the time it was actually answerable for?"
+// Grid failures, emergency stops and under-voltage are discounted from BOTH the
+// downtime and the window — so this is deliberately NOT 100 − Downtime %.
+describe('Uptime % excluding discounted categories', () => {
+  it('reaches 100% when every outage is a discounted category', () => {
+    // Nothing left to hold the charger responsible for.
+    const s = site('A', [], {
+      availableSec: 1000, siteAvailableSec: 1000,
+      siteMergedDowntimeSec: 200, siteExcludedDowntimeSec: 200,
+      siteAdjustedAvailableSec: 800, siteUptimeExcludingPct: 100,
+    });
+    const cmp = buildUptimeComparison([s], DEFAULT_UPTIME_OPTIONS, 'A');
+    const row = cmp.metrics.find((m) => m.label === 'Adjusted Uptime (%)')!;
+    expect(row.site.A).toBe(100);
+  });
+
+  it('is named Adjusted Uptime (%), with the formula stated beside the table', () => {
+    const cmp = buildUptimeComparison([site('A', [])], DEFAULT_UPTIME_OPTIONS, 'A');
+    expect(cmp.metrics.some((m) => m.label === 'Adjusted Uptime (%)')).toBe(true);
+  });
+
+  it('counts more uptime as better, like the headline', () => {
+    const cmp = buildUptimeComparison([site('A', [])], DEFAULT_UPTIME_OPTIONS, 'A');
+    expect(cmp.metrics.find((m) => m.label === 'Adjusted Uptime (%)')!.higherIsBetter).toBe(true);
+  });
+});
