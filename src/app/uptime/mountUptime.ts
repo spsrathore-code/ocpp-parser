@@ -13,6 +13,7 @@ import { analyzeUptimeSources } from './analyzeUptime';
 import { attachExportControls } from './export/attachExportControls';
 import { initDowntimeDetailFilters } from './render/downtimeDetailFilters';
 import { freezeColumns } from './render/freezeColumns';
+import { makeSectionsCollapsible } from './render/collapsibleSections';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
 
 /**
@@ -151,13 +152,22 @@ export function mountUptime(mountEl: HTMLElement): void {
       // Freeze Site/Connector/Category (1.2) and the leading metric columns
       // (1.1): both tables are wider than the screen, and once those scroll off
       // every remaining number belongs to a row you can no longer name.
-      for (const id of ['uptime-comparison']) {
-        const section = shell.container.querySelector(`#${id}`);
-        if (!section) continue;
-        for (const table of Array.from(section.querySelectorAll<HTMLTableElement>('table'))) {
+      const freezeWithin = (root: ParentNode): void => {
+        for (const table of Array.from(root.querySelectorAll<HTMLTableElement>('table'))) {
           freezeColumns(table, 3);
         }
-      }
+      };
+      const comparison1 = shell.container.querySelector('#uptime-comparison');
+      if (comparison1) freezeWithin(comparison1);
+
+      // Top-level sections collapse, like the Parser's. Collapsed to start, so a
+      // finished run opens as a short index of what was found rather than
+      // several thousand pixels of table. Freezing measures cell widths, which
+      // are zero while hidden, so it runs again whenever a section opens.
+      makeSectionsCollapsible(shell.container, {
+        startCollapsed: true,
+        onExpand: (section) => freezeWithin(section),
+      });
 
       // Every table gets Excel + PNG controls. Done as a DOM pass so a section
       // added later cannot ship without them.

@@ -53,9 +53,10 @@ describe('site rendering', () => {
     expect(html).toContain('site uptime (overlap-adjusted)');
   });
 
-  it('states which categories were counted, so a figure is never read without its scope', () => {
+  it('still names the fault categories in the per-site blocks', () => {
+    // The counted-category SCOPE now lives once in the source banner rather
+    // than being repeated under every site block.
     expect(html).toContain('EmergencyPressed');
-    expect(html).toContain('not subtracted');
   });
 
   it('renders both summary blocks and the outage drill-down', () => {
