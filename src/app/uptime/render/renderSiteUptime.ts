@@ -86,9 +86,7 @@ function uptimeBlock(site: SiteUptime, options: UptimeOptions): string {
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-      Downtime counts only: ${esc(options.countedCategories.join(', '))}. Every other fault is measured and reported above, but not subtracted.
-    </p>`;
+`;
 }
 
 function chargerLevelBlock(site: SiteUptime): string {

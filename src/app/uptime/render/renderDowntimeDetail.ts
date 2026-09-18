@@ -108,12 +108,6 @@ export function renderDowntimeDetail(detail: DowntimeDetail): string {
 
   return `
     <h4 class="font-semibold text-gray-800 dark:text-gray-100 mt-6">1.2 Downtime Detail — event by event</h4>
-    <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
-      Every downtime event on both chargers, paired by start time within
-      ${Math.round(detail.toleranceSec / 60)} minutes and grouped by connector then category.
-      A greyed half means that site never logged a counterpart — so a large Δ there is a
-      <em>missing event</em>, not a longer one. Deltas over ${highlightMin} minutes are highlighted.
-    </p>
     <div id="dd-filters" class="flex flex-wrap items-end gap-3 mt-3">
       <div>
         <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="dd-category">Category</label>
@@ -164,22 +158,7 @@ export function renderDowntimeDetail(detail: DowntimeDetail): string {
       </table>
     </div>
 
-    <div class="mt-3 rounded-lg p-3 text-xs" style="background:#F5F6F8;border:0.5px solid ${RULE};color:${CHARCOAL};${GROTESQUE}">
-      <strong>How this reconciles with 1.1.</strong>
-      The subtotal above is the <strong>sum of every event</strong>, so a minute covered by two categories at once
-      is counted twice. Section 1.1's <em>Total downtime</em> is the same events with overlaps merged, which is why
-      it reads lower. Both are correct; they answer different questions.
-      <div class="mt-2 font-mono">
-        ${esc(siteA)} — events ${formatDuration(detail.totalASec)} · 1.1 total ${formatDuration(detail.mergedASec)} · overlap removed ${formatDuration(detail.totalASec - detail.mergedASec)}<br>
-        ${esc(siteB)} — events ${formatDuration(detail.totalBSec)} · 1.1 total ${formatDuration(detail.mergedBSec)} · overlap removed ${formatDuration(detail.totalBSec - detail.mergedBSec)}
-      </div>
-      <div class="mt-2">Per category, the two sections agree exactly — filter by a category above and compare it with 1.3.</div>
-    </div>
-
     <h5 class="font-semibold text-gray-800 dark:text-gray-100 mt-5 text-sm">Matched vs site-specific</h5>
-    <p class="text-xs text-gray-500 dark:text-gray-400">
-      Tells you whether a difference is real or just an event one charger never logged.
-    </p>
     <div class="overflow-x-auto mt-2 rounded-lg" style="border:0.5px solid ${RULE};max-width:640px">
       <table style="min-width:100%;border-collapse:collapse;background:#FFFFFF">
         <thead style="background:${NAVY}"><tr>

@@ -64,8 +64,12 @@ export function attachExportControls(container: HTMLElement, siteContext = ''): 
 
   for (const table of tables) {
     // The scroll wrapper is what sits in the layout; the toolbar goes above it.
-    const anchor = table.parentElement?.classList.contains('overflow-x-auto')
-      ? table.parentElement
+    // Match either axis: 1.2 scrolls both ways and uses `overflow-auto`, and
+    // anchoring to the table instead put its toolbar INSIDE the scroller, where
+    // it slid out of view the moment you scrolled sideways.
+    const parent = table.parentElement;
+    const anchor = parent && (parent.classList.contains('overflow-x-auto') || parent.classList.contains('overflow-auto'))
+      ? parent
       : table;
     const previous = anchor.previousElementSibling;
     if (previous?.classList.contains('uptime-export-bar')) continue;
