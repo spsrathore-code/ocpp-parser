@@ -47,6 +47,16 @@ describe('freezeColumns', () => {
     expect(head).toBeGreaterThan(body);
   });
 
+  it('keeps frozen BODY cells below the sticky header container', () => {
+    // 1.2's <thead> is sticky at z-index 5. A frozen body cell above that
+    // scrolls up OVER the header while every other column passes underneath.
+    const t = table(`<thead style="position:sticky;z-index:5"><tr><th>a</th><th>b</th><th>c</th><th>d</th></tr></thead>
+      <tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td></tr></tbody>`);
+    freezeColumns(t, 3);
+    const body = Number(t.tBodies[0].rows[0].cells[0].style.zIndex);
+    expect(body).toBeLessThan(5);
+  });
+
   it('skips a row whose leading cells are merged', () => {
     // The 1.2 subtotal strip spans four columns; pinning part of a colspan
     // would misalign the whole row.

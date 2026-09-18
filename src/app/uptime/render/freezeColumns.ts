@@ -41,9 +41,11 @@ export function freezeColumns(table: HTMLTableElement, count = 3): void {
       const cell = row.cells[i];
       cell.style.position = 'sticky';
       cell.style.left = `${offsets[i]}px`;
-      // Above the body, and above the sticky header's own stacking context so a
-      // frozen header cell stays on top of both axes at the corner.
-      cell.style.zIndex = inHead ? '4' : '2';
+      // Frozen BODY cells must stay BELOW the sticky header, or they scroll up
+      // over it while every other column correctly passes underneath. The
+      // header's own container sits at 5, so the body sits under that and the
+      // frozen header cells sit above it to win the corner.
+      cell.style.zIndex = inHead ? '6' : '1';
       cell.style.background = background;
     }
   }

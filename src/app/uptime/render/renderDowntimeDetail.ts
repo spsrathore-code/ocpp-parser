@@ -159,7 +159,7 @@ export function renderDowntimeDetail(detail: DowntimeDetail): string {
     </div>
     <div class="overflow-auto mt-2 rounded-lg" style="border:0.5px solid ${RULE};max-height:640px">
       <table style="min-width:100%;border-collapse:collapse;background:#FFFFFF">
-        <thead style="position:sticky;top:0;z-index:1">${subtotal}${header}</thead>
+        <thead style="position:sticky;top:0;z-index:5">${subtotal}${header}</thead>
         <tbody>${body}</tbody>
       </table>
     </div>

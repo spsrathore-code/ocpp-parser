@@ -152,7 +152,7 @@ export function buildUptimeComparison(
     // failures, emergency stops and under-voltage discounted from BOTH the
     // downtime and the window, so it is not the complement of Downtime %.
     metricRow(
-      `Uptime % excluding ${options.excludedFromAdjusted.join(', ')}`,
+      'Adjusted Uptime (%)',
       sites, baseline, 'percent', true,
       (s, c) => s.perConnector.find((p) => p.connectorId === c)?.uptimeExcludingPct ?? 0,
       (s) => s.siteUptimeExcludingPct),

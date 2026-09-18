@@ -185,18 +185,17 @@ describe('Uptime % excluding discounted categories', () => {
       siteAdjustedAvailableSec: 800, siteUptimeExcludingPct: 100,
     });
     const cmp = buildUptimeComparison([s], DEFAULT_UPTIME_OPTIONS, 'A');
-    const row = cmp.metrics.find((m) => m.label.startsWith('Uptime % excluding'))!;
+    const row = cmp.metrics.find((m) => m.label === 'Adjusted Uptime (%)')!;
     expect(row.site.A).toBe(100);
   });
 
-  it('is labelled with the categories it discounts, so the scope is never implicit', () => {
+  it('is named Adjusted Uptime (%), with the formula stated beside the table', () => {
     const cmp = buildUptimeComparison([site('A', [])], DEFAULT_UPTIME_OPTIONS, 'A');
-    const row = cmp.metrics.find((m) => m.label.startsWith('Uptime % excluding'))!;
-    expect(row.label).toBe('Uptime % excluding PowerFailure, EmergencyPressed, InputUnderVoltage');
+    expect(cmp.metrics.some((m) => m.label === 'Adjusted Uptime (%)')).toBe(true);
   });
 
   it('counts more uptime as better, like the headline', () => {
     const cmp = buildUptimeComparison([site('A', [])], DEFAULT_UPTIME_OPTIONS, 'A');
-    expect(cmp.metrics.find((m) => m.label.startsWith('Uptime % excluding'))!.higherIsBetter).toBe(true);
+    expect(cmp.metrics.find((m) => m.label === 'Adjusted Uptime (%)')!.higherIsBetter).toBe(true);
   });
 });
