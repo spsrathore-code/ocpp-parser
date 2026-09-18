@@ -68,24 +68,31 @@ export function renderDowntimeDetail(detail: DowntimeDetail): string {
     <tr style="background:${SUBTOTAL_BG}">
       <td colspan="4" style="padding:6px 10px;font-weight:700;color:${CHARCOAL};${GROTESQUE};font-size:12px">Filtered subtotal →</td>
       <td style="padding:6px 10px;text-align:right;font-weight:700;color:${CHARCOAL};${GROTESQUE};font-size:12px">${esc(siteA)}:</td>
-      <td style="padding:6px 10px;text-align:right;font-weight:700;color:${CHARCOAL};font-family:monospace;font-size:12px">${formatDuration(detail.totalASec)}</td>
+      <td id="dd-total-a" style="padding:6px 10px;text-align:right;font-weight:700;color:${CHARCOAL};font-family:monospace;font-size:12px">${formatDuration(detail.totalASec)}</td>
       <td colspan="6"></td>
       <td style="padding:6px 10px;text-align:right;font-weight:700;color:${CHARCOAL};${GROTESQUE};font-size:12px">${esc(siteB)}:</td>
-      <td style="padding:6px 10px;text-align:right;font-weight:700;color:${CHARCOAL};font-family:monospace;font-size:12px">${formatDuration(detail.totalBSec)}</td>
+      <td id="dd-total-b" style="padding:6px 10px;text-align:right;font-weight:700;color:${CHARCOAL};font-family:monospace;font-size:12px">${formatDuration(detail.totalBSec)}</td>
       <td colspan="2"></td>
-      <td style="padding:6px 10px;text-align:right;font-weight:700;color:${detail.deltaHours >= 0 ? ALERT_TEXT : '#1B7F5A'};${GROTESQUE};font-size:12px">${detail.deltaHours >= 0 ? '+' : '−'}${Math.abs(detail.deltaHours).toFixed(2)} hrs</td>
+      <td id="dd-total-delta" style="padding:6px 10px;text-align:right;font-weight:700;color:${detail.deltaHours >= 0 ? ALERT_TEXT : '#1B7F5A'};${GROTESQUE};font-size:12px">${detail.deltaHours >= 0 ? '+' : '−'}${Math.abs(detail.deltaHours).toFixed(2)} hrs</td>
     </tr>`;
 
   const header = `
     <tr style="background:${NAVY}">
       ${th('Site')}${th('Connector', 'right')}${th('Category')}${th('Start (UTC)')}${th('End (UTC)')}${th('Duration', 'right')}${th(`${siteA} log row (Start)`, 'right')}${th(`${siteA} log row (End)`, 'right')}
       ${th('Site')}${th('Connector', 'right')}${th('Category')}${th('Start (UTC)')}${th('End (UTC)')}${th('Duration', 'right')}${th(`${siteB} log row (Start)`, 'right')}${th(`${siteB} log row (End)`, 'right')}
-      ${th(`Duration Delta (${siteA} − ${siteB}) — row: min | subtotal: hrs`, 'right')}
+      ${th('Delta', 'right')}
     </tr>`;
 
   const body = detail.rows.map((row, i) => {
     const zebra = i % 2 === 1 ? ZEBRA : '#FFFFFF';
-    return `<tr style="background:${zebra}">${sideCells(siteA, row, row.a)}${sideCells(siteB, row, row.b)}${deltaCell(row, highlightMin)}</tr>`;
+    const pairing = row.a && row.b ? 'matched' : row.a ? 'a-only' : 'b-only';
+    const material = row.deltaMin !== null && Math.abs(row.deltaMin) > highlightMin;
+    return `<tr class="dd-row" data-zebra="${zebra}"
+      data-connector="${row.connectorId}" data-category="${esc(row.category)}"
+      data-pairing="${pairing}" data-material="${material ? '1' : '0'}"
+      data-delta="${row.deltaMin === null ? '' : row.deltaMin}"
+      data-a-sec="${row.a?.durationSec ?? 0}" data-b-sec="${row.b?.durationSec ?? 0}"
+      style="background:${zebra}">${sideCells(siteA, row, row.a)}${sideCells(siteB, row, row.b)}${deltaCell(row, highlightMin)}</tr>`;
   }).join('');
 
   const recon = detail.reconciliation.map((r) => {
@@ -107,11 +114,66 @@ export function renderDowntimeDetail(detail: DowntimeDetail): string {
       A greyed half means that site never logged a counterpart — so a large Δ there is a
       <em>missing event</em>, not a longer one. Deltas over ${highlightMin} minutes are highlighted.
     </p>
-    <div class="overflow-auto mt-3 rounded-lg" style="border:0.5px solid ${RULE};max-height:640px">
+    <div id="dd-filters" class="flex flex-wrap items-end gap-3 mt-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="dd-category">Category</label>
+        <select id="dd-category" class="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-1.5">
+          <option value="">All</option>
+          ${detail.reconciliation.map((r) => `<option value="${esc(r.category)}">${esc(r.category)}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="dd-connector">Connector</label>
+        <select id="dd-connector" class="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-1.5">
+          <option value="">All</option>
+          ${[...new Set(detail.rows.map((r) => r.connectorId))].sort((x, y) => x - y).map((c) => `<option value="${c}">C${c}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="dd-pairing">Pairing</label>
+        <select id="dd-pairing" class="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-1.5">
+          <option value="">All</option>
+          <option value="matched">Matched on both sites</option>
+          <option value="one-sided">Site-specific (one side only)</option>
+          <option value="a-only">${esc(siteA)} only</option>
+          <option value="b-only">${esc(siteB)} only</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="dd-delta">Delta</label>
+        <select id="dd-delta" class="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-1.5">
+          <option value="">Any</option>
+          <option value="material">Highlighted only (&gt; ${highlightMin} min)</option>
+          <option value="pos">${esc(siteA)} worse (Δ &gt; 0)</option>
+          <option value="neg">${esc(siteB)} worse (Δ &lt; 0)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1" for="dd-min">Min |Δ| (min)</label>
+        <input id="dd-min" type="number" min="0" step="1" placeholder="0"
+          class="w-24 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-3 py-1.5" />
+      </div>
+      <div class="text-xs text-gray-500 dark:text-gray-400 pb-1.5">
+        <span id="dd-count">${detail.rows.length}</span> of ${detail.rows.length} events
+      </div>
+    </div>
+    <div class="overflow-auto mt-2 rounded-lg" style="border:0.5px solid ${RULE};max-height:640px">
       <table style="min-width:100%;border-collapse:collapse;background:#FFFFFF">
         <thead style="position:sticky;top:0;z-index:1">${subtotal}${header}</thead>
         <tbody>${body}</tbody>
       </table>
+    </div>
+
+    <div class="mt-3 rounded-lg p-3 text-xs" style="background:#F5F6F8;border:0.5px solid ${RULE};color:${CHARCOAL};${GROTESQUE}">
+      <strong>How this reconciles with 1.1.</strong>
+      The subtotal above is the <strong>sum of every event</strong>, so a minute covered by two categories at once
+      is counted twice. Section 1.1's <em>Total downtime</em> is the same events with overlaps merged, which is why
+      it reads lower. Both are correct; they answer different questions.
+      <div class="mt-2 font-mono">
+        ${esc(siteA)} — events ${formatDuration(detail.totalASec)} · 1.1 total ${formatDuration(detail.mergedASec)} · overlap removed ${formatDuration(detail.totalASec - detail.mergedASec)}<br>
+        ${esc(siteB)} — events ${formatDuration(detail.totalBSec)} · 1.1 total ${formatDuration(detail.mergedBSec)} · overlap removed ${formatDuration(detail.totalBSec - detail.mergedBSec)}
+      </div>
+      <div class="mt-2">Per category, the two sections agree exactly — filter by a category above and compare it with 1.3.</div>
     </div>
 
     <h5 class="font-semibold text-gray-800 dark:text-gray-100 mt-5 text-sm">Matched vs site-specific</h5>

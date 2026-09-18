@@ -45,9 +45,15 @@ export interface DowntimeDetail {
   siteB: string;
   rows: DetailRow[];
   reconciliation: Reconciliation[];
-  /** Totals of the Duration columns, for the subtotal header. */
+  /** Sum of EVERY event duration — the raw figure, which counts a minute twice
+   *  where two categories overlap. This is what the subtotal strip shows. */
   totalASec: number;
   totalBSec: number;
+  /** Section 1.1's Total downtime: the same events with overlaps merged.
+   *  Carried here so 1.2 can reconcile itself against 1.1 on screen rather than
+   *  leaving a reader to wonder why two totals differ. */
+  mergedASec: number;
+  mergedBSec: number;
   /** (A − B) in hours. */
   deltaHours: number;
   toleranceSec: number;
@@ -176,6 +182,8 @@ export function buildDowntimeDetail(
     reconciliation,
     totalASec,
     totalBSec,
+    mergedASec: a.siteMergedDowntimeSec,
+    mergedBSec: b.siteMergedDowntimeSec,
     deltaHours: Math.round(((totalASec - totalBSec) / 3600) * 100) / 100,
     toleranceSec,
     highlightMin,

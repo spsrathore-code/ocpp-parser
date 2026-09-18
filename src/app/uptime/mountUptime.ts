@@ -11,6 +11,7 @@ import { buildDowntimeDetail } from './compare/downtimeDetail';
 import { ingestUptimeSlots } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { attachExportControls } from './export/attachExportControls';
+import { initDowntimeDetailFilters } from './render/downtimeDetailFilters';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
 
 /**
@@ -142,6 +143,8 @@ export function mountUptime(mountEl: HTMLElement): void {
 
       shell.container.innerHTML =
         index + comparison + report.sites.map((site, i) => renderSiteUptime(site, options, multiSite ? i + 4 : undefined)).join('');
+
+      initDowntimeDetailFilters(shell.container);
 
       // Every table gets Excel + PNG controls. Done as a DOM pass so a section
       // added later cannot ship without them.
