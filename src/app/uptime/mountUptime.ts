@@ -12,6 +12,7 @@ import { ingestUptimeSlots } from './ingest';
 import { analyzeUptimeSources } from './analyzeUptime';
 import { attachExportControls } from './export/attachExportControls';
 import { initDowntimeDetailFilters } from './render/downtimeDetailFilters';
+import { freezeColumns } from './render/freezeColumns';
 import { DEFAULT_UPTIME_OPTIONS, type UptimeOptions } from './types';
 
 /**
@@ -145,6 +146,17 @@ export function mountUptime(mountEl: HTMLElement): void {
         index + comparison + report.sites.map((site, i) => renderSiteUptime(site, options, multiSite ? i + 4 : undefined)).join('');
 
       initDowntimeDetailFilters(shell.container);
+
+      // Freeze Site/Connector/Category (1.2) and the leading metric columns
+      // (1.1): both tables are wider than the screen, and once those scroll off
+      // every remaining number belongs to a row you can no longer name.
+      for (const id of ['uptime-comparison']) {
+        const section = shell.container.querySelector(`#${id}`);
+        if (!section) continue;
+        for (const table of Array.from(section.querySelectorAll<HTMLTableElement>('table'))) {
+          freezeColumns(table, 3);
+        }
+      }
 
       // Every table gets Excel + PNG controls. Done as a DOM pass so a section
       // added later cannot ship without them.

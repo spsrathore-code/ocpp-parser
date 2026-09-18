@@ -6,6 +6,7 @@
 // looks like it belongs to what you are reading.
 
 import { formatDuration } from '../duration';
+import { freezeColumns } from './freezeColumns';
 
 interface Filters {
   category: string;
@@ -82,6 +83,12 @@ export function initDowntimeDetailFilters(root: ParentNode): void {
       totalDelta.style.color = hours >= 0 ? '#B4462F' : '#1B7F5A';
     }
     if (count) count.textContent = String(visible);
+
+    // Re-striping changed the row backgrounds, and the frozen cells carry their
+    // own copy of that colour — without this they keep the old stripe and the
+    // first three columns drift out of step with the rest of the row.
+    const table = rows[0]?.closest('table');
+    if (table) freezeColumns(table, 3);
   };
 
   for (const id of ['dd-category', 'dd-connector', 'dd-pairing', 'dd-delta', 'dd-min']) {
